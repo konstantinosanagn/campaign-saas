@@ -1,0 +1,46 @@
+source "https://rubygems.org"
+
+# Core Rails
+gem "rails", "~> 8.1.0"
+gem "sprockets-rails"
+gem "pg", "~> 1.1"
+gem "puma", ">= 5.0"
+
+# Basic JavaScript with React support
+gem "importmap-rails"
+gem "turbo-rails"
+gem "stimulus-rails"
+gem "webpacker", "~> 5.4"
+gem "react-rails"
+
+# Build JSON APIs
+gem "jbuilder"
+
+# Windows compatibility
+gem "tzinfo-data", platforms: %i[ windows jruby ]
+
+# Basic caching
+gem "bootsnap", require: false
+
+# Tailwind CSS integration for Rails assets
+gem "tailwindcss-rails"
+
+# Authentication
+gem "devise"
+
+# Rate limiting
+gem "rack-attack"
+
+# HTTP client for API calls
+gem "httparty"
+
+# Testing
+gem "rspec-rails", "~> 6.0"
+gem "factory_bot_rails", "~> 6.4"
+gem "shoulda-matchers", "~> 6.0"
+gem "simplecov", "~> 0.22", require: false
+gem "rails-controller-testing"
+
+group :development do
+  gem "web-console"
+end

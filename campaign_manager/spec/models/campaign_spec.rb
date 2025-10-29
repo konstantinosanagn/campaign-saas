@@ -1,0 +1,110 @@
+require 'rails_helper'
+
+RSpec.describe Campaign, type: :model do
+  describe 'associations' do
+    it { should belong_to(:user) }
+    it { should have_many(:leads).dependent(:destroy) }
+    it { should have_many(:agent_configs).dependent(:destroy) }
+  end
+
+  describe 'validations' do
+    it { should validate_presence_of(:title) }
+    it { should validate_presence_of(:base_prompt) }
+  end
+
+  describe 'creation' do
+    let(:user) { create(:user) }
+
+    it 'creates a valid campaign' do
+      campaign = build(:campaign, user: user)
+      expect(campaign).to be_valid
+      expect(campaign.save).to be true
+    end
+
+    it 'requires a title' do
+      campaign = build(:campaign, user: user, title: nil)
+      expect(campaign).not_to be_valid
+      expect(campaign.errors[:title]).to be_present
+    end
+
+    it 'requires a base_prompt' do
+      campaign = build(:campaign, user: user, base_prompt: nil)
+      expect(campaign).not_to be_valid
+      expect(campaign.errors[:base_prompt]).to be_present
+    end
+
+    it 'requires a user' do
+      campaign = build(:campaign, user: nil)
+      expect(campaign).not_to be_valid
+      expect(campaign.errors[:user]).to be_present
+    end
+  end
+
+  describe 'camelCase API compatibility' do
+    let(:user) { create(:user) }
+    let(:campaign) { create(:campaign, user: user, base_prompt: 'Test prompt') }
+
+    it 'provides basePrompt getter' do
+      expect(campaign.basePrompt).to eq('Test prompt')
+    end
+
+    it 'provides basePrompt setter' do
+      campaign.basePrompt = 'New prompt'
+      expect(campaign.base_prompt).to eq('New prompt')
+    end
+
+    it 'returns camelCase in as_json' do
+      json = campaign.as_json
+      expect(json).to have_key('basePrompt')
+      expect(json).not_to have_key('base_prompt')
+      expect(json['basePrompt']).to eq('Test prompt')
+    end
+  end
+
+  describe 'leads association' do
+    let(:user) { create(:user) }
+    let(:campaign) { create(:campaign, user: user) }
+
+    it 'can have multiple leads' do
+      lead1 = create(:lead, campaign: campaign)
+      lead2 = create(:lead, campaign: campaign)
+
+      expect(campaign.leads.count).to eq(2)
+      expect(campaign.leads).to include(lead1, lead2)
+    end
+
+    it 'destroys associated leads when campaign is destroyed' do
+      lead = create(:lead, campaign: campaign)
+      campaign_id = campaign.id
+      lead_id = lead.id
+
+      campaign.destroy
+
+      expect(Lead.find_by(id: lead_id)).to be_nil
+      expect(Campaign.find_by(id: campaign_id)).to be_nil
+    end
+  end
+
+  describe 'agent_configs association' do
+    let(:user) { create(:user) }
+    let(:campaign) { create(:campaign, user: user) }
+
+    it 'can have multiple agent configs' do
+      search_config = create(:agent_config, campaign: campaign, agent_name: 'SEARCH')
+      writer_config = create(:agent_config, campaign: campaign, agent_name: 'WRITER')
+
+      expect(campaign.agent_configs.count).to eq(2)
+      expect(campaign.agent_configs).to include(search_config, writer_config)
+    end
+
+    it 'destroys associated agent configs when campaign is destroyed' do
+      config = create(:agent_config, campaign: campaign)
+      config_id = config.id
+
+      campaign.destroy
+
+      expect(AgentConfig.find_by(id: config_id)).to be_nil
+    end
+  end
+end
+
