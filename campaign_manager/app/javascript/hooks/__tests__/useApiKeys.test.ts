@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react'
-import { waitFor } from '@testing-library/react'
+import { waitFor } from '@testing-library/dom'
 import { useApiKeys } from '../useApiKeys'
 import apiClient from '@/libs/utils/apiClient'
 
@@ -8,6 +8,11 @@ jest.mock('@/libs/utils/apiClient')
 describe('useApiKeys', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.useFakeTimers()
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
   })
 
   it('initializes with empty keys and loading state', () => {
@@ -24,7 +29,7 @@ describe('useApiKeys', () => {
   })
 
   it('loads API keys on mount', async () => {
-    const mockKeys = { llmApiKey: 'sk-test123', tavilyApiKey: 'tv-test456' }
+    const mockKeys = { llmApiKey: 'sk-test123', tavilyApiKey: 'tv-test456' };
     (apiClient.get as jest.Mock).mockResolvedValue({
       data: mockKeys,
       status: 200,
@@ -41,7 +46,7 @@ describe('useApiKeys', () => {
   })
 
   it('handles error when loading API keys fails', async () => {
-    const errorMessage = 'Network error'
+    const errorMessage = 'Network error';
     (apiClient.get as jest.Mock).mockResolvedValue({
       error: errorMessage,
       status: 500,
@@ -63,7 +68,7 @@ describe('useApiKeys', () => {
   })
 
   it('handles exception when loading API keys', async () => {
-    const error = new Error('Network failure')
+    const error = new Error('Network failure');
     (apiClient.get as jest.Mock).mockRejectedValue(error)
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -97,8 +102,8 @@ describe('useApiKeys', () => {
   })
 
   it('saves API keys successfully', async () => {
-    const initialKeys = { llmApiKey: 'sk-old', tavilyApiKey: 'tv-old' }
-    const newKeys = { llmApiKey: 'sk-new', tavilyApiKey: 'tv-new' }
+    const initialKeys = { llmApiKey: 'sk-old', tavilyApiKey: 'tv-old' };
+    const newKeys = { llmApiKey: 'sk-new', tavilyApiKey: 'tv-new' };
 
     (apiClient.get as jest.Mock).mockResolvedValue({
       data: initialKeys,
@@ -127,7 +132,7 @@ describe('useApiKeys', () => {
   })
 
   it('handles error when saving API keys fails', async () => {
-    const errorMessage = 'Save failed'
+    const errorMessage = 'Save failed';
     (apiClient.get as jest.Mock).mockResolvedValue({
       data: { llmApiKey: '', tavilyApiKey: '' },
       status: 200,
@@ -159,7 +164,7 @@ describe('useApiKeys', () => {
   })
 
   it('handles exception when saving API keys', async () => {
-    const error = new Error('Save exception')
+    const error = new Error('Save exception');
     (apiClient.get as jest.Mock).mockResolvedValue({
       data: { llmApiKey: '', tavilyApiKey: '' },
       status: 200,
@@ -241,7 +246,7 @@ describe('useApiKeys', () => {
   })
 
   it('clears API keys successfully', async () => {
-    const initialKeys = { llmApiKey: 'sk-test', tavilyApiKey: 'tv-test' }
+    const initialKeys = { llmApiKey: 'sk-test', tavilyApiKey: 'tv-test' };
     (apiClient.get as jest.Mock).mockResolvedValue({
       data: initialKeys,
       status: 200,
@@ -269,7 +274,7 @@ describe('useApiKeys', () => {
   })
 
   it('handles error when clearing API keys fails', async () => {
-    const errorMessage = 'Clear failed'
+    const errorMessage = 'Clear failed';
     (apiClient.get as jest.Mock).mockResolvedValue({
       data: { llmApiKey: '', tavilyApiKey: '' },
       status: 200,
@@ -301,7 +306,7 @@ describe('useApiKeys', () => {
   })
 
   it('handles exception when clearing API keys', async () => {
-    const error = new Error('Clear exception')
+    const error = new Error('Clear exception');
     (apiClient.get as jest.Mock).mockResolvedValue({
       data: { llmApiKey: '', tavilyApiKey: '' },
       status: 200,
@@ -357,7 +362,7 @@ describe('useApiKeys', () => {
   })
 
   it('provides refreshKeys method that reloads keys', async () => {
-    const mockKeys = { llmApiKey: 'sk-test', tavilyApiKey: 'tv-test' }
+    const mockKeys = { llmApiKey: 'sk-test', tavilyApiKey: 'tv-test' };
     (apiClient.get as jest.Mock).mockResolvedValue({
       data: mockKeys,
       status: 200,
@@ -370,7 +375,7 @@ describe('useApiKeys', () => {
     })
 
     // Update mock for refresh
-    const newKeys = { llmApiKey: 'sk-new', tavilyApiKey: 'tv-new' }
+    const newKeys = { llmApiKey: 'sk-new', tavilyApiKey: 'tv-new' };
     (apiClient.get as jest.Mock).mockResolvedValue({
       data: newKeys,
       status: 200,

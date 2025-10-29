@@ -59,6 +59,34 @@ Object.defineProperty(window, 'location', {
 // Mock fetch globally
 global.fetch = jest.fn()
 
+// Mock hooks that make API calls
+jest.mock('@/hooks/useAgentConfigs', () => ({
+  useAgentConfigs: () => ({
+    configs: [],
+    loading: false,
+    error: null,
+    loadConfigs: jest.fn(),
+    createConfig: jest.fn(),
+    updateConfig: jest.fn()
+  })
+}))
+
+jest.mock('@/hooks/useAgentExecution', () => ({
+  useAgentExecution: () => ({
+    loading: false,
+    runAgentsForLead: jest.fn(),
+    runAgentsForMultipleLeads: jest.fn()
+  })
+}))
+
+jest.mock('@/hooks/useAgentOutputs', () => ({
+  useAgentOutputs: () => ({
+    loading: false,
+    outputs: [],
+    loadAgentOutputs: jest.fn()
+  })
+}))
+
 // Mock CSRF token meta tag - reset before each test
 beforeEach(() => {
   document.head.innerHTML = '<meta name="csrf-token" content="test-token">'

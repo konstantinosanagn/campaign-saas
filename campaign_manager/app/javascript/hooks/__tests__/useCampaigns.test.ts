@@ -1,4 +1,5 @@
-import { renderHook, waitFor, act } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
+import { waitFor } from '@testing-library/dom'
 import { useCampaigns } from '../useCampaigns'
 import apiClient from '@/libs/utils/apiClient'
 import type { Campaign } from '@/types'
@@ -8,7 +9,12 @@ jest.mock('@/libs/utils/apiClient')
 describe('useCampaigns', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.useFakeTimers()
     window.confirm = jest.fn(() => true)
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
   })
 
   it('initializes with empty campaigns and loading state', () => {
@@ -28,7 +34,7 @@ describe('useCampaigns', () => {
     const mockCampaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
       { id: 2, title: 'Campaign 2', basePrompt: 'Prompt 2' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: mockCampaigns,
       status: 200,
@@ -45,7 +51,7 @@ describe('useCampaigns', () => {
   })
 
   it('handles error when loading campaigns fails', async () => {
-    const errorMessage = 'Network error'
+    const errorMessage = 'Network error';
     (apiClient.index as jest.Mock).mockResolvedValue({
       error: errorMessage,
       status: 500,
@@ -67,7 +73,7 @@ describe('useCampaigns', () => {
   })
 
   it('handles exception when loading campaigns', async () => {
-    const error = new Error('Network failure')
+    const error = new Error('Network failure');
     (apiClient.index as jest.Mock).mockRejectedValue(error)
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -112,7 +118,7 @@ describe('useCampaigns', () => {
       expect(result.current.loading).toBe(false)
     })
 
-    const newCampaign: Campaign = { id: 1, title: 'New Campaign', basePrompt: 'New Prompt' }
+    const newCampaign: Campaign = { id: 1, title: 'New Campaign', basePrompt: 'New Prompt' };
     (apiClient.create as jest.Mock).mockResolvedValue({
       data: newCampaign,
       status: 201,
@@ -129,7 +135,7 @@ describe('useCampaigns', () => {
   })
 
   it('handles error when creating campaign fails', async () => {
-    const errorMessage = 'Validation failed'
+    const errorMessage = 'Validation failed';
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: [],
       status: 200,
@@ -162,7 +168,7 @@ describe('useCampaigns', () => {
   })
 
   it('handles creation error without errors array', async () => {
-    const errorMessage = 'Creation failed'
+    const errorMessage = 'Creation failed';
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: [],
       status: 200,
@@ -193,7 +199,7 @@ describe('useCampaigns', () => {
   })
 
   it('handles exception when creating campaign', async () => {
-    const error = new Error('Create exception')
+    const error = new Error('Create exception');
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: [],
       status: 200,
@@ -249,7 +255,7 @@ describe('useCampaigns', () => {
   it('updates campaign successfully', async () => {
     const campaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: campaigns,
       status: 200,
@@ -261,7 +267,7 @@ describe('useCampaigns', () => {
       expect(result.current.loading).toBe(false)
     })
 
-    const updatedCampaign: Campaign = { id: 1, title: 'Updated Campaign', basePrompt: 'Updated Prompt' }
+    const updatedCampaign: Campaign = { id: 1, title: 'Updated Campaign', basePrompt: 'Updated Prompt' };
     (apiClient.update as jest.Mock).mockResolvedValue({
       data: updatedCampaign,
       status: 200,
@@ -280,7 +286,7 @@ describe('useCampaigns', () => {
   it('handles error when updating campaign with missing ID', async () => {
     const campaigns: Campaign[] = [
       { title: 'Campaign without ID', basePrompt: 'Prompt' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: campaigns,
       status: 200,
@@ -325,7 +331,7 @@ describe('useCampaigns', () => {
   it('handles error when updating campaign fails', async () => {
     const campaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: campaigns,
       status: 200,
@@ -359,7 +365,7 @@ describe('useCampaigns', () => {
   it('handles exception when updating campaign', async () => {
     const campaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: campaigns,
       status: 200,
@@ -371,7 +377,7 @@ describe('useCampaigns', () => {
       expect(result.current.loading).toBe(false)
     })
 
-    const error = new Error('Update exception')
+    const error = new Error('Update exception');
     (apiClient.update as jest.Mock).mockRejectedValue(error)
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -391,7 +397,7 @@ describe('useCampaigns', () => {
   it('handles null data when updating campaign', async () => {
     const campaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: campaigns,
       status: 200,
@@ -421,7 +427,7 @@ describe('useCampaigns', () => {
     const campaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
       { id: 2, title: 'Campaign 2', basePrompt: 'Prompt 2' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: campaigns,
       status: 200,
@@ -451,7 +457,7 @@ describe('useCampaigns', () => {
   it('handles error when deleting campaign with missing ID', async () => {
     const campaigns: Campaign[] = [
       { title: 'Campaign without ID', basePrompt: 'Prompt' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: campaigns,
       status: 200,
@@ -475,7 +481,7 @@ describe('useCampaigns', () => {
   it('handles cancel when deleting campaign', async () => {
     const campaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: campaigns,
       status: 200,
@@ -501,7 +507,7 @@ describe('useCampaigns', () => {
   it('handles error when deleting campaign fails', async () => {
     const campaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: campaigns,
       status: 200,
@@ -535,7 +541,7 @@ describe('useCampaigns', () => {
   it('handles exception when deleting campaign', async () => {
     const campaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: campaigns,
       status: 200,
@@ -547,7 +553,7 @@ describe('useCampaigns', () => {
       expect(result.current.loading).toBe(false)
     })
 
-    const error = new Error('Delete exception')
+    const error = new Error('Delete exception');
     (apiClient.destroy as jest.Mock).mockRejectedValue(error)
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -567,7 +573,7 @@ describe('useCampaigns', () => {
   it('provides refreshCampaigns method that reloads campaigns', async () => {
     const mockCampaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: mockCampaigns,
       status: 200,
@@ -583,7 +589,7 @@ describe('useCampaigns', () => {
     const newCampaigns: Campaign[] = [
       { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
       { id: 2, title: 'Campaign 2', basePrompt: 'Prompt 2' },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: newCampaigns,
       status: 200,

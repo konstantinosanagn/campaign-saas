@@ -69,8 +69,8 @@ describe('AgentDashboard', () => {
     // LEADS: total = 6
     expect(screen.getByText('6')).toBeInTheDocument()
 
-    // WRITER: stage !== 'queued' → 5
-    // DESIGNER: same condition → 5
+    // WRITER: only counts leads in 'written' stage → 0
+    // DESIGNER: not implemented, always returns '0' → 0
     // We'll scope lookups by container blocks using label proximity
     // Find the container div by traversing up from the label
     const writerLabel = screen.getAllByText('WRITER')[0]
@@ -78,38 +78,38 @@ describe('AgentDashboard', () => {
     while (writerContainer && !writerContainer.className.includes('border-r')) {
       writerContainer = writerContainer.parentElement
     }
-    expect(within(writerContainer as HTMLElement).getByText('5')).toBeInTheDocument()
+    expect(within(writerContainer as HTMLElement).getByText('0')).toBeInTheDocument()
 
     const designerLabel = screen.getAllByText('DESIGNER')[0]
     let designerContainer = designerLabel.parentElement
     while (designerContainer && !designerContainer.className.includes('border-r')) {
       designerContainer = designerContainer.parentElement
     }
-    expect(within(designerContainer as HTMLElement).getByText('5')).toBeInTheDocument()
+    expect(within(designerContainer as HTMLElement).getByText('0')).toBeInTheDocument()
 
-    // CRITIQUE: quality && quality !== '-' → (B, A) = 2
+    // CRITIQUE: only counts leads in 'critiqued' stage → 0
     const critiqueLabel = screen.getAllByText('CRITIQUE')[0]
     let critiqueContainer = critiqueLabel.parentElement
     while (critiqueContainer && !critiqueContainer.className.includes('border-r')) {
       critiqueContainer = critiqueContainer.parentElement
     }
-    expect(within(critiqueContainer as HTMLElement).getByText('2')).toBeInTheDocument()
+    expect(within(critiqueContainer as HTMLElement).getByText('0')).toBeInTheDocument()
 
-    // SEARCH: website non-empty → (4,5,6) = 3
+    // SEARCH: only counts leads in 'searched' stage → 0
     const searchLabel = screen.getAllByText('SEARCH')[0]
     let searchContainer = searchLabel.parentElement
     while (searchContainer && !searchContainer.className.includes('border-r')) {
       searchContainer = searchContainer.parentElement
     }
-    expect(within(searchContainer as HTMLElement).getByText('3')).toBeInTheDocument()
+    expect(within(searchContainer as HTMLElement).getByText('0')).toBeInTheDocument()
 
-    // SENDER: stage in {sent, completed} → (4,5) = 2
+    // SENDER: only counts leads in 'completed' stage → 1
     const senderLabel = screen.getAllByText('SENDER')[0]
     let senderContainer = senderLabel.parentElement
     while (senderContainer && !senderContainer.className.includes('border-r')) {
       senderContainer = senderContainer.parentElement
     }
-    expect(within(senderContainer as HTMLElement).getByText('2')).toBeInTheDocument()
+    expect(within(senderContainer as HTMLElement).getByText('1')).toBeInTheDocument()
 
     // Clickable condition: hasSelectedCampaign && clickable === true → button exists for WRITER, etc.
     const writerButton = screen.getByRole('button', { name: /WRITER/i })

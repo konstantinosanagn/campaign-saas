@@ -1,4 +1,5 @@
-import { renderHook, waitFor, act } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
+import { waitFor } from '@testing-library/dom'
 import { useLeads } from '../useLeads'
 import apiClient from '@/libs/utils/apiClient'
 import type { Lead } from '@/types'
@@ -8,7 +9,12 @@ jest.mock('@/libs/utils/apiClient')
 describe('useLeads', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.useFakeTimers()
     window.confirm = jest.fn(() => true)
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
   })
 
   it('initializes with empty leads and loading state', () => {
@@ -37,7 +43,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: 'A',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: mockLeads,
       status: 200,
@@ -54,7 +60,7 @@ describe('useLeads', () => {
   })
 
   it('handles error when loading leads fails', async () => {
-    const errorMessage = 'Network error'
+    const errorMessage = 'Network error';
     (apiClient.index as jest.Mock).mockResolvedValue({
       error: errorMessage,
       status: 500,
@@ -76,7 +82,7 @@ describe('useLeads', () => {
   })
 
   it('handles exception when loading leads', async () => {
-    const error = new Error('Network failure')
+    const error = new Error('Network failure');
     (apiClient.index as jest.Mock).mockRejectedValue(error)
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -115,7 +121,7 @@ describe('useLeads', () => {
       campaignId: 1,
       stage: 'queued',
       quality: '-',
-    }
+    };
     (apiClient.create as jest.Mock).mockResolvedValue({
       data: newLead,
       status: 201,
@@ -156,7 +162,7 @@ describe('useLeads', () => {
       campaignId: 1,
       stage: 'queued',
       quality: '-',
-    }
+    };
     (apiClient.create as jest.Mock).mockResolvedValue({
       data: newLead,
       status: 201,
@@ -199,7 +205,7 @@ describe('useLeads', () => {
       campaignId: 1,
       stage: 'queued',
       quality: '-',
-    }
+    };
     (apiClient.create as jest.Mock).mockResolvedValue({
       data: newLead,
       status: 201,
@@ -218,7 +224,7 @@ describe('useLeads', () => {
   })
 
   it('handles error when creating lead fails', async () => {
-    const errorMessage = 'Validation failed'
+    const errorMessage = 'Validation failed';
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: [],
       status: 200,
@@ -254,7 +260,7 @@ describe('useLeads', () => {
   })
 
   it('handles creation error without errors array', async () => {
-    const errorMessage = 'Creation failed'
+    const errorMessage = 'Creation failed';
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: [],
       status: 200,
@@ -288,7 +294,7 @@ describe('useLeads', () => {
   })
 
   it('handles exception when creating lead', async () => {
-    const error = new Error('Create exception')
+    const error = new Error('Create exception');
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: [],
       status: 200,
@@ -361,7 +367,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: leads,
       status: 200,
@@ -383,7 +389,7 @@ describe('useLeads', () => {
       campaignId: 1,
       stage: 'queued',
       quality: '-',
-    }
+    };
     (apiClient.update as jest.Mock).mockResolvedValue({
       data: updatedLead,
       status: 200,
@@ -417,7 +423,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: leads,
       status: 200,
@@ -439,7 +445,7 @@ describe('useLeads', () => {
       campaignId: 1,
       stage: 'queued',
       quality: '-',
-    }
+    };
     (apiClient.update as jest.Mock).mockResolvedValue({
       data: updatedLead,
       status: 200,
@@ -472,7 +478,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: leads,
       status: 200,
@@ -521,7 +527,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: leads,
       status: 200,
@@ -533,7 +539,7 @@ describe('useLeads', () => {
       expect(result.current.loading).toBe(false)
     })
 
-    const error = new Error('Update exception')
+    const error = new Error('Update exception');
     (apiClient.update as jest.Mock).mockRejectedValue(error)
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -568,7 +574,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: leads,
       status: 200,
@@ -623,7 +629,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: leads,
       status: 200,
@@ -663,7 +669,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: leads,
       status: 200,
@@ -710,7 +716,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: leads,
       status: 200,
@@ -755,7 +761,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: leads,
       status: 200,
@@ -767,7 +773,7 @@ describe('useLeads', () => {
       expect(result.current.loading).toBe(false)
     })
 
-    const error = new Error('Delete exception')
+    const error = new Error('Delete exception');
     (apiClient.destroy as jest.Mock).mockRejectedValue(error)
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
@@ -808,7 +814,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: leads,
       status: 200,
@@ -840,7 +846,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: mockLeads,
       status: 200,
@@ -866,7 +872,7 @@ describe('useLeads', () => {
         stage: 'queued',
         quality: '-',
       },
-    ]
+    ];
     (apiClient.index as jest.Mock).mockResolvedValue({
       data: newLeads,
       status: 200,
