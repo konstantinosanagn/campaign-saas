@@ -136,6 +136,11 @@ In development mode, the application automatically:
 - **Creates admin user** - Automatically logs you in as `admin@example.com`
 - **Uses default password** - `password123` (if you need to login manually)
 - **Auto-creates user** - The admin user is created automatically on first access
+- *** Note: Click on the user profile to add the following API keys (setup just for mvp as a backup)
+  ```
+  LLM_API_KEY=AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE
+  TAVILY_API_KEY=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
+  ```
 
 This makes it easy for anyone to clone and run the application without any setup.
 
