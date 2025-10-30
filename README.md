@@ -1,4 +1,8 @@
 # CampAIgn - AI-Powered Campaign Management Platform
+- Konstantinos Anagnostopoulos (ka3037)
+- Riz Chen (sc5144)
+- Siying Ding (sd3609)
+- Aarushi Sharma (as6322)
 
 A modern SaaS application for managing AI-powered marketing campaigns with intelligent agent workflows. Built with Ruby on Rails and React, featuring automated lead processing through AI agents.
 
@@ -133,6 +137,11 @@ In development mode, the application automatically:
 - **Creates admin user** - Automatically logs you in as `admin@example.com`
 - **Uses default password** - `password123` (if you need to login manually)
 - **Auto-creates user** - The admin user is created automatically on first access
+- *** Note: Click on the user profile to add the following API keys (setup just for mvp as a backup)
+  ```
+  LLM_API_KEY=AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE
+  TAVILY_API_KEY=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
+  ```
 
 This makes it easy for anyone to clone and run the application without any setup.
 
@@ -177,11 +186,15 @@ yarn test:coverage           # Run tests with coverage
 
 ## 📊 Testing
 
-- **178 RSpec tests** - 100% line coverage
+- **178 RSpec tests** - 90%+ line coverage
+![Rspec Coverage](./rspec_coverage.png)
 - **106 Jest tests** - 96.6% coverage
 - Integration tests for complete workflows
 - Component tests for UI elements
 - API endpoint testing
+
+## User Stories in Cucumber
+The Cucumber test suite covers seven core user stories across both the UI and API. It verifies that authenticated users can access the main dashboard, campaigns can be created and updated through RESTful endpoints, and leads can be added under a user’s campaign. It also tests that invalid agent executions correctly return a 404 error, API keys for external services can be stored and retrieved from session data, and agent outputs linked to specific leads are properly returned to the client. Together, these scenarios comprehensively validate the application’s core workflows—from authentication and data creation to error handling and integration endpoints—with all seven features passing successfully.
 
 ## 🚀 Deployment
 
