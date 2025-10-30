@@ -18636,3 +18636,335 @@ Completed 200 OK in 630ms (Views: 138.1ms | ActiveRecord: 7.5ms (2 queries, 0 ca
 Completed 200 OK in 865ms (Views: 231.8ms | ActiveRecord: 22.6ms (2 queries, 0 cached) | GC: 0.0ms)
 
 
+Started GET "/" for 127.0.0.1 at 2025-10-29 18:23:31 -0400
+Processing by CampaignsController#index as HTML
+  [1m[36mUser Load (1.8ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='campaigns'*/[0m
+  ↳ app/controllers/campaigns_controller.rb:24:in `current_user'
+  [1m[36mCACHE User Load (0.1ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1[0m
+  ↳ app/controllers/campaigns_controller.rb:24:in `current_user'
+  Rendering layout layouts/application.html.erb
+  Rendering campaigns/index.html.erb within layouts/application
+  Rendered campaigns/index.html.erb within layouts/application (Duration: 1.1ms | GC: 0.0ms)
+  Rendered layout layouts/application.html.erb (Duration: 49.2ms | GC: 0.0ms)
+Completed 200 OK in 288ms (Views: 75.6ms | ActiveRecord: 1.8ms (2 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/api/v1/api_keys" for 127.0.0.1 at 2025-10-29 18:23:38 -0400
+Started GET "/api/v1/campaigns" for 127.0.0.1 at 2025-10-29 18:23:38 -0400
+Started GET "/api/v1/leads" for 127.0.0.1 at 2025-10-29 18:23:38 -0400
+Processing by Api::V1::ApiKeysController#show as JSON
+  Parameters: {"api_key"=>{}}
+Processing by Api::V1::CampaignsController#index as JSON
+  Parameters: {"campaign"=>{}}
+Completed 200 OK in 139ms (Views: 0.3ms | ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.0ms)
+
+
+Processing by Api::V1::LeadsController#index as JSON
+  Parameters: {"lead"=>{}}
+  [1m[36mUser Load (9.4ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='campaigns'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mCampaign Load (10.3ms)[0m  [1m[34mSELECT "campaigns".* FROM "campaigns" WHERE "campaigns"."user_id" = 1 /*action='index',application='CampaignManager',controller='campaigns'*/[0m
+  ↳ app/controllers/api/v1/campaigns_controller.rb:6:in `index'
+Completed 200 OK in 225ms (Views: 22.0ms | ActiveRecord: 19.7ms (2 queries, 0 cached) | GC: 0.0ms)
+
+
+  [1m[36mUser Load (1.4ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mLead Load (1.9ms)[0m  [1m[34mSELECT "leads".* FROM "leads" INNER JOIN "campaigns" ON "campaigns"."id" = "leads"."campaign_id" WHERE "campaigns"."user_id" = 1 /*action='index',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:6:in `index'
+Completed 200 OK in 174ms (Views: 27.6ms | ActiveRecord: 3.3ms (2 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/api/v1/campaigns/1/agent_configs" for 127.0.0.1 at 2025-10-29 18:33:15 -0400
+Processing by Api::V1::AgentConfigsController#index as JSON
+  Parameters: {"campaign_id"=>"1", "agent_config"=>{}}
+  [1m[36mUser Load (3.3ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='agent_configs'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mCampaign Load (4.0ms)[0m  [1m[34mSELECT "campaigns".* FROM "campaigns" WHERE "campaigns"."user_id" = 1 AND "campaigns"."id" = 1 LIMIT 1 /*action='index',application='CampaignManager',controller='agent_configs'*/[0m
+  ↳ app/controllers/api/v1/agent_configs_controller.rb:8:in `index'
+  [1m[36mAgentConfig Load (7.8ms)[0m  [1m[34mSELECT "agent_configs".* FROM "agent_configs" WHERE "agent_configs"."campaign_id" = 1 /*action='index',application='CampaignManager',controller='agent_configs'*/[0m
+  ↳ app/controllers/api/v1/agent_configs_controller.rb:15:in `map'
+Completed 200 OK in 381ms (Views: 0.5ms | ActiveRecord: 30.6ms (3 queries, 0 cached) | GC: 0.0ms)
+
+
+Started POST "/api/v1/leads/1/run_agents" for 127.0.0.1 at 2025-10-29 18:33:26 -0400
+Processing by Api::V1::LeadsController#run_agents as JSON
+  Parameters: {"id"=>"1", "lead"=>{}}
+  [1m[36mUser Load (1.9ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mLead Load (9.1ms)[0m  [1m[34mSELECT "leads".* FROM "leads" INNER JOIN "campaigns" ON "campaigns"."id" = "leads"."campaign_id" WHERE "campaigns"."user_id" = 1 AND "leads"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:51:in `run_agents'
+  [1m[36mCampaign Load (1.2ms)[0m  [1m[34mSELECT "campaigns".* FROM "campaigns" WHERE "campaigns"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:59:in `run_agents'
+  [1m[36mAgentConfig Load (0.9ms)[0m  [1m[34mSELECT "agent_configs".* FROM "agent_configs" WHERE "agent_configs"."campaign_id" = 1 AND "agent_configs"."agent_name" = 'SEARCH' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:187:in `get_agent_config'
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:188:in `get_agent_config'
+  [1m[36mAgentConfig Create (16.7ms)[0m  [1m[32mINSERT INTO "agent_configs" ("campaign_id", "agent_name", "settings", "enabled", "created_at", "updated_at") VALUES (1, 'SEARCH', '{}', TRUE, '2025-10-29 22:33:27.125690', '2025-10-29 22:33:27.125690') RETURNING "id" /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:188:in `get_agent_config'
+  [1m[36mTRANSACTION (1.1ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:188:in `get_agent_config'
+  [1m[36mAgentOutput Load (3.0ms)[0m  [1m[34mSELECT "agent_outputs".* FROM "agent_outputs" WHERE "agent_outputs"."lead_id" = 1 AND "agent_outputs"."agent_name" = 'SEARCH' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:277:in `save_agent_output'
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mAgentOutput Create (10.1ms)[0m  [1m[32mINSERT INTO "agent_outputs" ("lead_id", "agent_name", "output_data", "status", "error_message", "created_at", "updated_at") VALUES (1, 'SEARCH', '{"domain":"novacorp.io","sources":[{"url":"https://www.tradingview.com/news/reuters.com,2025:newsml_L4N3W603H:0-ai-chip-startup-sambanova-explores-sale-after-stalled-fundraising-the-information/","title":"AI chip startup SambaNova explores sale after stalled fundraising- The Information - TradingView","score":0.07431881,"published_date":"Sat, 25 Oct 2025 15:28:45 GMT","content":"* Image 22 Acceswire Sign in to read exclusive news * Image 23 Acceswire Sign in to read exclusive news * Image 24 Acceswire Sign in to read exclusive news * Image 25 * Image 26 * Image 27 * Image 28 Reuters TotalEnergies and partners lift force majeure on $20 billion Mozambique LNG projectReuters Trump says he''s willing to reduce tariffs on Brazil in right circumstancesReuters AI chip startup SambaNova explores sale after stalled fundraising- The Information* Image 29 Reuters Totalenergies Says Mozambique LNG Consortium Taken Decision To Lift Force Majeure & Mozambican Presidency Was Informed On Friday* Image 30 * Image 31 Reuters Kyrgyzstan launches national stablecoin in partnership with Binance","raw_content":null},{"url":"https://news.bitcoin.com/crypto-and-carcasses-undercover-sting-recovers-700k-in-bitcoin-miners-foils-75k-frozen-turkey-heist/","title":"Crypto and Carcasses: Undercover Sting Recovers $700K in Bitcoin Miners, Foils $75K Frozen Turkey Heist - Bitcoin.com News","score":0.042202137,"published_date":"Wed, 29 Oct 2025 07:15:42 GMT","content":"Market UpdatesMarkets and PricesFinanceLearning InsightsEconomicsLegalMiningRegulationBlockchainResearchNews Bytes Advertise With UsSubmit Press ReleasePodcast Interview Launch App ## Bitcoin Gaming Picks ReviewGet Bonus 200% Bonus, Instant Withdrawals, Best VIP Club, 100K daily Giveaways ## Press releases ###### Gate Ventures Announces Strategic Acquisition of Leading Decentralized Perpetual Exchange ADEN ###### Kite Announces Investment From Coinbase Ventures to Advance Agentic Payments With the x402 Protocol ## LATEST NEWS ###### Western Union to Launch Dollar-Backed Stablecoin in 2026 ###### French Party Unveils Bold Crypto Bill to Build National Bitcoin Reserve ### Download App * Advertise * News * Markets * Expert Reviews ### Reviews * Exchanges All rights reserved ### Download App * Advertise * News * Markets * Expert Reviews * Exchanges All rights reserved","raw_content":null},{"url":"https://www.cbsnews.com/boston/video/next-weather-wbz-evening-forecast-for-october-28/","title":"Next Weather: WBZ Evening Forecast For October 28 - CBS News","score":0.042202137,"published_date":"Tue, 28 Oct 2025 22:50:00 GMT","content":"livelive: CBS News Boston### CBS News Chicago 02:221h ago### Keller: Government websites are now having their say about the shutdown 02:401h ago### Latest details as Hurricane Melissa makes landfall in Jamaica 02:196h ago### Exhibit at Massachusetts college spotlights evolution of games and toys 00:436h ago### Latest details on Hurricane Melissa''s path through Jamaica 04:557h ago### Latest Hurricane Melissa update as Category 5 storm makes landfall in Jamaica 01:2011h ago### New interactive exhibit at Massachusetts college takes visitors back in time 02:3911h ago### Latest details as Hurricane Melissa bears down on Jamaica 02:2020h ago### Latest details on Hurricane Melissa, set to hit Jamaica 00:3523h ago### NBA referee teaches basketball officiating class at Massachusetts high school 03:01Jul 30, 2025### Latest developments in Massachusetts politics and the Boston mayoral race","raw_content":null},{"url":"https://www.bitget.com/amp/news/detail/12560605029479","title":"Crypto mining company TeraWulf completes $3.2 billion bond issuance - Bitget","score":0.038397707,"published_date":"Fri, 24 Oct 2025 15:05:16 GMT","content":"Bitget App Trade smarter Bitget News Crypto mining company TeraWulf completes $3.2 billion bond issuance # Crypto mining company TeraWulf completes $3.2 billion bond issuance ChainCatcher news, according to Bloomberg, cryptocurrency mining company TeraWulf Inc. has completed a $3.2 billion debt transaction, which is intended for the expansion of its data centers. This article is not intended to serve as a reference for making investment decisions. PoolX: Earn new token airdrops Lock your assets and earn 10%+ APR Lock now! Data: Bonk Holdings wallet receives BONK tokens worth $32 million via FalconX ## Trending news BTC Tether USDt USDT How to buy BTC Bitget lists BTC – Buy or sell BTC quickly on Bitget! Trade now A welcome pack worth 6200 USDT for new users! Trade smarter","raw_content":null},{"url":"https://www.dawgsbynature.com/cleveland-browns-news/107378/cleveland-browns-news-10-26-dillon-gabriel-quinshon-judkins-mike-vrabel","title":"Cleveland Browns news (10/26): Time to run over the Patriots! - Dawgs By Nature","score":0.037036795,"published_date":"Sun, 26 Oct 2025 10:30:00 GMT","content":"﻿﻿﻿﻿﻿﻿The latest Cleveland Browns news and notes from around the NFL in the Sunday Dawg Chow. The Cleveland Browns are on the road today as they take on the New England Patriots. Let’s start the day with the latest news and notes about the Cleveland Browns and the NFL in today’s edition of the Sunday Dawg Chow. * Browns Shedeur Sanders update leads to Bailey Zappe elevation, will feed conspiracy theories even more (Jared Mueller) - Cleveland Browns rookie quarterback Shedeur Sanders hasn’t seen a snap of regular-season action, but is the focus of attention, especially now that Bailey Zappe is elevated for the game against New England. ﻿﻿﻿The latest Cleveland Browns news and notes from around the NFL in the Saturday Dawg Chow.","raw_content":null}]}', 'completed', NULL, '2025-10-29 22:33:27.606142', '2025-10-29 22:33:27.606142') RETURNING "id" /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mTRANSACTION (1.0ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mLead Update (7.8ms)[0m  [1m[33mUPDATE "leads" SET "stage" = 'searched', "updated_at" = '2025-10-29 22:33:27.634804' WHERE "leads"."id" = 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mTRANSACTION (0.9ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mLead Load (0.7ms)[0m  [1m[34mSELECT "leads".* FROM "leads" WHERE "leads"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:129:in `run_agents_for_lead'
+Completed 200 OK in 855ms (Views: 1.1ms | ActiveRecord: 55.6ms (9 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/api/v1/leads" for 127.0.0.1 at 2025-10-29 18:33:27 -0400
+Processing by Api::V1::LeadsController#index as JSON
+  Parameters: {"lead"=>{}}
+  [1m[36mUser Load (0.7ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mLead Load (0.8ms)[0m  [1m[34mSELECT "leads".* FROM "leads" INNER JOIN "campaigns" ON "campaigns"."id" = "leads"."campaign_id" WHERE "campaigns"."user_id" = 1 /*action='index',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:6:in `index'
+Completed 200 OK in 46ms (Views: 12.1ms | ActiveRecord: 1.4ms (2 queries, 0 cached) | GC: 0.0ms)
+
+
+Started POST "/api/v1/leads/1/run_agents" for 127.0.0.1 at 2025-10-29 18:33:32 -0400
+Processing by Api::V1::LeadsController#run_agents as JSON
+  Parameters: {"id"=>"1", "lead"=>{}}
+  [1m[36mUser Load (0.7ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mLead Load (1.1ms)[0m  [1m[34mSELECT "leads".* FROM "leads" INNER JOIN "campaigns" ON "campaigns"."id" = "leads"."campaign_id" WHERE "campaigns"."user_id" = 1 AND "leads"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:51:in `run_agents'
+  [1m[36mCampaign Load (0.7ms)[0m  [1m[34mSELECT "campaigns".* FROM "campaigns" WHERE "campaigns"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:59:in `run_agents'
+  [1m[36mAgentConfig Load (0.7ms)[0m  [1m[34mSELECT "agent_configs".* FROM "agent_configs" WHERE "agent_configs"."campaign_id" = 1 AND "agent_configs"."agent_name" = 'WRITER' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:187:in `get_agent_config'
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:188:in `get_agent_config'
+  [1m[36mAgentConfig Create (7.1ms)[0m  [1m[32mINSERT INTO "agent_configs" ("campaign_id", "agent_name", "settings", "enabled", "created_at", "updated_at") VALUES (1, 'WRITER', '{"product_info":"","sender_company":""}', TRUE, '2025-10-29 22:33:32.404614', '2025-10-29 22:33:32.404614') RETURNING "id" /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:188:in `get_agent_config'
+  [1m[36mTRANSACTION (2.5ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:188:in `get_agent_config'
+  [1m[36mAgentOutput Load (0.8ms)[0m  [1m[34mSELECT "agent_outputs".* FROM "agent_outputs" WHERE "agent_outputs"."lead_id" = 1 AND "agent_outputs"."agent_name" = 'SEARCH' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:171:in `load_previous_outputs'
+  [1m[36mAgentOutput Load (0.9ms)[0m  [1m[34mSELECT "agent_outputs".* FROM "agent_outputs" WHERE "agent_outputs"."lead_id" = 1 AND "agent_outputs"."agent_name" = 'WRITER' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:277:in `save_agent_output'
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mAgentOutput Create (10.8ms)[0m  [1m[32mINSERT INTO "agent_outputs" ("lead_id", "agent_name", "output_data", "status", "error_message", "created_at", "updated_at") VALUES (1, 'WRITER', '{"company":"NovaCorp","email":"Subject: Alex, a thought on NovaCorp''s operational agility\n\nHi Alex,\n\nI often work with leaders in organizations similar to NovaCorp, and a common theme I''m hearing is the increasing need for operational agility and cost efficiency in today''s dynamic market. It''s a challenge I imagine you''re well-acquainted with, especially when navigating complex operations and aiming for sustained growth.\n\nAt Agility AI Solutions, we specialize in helping large enterprises like NovaCorp transform these challenges into opportunities. Our platform, **OptiFlow AI**, is designed to uncover hidden inefficiencies within vast operational frameworks and automate complex, repetitive workflows. We''ve seen it significantly reduce overheads and accelerate decision-making by providing real-time, actionable insights.\n\nWhile I don''t have specific insights into NovaCorp''s current strategic projects, I understand that optimizing processes and enhancing resource allocation are often top priorities for leaders in your position. OptiFlow AI seamlessly integrates with existing systems, empowering teams to focus on innovation rather than manual tasks, ultimately freeing up valuable resources and boosting overall productivity.\n\nWould you be open to a brief, no-pressure 15-minute chat next week to explore if OptiFlow AI could align with NovaCorp''s strategic goals for operational excellence? I''m available Tuesday or Thursday afternoon, or we can find a time that works best for you.\n\nBest regards,\n\n[Your Name]\n[Your Title]\nAgility AI Solutions\n[Your Website]","recipient":"Alex Martin","sources":[{"url":"https://www.tradingview.com/news/reuters.com,2025:newsml_L4N3W603H:0-ai-chip-startup-sambanova-explores-sale-after-stalled-fundraising-the-information/","score":0.07431881,"title":"AI chip startup SambaNova explores sale after stalled fundraising- The Information - TradingView","content":"* Image 22 Acceswire Sign in to read exclusive news * Image 23 Acceswire Sign in to read exclusive news * Image 24 Acceswire Sign in to read exclusive news * Image 25 * Image 26 * Image 27 * Image 28 Reuters TotalEnergies and partners lift force majeure on $20 billion Mozambique LNG projectReuters Trump says he''s willing to reduce tariffs on Brazil in right circumstancesReuters AI chip startup SambaNova explores sale after stalled fundraising- The Information* Image 29 Reuters Totalenergies Says Mozambique LNG Consortium Taken Decision To Lift Force Majeure & Mozambican Presidency Was Informed On Friday* Image 30 * Image 31 Reuters Kyrgyzstan launches national stablecoin in partnership with Binance","raw_content":null,"published_date":"Sat, 25 Oct 2025 15:28:45 GMT"},{"url":"https://news.bitcoin.com/crypto-and-carcasses-undercover-sting-recovers-700k-in-bitcoin-miners-foils-75k-frozen-turkey-heist/","score":0.042202137,"title":"Crypto and Carcasses: Undercover Sting Recovers $700K in Bitcoin Miners, Foils $75K Frozen Turkey Heist - Bitcoin.com News","content":"Market UpdatesMarkets and PricesFinanceLearning InsightsEconomicsLegalMiningRegulationBlockchainResearchNews Bytes Advertise With UsSubmit Press ReleasePodcast Interview Launch App ## Bitcoin Gaming Picks ReviewGet Bonus 200% Bonus, Instant Withdrawals, Best VIP Club, 100K daily Giveaways ## Press releases ###### Gate Ventures Announces Strategic Acquisition of Leading Decentralized Perpetual Exchange ADEN ###### Kite Announces Investment From Coinbase Ventures to Advance Agentic Payments With the x402 Protocol ## LATEST NEWS ###### Western Union to Launch Dollar-Backed Stablecoin in 2026 ###### French Party Unveils Bold Crypto Bill to Build National Bitcoin Reserve ### Download App * Advertise * News * Markets * Expert Reviews ### Reviews * Exchanges All rights reserved ### Download App * Advertise * News * Markets * Expert Reviews * Exchanges All rights reserved","raw_content":null,"published_date":"Wed, 29 Oct 2025 07:15:42 GMT"},{"url":"https://www.cbsnews.com/boston/video/next-weather-wbz-evening-forecast-for-october-28/","score":0.042202137,"title":"Next Weather: WBZ Evening Forecast For October 28 - CBS News","content":"livelive: CBS News Boston### CBS News Chicago 02:221h ago### Keller: Government websites are now having their say about the shutdown 02:401h ago### Latest details as Hurricane Melissa makes landfall in Jamaica 02:196h ago### Exhibit at Massachusetts college spotlights evolution of games and toys 00:436h ago### Latest details on Hurricane Melissa''s path through Jamaica 04:557h ago### Latest Hurricane Melissa update as Category 5 storm makes landfall in Jamaica 01:2011h ago### New interactive exhibit at Massachusetts college takes visitors back in time 02:3911h ago### Latest details as Hurricane Melissa bears down on Jamaica 02:2020h ago### Latest details on Hurricane Melissa, set to hit Jamaica 00:3523h ago### NBA referee teaches basketball officiating class at Massachusetts high school 03:01Jul 30, 2025### Latest developments in Massachusetts politics and the Boston mayoral race","raw_content":null,"published_date":"Tue, 28 Oct 2025 22:50:00 GMT"},{"url":"https://www.bitget.com/amp/news/detail/12560605029479","score":0.038397707,"title":"Crypto mining company TeraWulf completes $3.2 billion bond issuance - Bitget","content":"Bitget App Trade smarter Bitget News Crypto mining company TeraWulf completes $3.2 billion bond issuance # Crypto mining company TeraWulf completes $3.2 billion bond issuance ChainCatcher news, according to Bloomberg, cryptocurrency mining company TeraWulf Inc. has completed a $3.2 billion debt transaction, which is intended for the expansion of its data centers. This article is not intended to serve as a reference for making investment decisions. PoolX: Earn new token airdrops Lock your assets and earn 10%+ APR Lock now! Data: Bonk Holdings wallet receives BONK tokens worth $32 million via FalconX ## Trending news BTC Tether USDt USDT How to buy BTC Bitget lists BTC – Buy or sell BTC quickly on Bitget! Trade now A welcome pack worth 6200 USDT for new users! Trade smarter","raw_content":null,"published_date":"Fri, 24 Oct 2025 15:05:16 GMT"},{"url":"https://www.dawgsbynature.com/cleveland-browns-news/107378/cleveland-browns-news-10-26-dillon-gabriel-quinshon-judkins-mike-vrabel","score":0.037036795,"title":"Cleveland Browns news (10/26): Time to run over the Patriots! - Dawgs By Nature","content":"﻿﻿﻿﻿﻿﻿The latest Cleveland Browns news and notes from around the NFL in the Sunday Dawg Chow. The Cleveland Browns are on the road today as they take on the New England Patriots. Let’s start the day with the latest news and notes about the Cleveland Browns and the NFL in today’s edition of the Sunday Dawg Chow. * Browns Shedeur Sanders update leads to Bailey Zappe elevation, will feed conspiracy theories even more (Jared Mueller) - Cleveland Browns rookie quarterback Shedeur Sanders hasn’t seen a snap of regular-season action, but is the focus of attention, especially now that Bailey Zappe is elevated for the game against New England. ﻿﻿﻿The latest Cleveland Browns news and notes from around the NFL in the Saturday Dawg Chow.","raw_content":null,"published_date":"Sun, 26 Oct 2025 10:30:00 GMT"}],"image":null,"product_info":"","sender_company":""}', 'completed', NULL, '2025-10-29 22:33:47.981778', '2025-10-29 22:33:47.981778') RETURNING "id" /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mTRANSACTION (0.9ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mLead Update (9.0ms)[0m  [1m[33mUPDATE "leads" SET "stage" = 'written', "updated_at" = '2025-10-29 22:33:48.006831' WHERE "leads"."id" = 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mTRANSACTION (0.9ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mLead Load (0.7ms)[0m  [1m[34mSELECT "leads".* FROM "leads" WHERE "leads"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:129:in `run_agents_for_lead'
+Completed 200 OK in 15745ms (Views: 1.3ms | ActiveRecord: 37.8ms (10 queries, 0 cached) | GC: 0.0ms)
+
+
+Generating image variants require the image_processing gem. Please add `gem "image_processing", "~> 1.2"` to your Gemfile or set `config.active_storage.variant_processor = :disabled`.
+Started GET "/" for 127.0.0.1 at 2025-10-29 20:37:55 -0400
+  [1m[36mActiveRecord::SchemaMigration Load (6.9ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC /*application='CampaignManager'*/[0m
+DEPRECATION WARNING: resource received a hash argument only. Please use a keyword instead. Support to hash argument will be removed in Rails 8.2. (called from block in <main> at C:/Users/Kaneki/Desktop/saas-project/web/campaign_manager/config/routes.rb:2)
+DEPRECATION WARNING: resource received a hash argument path. Please use a keyword instead. Support to hash argument will be removed in Rails 8.2. (called from block in <main> at C:/Users/Kaneki/Desktop/saas-project/web/campaign_manager/config/routes.rb:2)
+DEPRECATION WARNING: resource received a hash argument path_names. Please use a keyword instead. Support to hash argument will be removed in Rails 8.2. (called from block in <main> at C:/Users/Kaneki/Desktop/saas-project/web/campaign_manager/config/routes.rb:2)
+DEPRECATION WARNING: resource received a hash argument controller. Please use a keyword instead. Support to hash argument will be removed in Rails 8.2. (called from block in <main> at C:/Users/Kaneki/Desktop/saas-project/web/campaign_manager/config/routes.rb:2)
+Processing by CampaignsController#index as HTML
+  [1m[36mUser Load (9.8ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='campaigns'*/[0m
+  ↳ app/controllers/campaigns_controller.rb:24:in `current_user'
+  [1m[36mCACHE User Load (0.0ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1[0m
+  ↳ app/controllers/campaigns_controller.rb:24:in `current_user'
+  Rendering layout layouts/application.html.erb
+  Rendering campaigns/index.html.erb within layouts/application
+  Rendered campaigns/index.html.erb within layouts/application (Duration: 45.2ms | GC: 0.0ms)
+  Rendered layout layouts/application.html.erb (Duration: 432.6ms | GC: 0.2ms)
+Completed 200 OK in 2278ms (Views: 758.2ms | ActiveRecord: 112.2ms (2 queries, 0 cached) | GC: 0.2ms)
+
+
+Started GET "/api/v1/leads" for 127.0.0.1 at 2025-10-29 20:38:02 -0400
+Started GET "/api/v1/campaigns" for 127.0.0.1 at 2025-10-29 20:38:02 -0400
+Started GET "/api/v1/api_keys" for 127.0.0.1 at 2025-10-29 20:38:02 -0400
+Processing by Api::V1::CampaignsController#index as JSON
+  Parameters: {"campaign"=>{}}
+Processing by Api::V1::LeadsController#index as JSON
+  Parameters: {"lead"=>{}}
+  [1m[36mUser Load (1.7ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='campaigns'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+Processing by Api::V1::ApiKeysController#show as JSON
+  Parameters: {"api_key"=>{}}
+  [1m[36mCampaign Load (6.6ms)[0m  [1m[34mSELECT "campaigns".* FROM "campaigns" WHERE "campaigns"."user_id" = 1 /*action='index',application='CampaignManager',controller='campaigns'*/[0m
+  ↳ app/controllers/api/v1/campaigns_controller.rb:6:in `index'
+Completed 200 OK in 147ms (Views: 0.3ms | ActiveRecord: 0.0ms (0 queries, 0 cached) | GC: 0.0ms)
+
+
+Completed 200 OK in 351ms (Views: 191.3ms | ActiveRecord: 8.2ms (2 queries, 0 cached) | GC: 0.0ms)
+
+
+  [1m[36mUser Load (6.3ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mLead Load (11.5ms)[0m  [1m[34mSELECT "leads".* FROM "leads" INNER JOIN "campaigns" ON "campaigns"."id" = "leads"."campaign_id" WHERE "campaigns"."user_id" = 1 /*action='index',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:6:in `index'
+Completed 200 OK in 893ms (Views: 113.6ms | ActiveRecord: 59.7ms (2 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/api/v1/campaigns/1/agent_configs" for 127.0.0.1 at 2025-10-29 20:38:07 -0400
+Processing by Api::V1::AgentConfigsController#index as JSON
+  Parameters: {"campaign_id"=>"1", "agent_config"=>{}}
+  [1m[36mUser Load (2.1ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='agent_configs'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mCampaign Load (1.0ms)[0m  [1m[34mSELECT "campaigns".* FROM "campaigns" WHERE "campaigns"."user_id" = 1 AND "campaigns"."id" = 1 LIMIT 1 /*action='index',application='CampaignManager',controller='agent_configs'*/[0m
+  ↳ app/controllers/api/v1/agent_configs_controller.rb:8:in `index'
+  [1m[36mAgentConfig Load (6.1ms)[0m  [1m[34mSELECT "agent_configs".* FROM "agent_configs" WHERE "agent_configs"."campaign_id" = 1 /*action='index',application='CampaignManager',controller='agent_configs'*/[0m
+  ↳ app/controllers/api/v1/agent_configs_controller.rb:15:in `map'
+Completed 200 OK in 175ms (Views: 2.2ms | ActiveRecord: 26.9ms (3 queries, 0 cached) | GC: 0.2ms)
+
+
+Started POST "/api/v1/leads/2/run_agents" for 127.0.0.1 at 2025-10-29 20:38:15 -0400
+Processing by Api::V1::LeadsController#run_agents as JSON
+  Parameters: {"id"=>"2", "lead"=>{}}
+  [1m[36mUser Load (1.0ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mLead Load (1.3ms)[0m  [1m[34mSELECT "leads".* FROM "leads" INNER JOIN "campaigns" ON "campaigns"."id" = "leads"."campaign_id" WHERE "campaigns"."user_id" = 1 AND "leads"."id" = 2 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:51:in `run_agents'
+  [1m[36mCampaign Load (0.9ms)[0m  [1m[34mSELECT "campaigns".* FROM "campaigns" WHERE "campaigns"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:59:in `run_agents'
+  [1m[36mAgentConfig Load (1.0ms)[0m  [1m[34mSELECT "agent_configs".* FROM "agent_configs" WHERE "agent_configs"."campaign_id" = 1 AND "agent_configs"."agent_name" = 'SEARCH' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:187:in `get_agent_config'
+  [1m[36mAgentOutput Load (9.2ms)[0m  [1m[34mSELECT "agent_outputs".* FROM "agent_outputs" WHERE "agent_outputs"."lead_id" = 2 AND "agent_outputs"."agent_name" = 'SEARCH' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:277:in `save_agent_output'
+  [1m[36mTRANSACTION (3.8ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mAgentOutput Create (71.7ms)[0m  [1m[32mINSERT INTO "agent_outputs" ("agent_name", "created_at", "error_message", "lead_id", "output_data", "status", "updated_at") VALUES ('SEARCH', '2025-10-30 00:38:17.348502', NULL, 2, '{"domain":"orbitai.com","sources":[{"url":"https://www.securityweek.com/hackers-target-perplexity-comet-browser-users/","title":"Hackers Target Perplexity Comet Browser Users - SecurityWeek","score":0.13025248,"published_date":"Fri, 24 Oct 2025 13:54:20 GMT","content":"**Shortly after AI search engine company Perplexity launched its Comet AI browser, threat actors attempted to capitalize on it by luring users to fraudulent domains and fake applications, threat intelligence firm BforeAI reports.** The threat actors behind this coordinated campaign used several keyword variations containing ‘comet’, ‘AI’, ‘browser’, ‘perplexity’, and ‘download’. Eight of the domains were registered after Comet was launched, including cometai.site, cometaibrowser.com, perplexitycomet-ai.com, cometbrowser.net, and aicometbrowser.com, which are considered critical- and high-level threats. Additionally, BforeAI identified two critical-level mobile application threats in the Google Play Store, such as Comet AI Atlas App Info, which directly impersonates the browser. Subscribe to the SecurityWeek Email Briefing to stay informed on the latest cybersecurity news, threats, and expert insights.","raw_content":null},{"url":"https://www.cbsnews.com/boston/video/next-weather-wbz-evening-forecast-for-october-28/","title":"Next Weather: WBZ Evening Forecast For October 28 - CBS News","score":0.043256637,"published_date":"Tue, 28 Oct 2025 22:50:00 GMT","content":"livelive: CBS News Boston### CBS News Chicago 02:221h ago### Keller: Government websites are now having their say about the shutdown 02:401h ago### Latest details as Hurricane Melissa makes landfall in Jamaica 02:196h ago### Exhibit at Massachusetts college spotlights evolution of games and toys 00:436h ago### Latest details on Hurricane Melissa''s path through Jamaica 04:557h ago### Latest Hurricane Melissa update as Category 5 storm makes landfall in Jamaica 01:2011h ago### New interactive exhibit at Massachusetts college takes visitors back in time 02:3911h ago### Latest details as Hurricane Melissa bears down on Jamaica 02:2020h ago### Latest details on Hurricane Melissa, set to hit Jamaica 00:3523h ago### NBA referee teaches basketball officiating class at Massachusetts high school 03:01Jul 30, 2025### Latest developments in Massachusetts politics and the Boston mayoral race","raw_content":null},{"url":"https://spacenews.com/author/gokul-subramanian/","title":"Gokul Subramanian - SpaceNews","score":0.042439613,"published_date":"Mon, 27 Oct 2025 14:36:05 GMT","content":"Gokul Subramanian, Author at SpaceNews *   NewsOpen dropdown menu *   Video & AudioOpen dropdown menu *   Press ReleasesOpen dropdown menu *   MoreOpen dropdown menu *   About SpaceNews Image 2: SpaceNews SpaceNews *   NewsOpen dropdown menu *   Video & AudioOpen dropdown menu *   Press ReleasesOpen dropdown menu *   About SpaceNews Image 3: Last year, Anduril and Apex Space successfully launched their first joint mission, Aries SN1, with Anduril’s edge-processing payload. *   About SpaceNews Events & Job Board *   SpaceNews Job Board Sign in by entering the code we sent to , or clicking the magic link in the email. By creating a SpaceNews.com account, you acknowledge that you have read our privacy policy and agree to our terms and conditions.","raw_content":null},{"url":"https://www.dawgsbynature.com/cleveland-browns-news/107378/cleveland-browns-news-10-26-dillon-gabriel-quinshon-judkins-mike-vrabel","title":"Cleveland Browns news (10/26): Time to run over the Patriots! - Dawgs By Nature","score":0.04163736,"published_date":"Sun, 26 Oct 2025 10:30:00 GMT","content":"﻿﻿﻿﻿﻿﻿The latest Cleveland Browns news and notes from around the NFL in the Sunday Dawg Chow. The Cleveland Browns are on the road today as they take on the New England Patriots. Let’s start the day with the latest news and notes about the Cleveland Browns and the NFL in today’s edition of the Sunday Dawg Chow. * Browns Shedeur Sanders update leads to Bailey Zappe elevation, will feed conspiracy theories even more (Jared Mueller) - Cleveland Browns rookie quarterback Shedeur Sanders hasn’t seen a snap of regular-season action, but is the focus of attention, especially now that Bailey Zappe is elevated for the game against New England. ﻿﻿﻿The latest Cleveland Browns news and notes from around the NFL in the Saturday Dawg Chow.","raw_content":null},{"url":"https://www.livemint.com/us/trending/why-nasa-is-studying-the-3i-atlas-comet-and-how-it-could-help-protect-earth-from-deadly-space-threats/amp-11761753455549.html","title":"Inside NASA’s 3I/ATLAS campaign: How a harmless comet could help stop deadly asteroids in the future - Mint","score":0.03980655,"published_date":"Wed, 29 Oct 2025 16:21:19 GMT","content":"+ personal loan emi calculator More From Mint # Inside NASA’s 3I/ATLAS campaign: How a harmless comet could help stop deadly asteroids in the future ## NASA and the International Asteroid Warning Network have launched a global campaign to track comet 3I/ATLAS and strengthen Earth’s asteroid defense. NASA and the International Asteroid Warning Network (IAWN) have launched a global observing campaign to track 3I/ATLAS. But by studying it, NASA and its partners are gathering data to detect and predict the movements of near-Earth objects that could one day stop a real threat from reaching Earth. Download The Mint News App to get Daily Market Updates. Business NewsUsTrendingInside NASA’s 3I/ATLAS campaign: How a harmless comet could help stop deadly asteroids in the future","raw_content":null}]}', 'completed', '2025-10-30 00:38:17.348502') RETURNING "id" /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mTRANSACTION (5.2ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mTRANSACTION (1.0ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mLead Update (39.5ms)[0m  [1m[33mUPDATE "leads" SET "stage" = 'searched', "updated_at" = '2025-10-30 00:38:17.483918' WHERE "leads"."id" = 2 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mTRANSACTION (1.4ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mLead Load (1.3ms)[0m  [1m[34mSELECT "leads".* FROM "leads" WHERE "leads"."id" = 2 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:129:in `run_agents_for_lead'
+Completed 200 OK in 1940ms (Views: 2.2ms | ActiveRecord: 148.3ms (8 queries, 0 cached) | GC: 0.0ms)
+
+
+Started POST "/api/v1/leads/3/run_agents" for 127.0.0.1 at 2025-10-29 20:38:17 -0400
+Processing by Api::V1::LeadsController#run_agents as JSON
+  Parameters: {"id"=>"3", "lead"=>{}}
+  [1m[36mUser Load (0.6ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mLead Load (1.0ms)[0m  [1m[34mSELECT "leads".* FROM "leads" INNER JOIN "campaigns" ON "campaigns"."id" = "leads"."campaign_id" WHERE "campaigns"."user_id" = 1 AND "leads"."id" = 3 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:51:in `run_agents'
+  [1m[36mCampaign Load (0.6ms)[0m  [1m[34mSELECT "campaigns".* FROM "campaigns" WHERE "campaigns"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:59:in `run_agents'
+  [1m[36mAgentConfig Load (0.6ms)[0m  [1m[34mSELECT "agent_configs".* FROM "agent_configs" WHERE "agent_configs"."campaign_id" = 1 AND "agent_configs"."agent_name" = 'SEARCH' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:187:in `get_agent_config'
+  [1m[36mAgentOutput Load (1.8ms)[0m  [1m[34mSELECT "agent_outputs".* FROM "agent_outputs" WHERE "agent_outputs"."lead_id" = 3 AND "agent_outputs"."agent_name" = 'SEARCH' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:277:in `save_agent_output'
+  [1m[36mTRANSACTION (3.4ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mAgentOutput Create (45.5ms)[0m  [1m[32mINSERT INTO "agent_outputs" ("agent_name", "created_at", "error_message", "lead_id", "output_data", "status", "updated_at") VALUES ('SEARCH', '2025-10-30 00:38:18.381513', NULL, 3, '{"domain":"stackly.dev","sources":[{"url":"https://www.startupecosystem.ca/news/strong-by-form-introduces-innovative-engineered-wood-at-techcrunch-disrupt/","title":"Strong by Form Introduces Innovative Engineered Wood at TechCrunch Disrupt - Startup Ecosystem Canada","score":0.03883275,"published_date":"Tue, 28 Oct 2025 00:15:25 GMT","content":"Chilean startup Strong by Form is set to showcase its groundbreaking engineered wood product at TechCrunch Disrupt 2025 in San Francisco. * Canada startup news acquisition AI AI development AI infrastructure AI innovation AI integration AI investment AI models AI technology Anthropic Apple Artificial Intelligence Autonomous vehicles Canada founder news Canada startup news ChatGPT cryptocurrency Cybersecurity DeepSeek Electric Vehicles Elon Musk entrepreneurship fintech Funding round Generative AI Global founder news Global startup news healthcare innovation Innovation investment IPO Meta Microsoft Nvidia Ontario founder news Ontario startup news OpenAI Seed funding Series A funding Startup growth TechCrunch Disrupt Tech innovation Tesla Toronto startup news venture capital 8 months ago Global ChatGPT Enhances Developer Workflow by Editing Code Directly in Xcode on macOS","raw_content":null},{"url":"https://www.dawgsbynature.com/cleveland-browns-news/107378/cleveland-browns-news-10-26-dillon-gabriel-quinshon-judkins-mike-vrabel","title":"Cleveland Browns news (10/26): Time to run over the Patriots! - Dawgs By Nature","score":0.036579784,"published_date":"Sun, 26 Oct 2025 10:30:00 GMT","content":"﻿﻿﻿﻿﻿﻿The latest Cleveland Browns news and notes from around the NFL in the Sunday Dawg Chow. The Cleveland Browns are on the road today as they take on the New England Patriots. Let’s start the day with the latest news and notes about the Cleveland Browns and the NFL in today’s edition of the Sunday Dawg Chow. * Browns Shedeur Sanders update leads to Bailey Zappe elevation, will feed conspiracy theories even more (Jared Mueller) - Cleveland Browns rookie quarterback Shedeur Sanders hasn’t seen a snap of regular-season action, but is the focus of attention, especially now that Bailey Zappe is elevated for the game against New England. ﻿﻿﻿The latest Cleveland Browns news and notes from around the NFL in the Saturday Dawg Chow.","raw_content":null},{"url":"https://www.cbsnews.com/boston/video/next-weather-wbz-evening-forecast-for-october-28/","title":"Next Weather: WBZ Evening Forecast For October 28 - CBS News","score":0.036005974,"published_date":"Tue, 28 Oct 2025 22:50:00 GMT","content":"livelive: CBS News Boston### CBS News Chicago 02:221h ago### Keller: Government websites are now having their say about the shutdown 02:401h ago### Latest details as Hurricane Melissa makes landfall in Jamaica 02:196h ago### Exhibit at Massachusetts college spotlights evolution of games and toys 00:436h ago### Latest details on Hurricane Melissa''s path through Jamaica 04:557h ago### Latest Hurricane Melissa update as Category 5 storm makes landfall in Jamaica 01:2011h ago### New interactive exhibit at Massachusetts college takes visitors back in time 02:3911h ago### Latest details as Hurricane Melissa bears down on Jamaica 02:2020h ago### Latest details on Hurricane Melissa, set to hit Jamaica 00:3523h ago### NBA referee teaches basketball officiating class at Massachusetts high school 03:01Jul 30, 2025### Latest developments in Massachusetts politics and the Boston mayoral race","raw_content":null},{"url":"https://en.yna.co.kr/view/AEN20251028010251320","title":"(LEAD) Samsung Biologics'' net income more than doubles in Q3 - Yonhap News Agency","score":0.033226922,"published_date":"Tue, 28 Oct 2025 07:34:30 GMT","content":"* RSS Feed **News** Latest News :   M&As :   Focus/Feature :   Movies Top News Today in Korean History Yonhap News Summary * Features * Weather * Advertise with Yonhap News Agency * RSS * Mobile Service * About Yonhap News * Domestic Network * Global Network * Products/Services **Yonhap News Agency** Today''s weather *Wind* W 3.5m/s CAI Moderate 80 :   Moderate CAI Latest News **All News**  16:34 October 28, 2025 Operating income for the three-month period ended September soared 115.3 percent on-year to 728.8 billion won, from 338.6 billion won a year ago. * **(Movie Review) ''The First Ride'' buckles up for more than joyride** * **(Movie Review) ''The First Ride'' buckles up for more than joyride** HOME **All News**","raw_content":null},{"url":"https://www.hindustantimes.com/lifestyle/health/california-cardiologist-with-20-years-experience-says-you-dont-need-to-cut-out-every-bad-food-to-protect-your-heart-101761446844493.html","title":"California cardiologist with 20 years experience says ‘you don''t need to cut out every bad food to protect your heart’ | Health - Hindustan Times","score":0.030865178,"published_date":"Sun, 26 Oct 2025 03:17:11 GMT","content":"Sun, Oct 26, 2025 New Delhi oC * US News * Bihar Election * Delhi AQI * Delhi News * Bihar Chunav + Bihar Election + Delhi AQI + Delhi News + Bihar Chunav Updated on: Oct 26, 2025 08:47 am IST “The truth is, your heart health isn’t just about cholesterol or blood pressure. It’s about inflammation, hormones, gut health, sleep quality, stress response — all interconnected,” he added. Catch your daily dose of Fashion, Taylor Swift, Health, Festivals, Travel, Relationship, Recipe and all the other Latest Lifestyle News on Hindustan Times Website and APPs. Catch your daily dose of Fashion, Taylor Swift, Health, Festivals, Travel, Relationship, Recipe and all the other Latest Lifestyle News on Hindustan Times Website and APPs.","raw_content":null}]}', 'completed', '2025-10-30 00:38:18.381513') RETURNING "id" /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mTRANSACTION (1.3ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mLead Update (11.2ms)[0m  [1m[33mUPDATE "leads" SET "stage" = 'searched', "updated_at" = '2025-10-30 00:38:18.466868' WHERE "leads"."id" = 3 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mTRANSACTION (1.4ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mLead Load (0.8ms)[0m  [1m[34mSELECT "leads".* FROM "leads" WHERE "leads"."id" = 3 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:129:in `run_agents_for_lead'
+Completed 200 OK in 756ms (Views: 1.1ms | ActiveRecord: 68.5ms (8 queries, 0 cached) | GC: 0.0ms)
+
+
+Started POST "/api/v1/leads/1/run_agents" for 127.0.0.1 at 2025-10-29 20:38:18 -0400
+Processing by Api::V1::LeadsController#run_agents as JSON
+  Parameters: {"id"=>"1", "lead"=>{}}
+  [1m[36mUser Load (0.9ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mLead Load (1.1ms)[0m  [1m[34mSELECT "leads".* FROM "leads" INNER JOIN "campaigns" ON "campaigns"."id" = "leads"."campaign_id" WHERE "campaigns"."user_id" = 1 AND "leads"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:51:in `run_agents'
+  [1m[36mCampaign Load (0.7ms)[0m  [1m[34mSELECT "campaigns".* FROM "campaigns" WHERE "campaigns"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:59:in `run_agents'
+  [1m[36mAgentConfig Load (1.5ms)[0m  [1m[34mSELECT "agent_configs".* FROM "agent_configs" WHERE "agent_configs"."campaign_id" = 1 AND "agent_configs"."agent_name" = 'CRITIQUE' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:187:in `get_agent_config'
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:188:in `get_agent_config'
+  [1m[36mAgentConfig Create (14.1ms)[0m  [1m[32mINSERT INTO "agent_configs" ("agent_name", "campaign_id", "created_at", "enabled", "settings", "updated_at") VALUES ('CRITIQUE', 1, '2025-10-30 00:38:18.720233', TRUE, '{}', '2025-10-30 00:38:18.720233') RETURNING "id" /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:188:in `get_agent_config'
+  [1m[36mTRANSACTION (1.2ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:188:in `get_agent_config'
+  [1m[36mAgentOutput Load (1.6ms)[0m  [1m[34mSELECT "agent_outputs".* FROM "agent_outputs" WHERE "agent_outputs"."lead_id" = 1 AND "agent_outputs"."agent_name" = 'WRITER' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:177:in `load_previous_outputs'
+  [1m[36mAgentOutput Load (0.7ms)[0m  [1m[34mSELECT "agent_outputs".* FROM "agent_outputs" WHERE "agent_outputs"."lead_id" = 1 AND "agent_outputs"."agent_name" = 'CRITIQUE' LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:277:in `save_agent_output'
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mAgentOutput Create (6.7ms)[0m  [1m[32mINSERT INTO "agent_outputs" ("agent_name", "created_at", "error_message", "lead_id", "output_data", "status", "updated_at") VALUES ('CRITIQUE', '2025-10-30 00:38:25.827188', NULL, 1, '{"email_content":"Subject: Alex, a thought on NovaCorp''s operational agility\n\nHi Alex,\n\nI often work with leaders in organizations similar to NovaCorp, and a common theme I''m hearing is the increasing need for operational agility and cost efficiency in today''s dynamic market. It''s a challenge I imagine you''re well-acquainted with, especially when navigating complex operations and aiming for sustained growth.\n\nAt Agility AI Solutions, we specialize in helping large enterprises like NovaCorp transform these challenges into opportunities. Our platform, **OptiFlow AI**, is designed to uncover hidden inefficiencies within vast operational frameworks and automate complex, repetitive workflows. We''ve seen it significantly reduce overheads and accelerate decision-making by providing real-time, actionable insights.\n\nWhile I don''t have specific insights into NovaCorp''s current strategic projects, I understand that optimizing processes and enhancing resource allocation are often top priorities for leaders in your position. OptiFlow AI seamlessly integrates with existing systems, empowering teams to focus on innovation rather than manual tasks, ultimately freeing up valuable resources and boosting overall productivity.\n\nWould you be open to a brief, no-pressure 15-minute chat next week to explore if OptiFlow AI could align with NovaCorp''s strategic goals for operational excellence? I''m available Tuesday or Thursday afternoon, or we can find a time that works best for you.\n\nBest regards,\n\n[Your Name]\n[Your Title]\nAgility AI Solutions\n[Your Website]","number_of_revisions":0,"critique":null}', 'completed', '2025-10-30 00:38:25.827188') RETURNING "id" /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mTRANSACTION (0.9ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:283:in `save_agent_output'
+  [1m[36mTRANSACTION (0.4ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mLead Update (8.1ms)[0m  [1m[33mUPDATE "leads" SET "stage" = 'critiqued', "updated_at" = '2025-10-30 00:38:25.846558' WHERE "leads"."id" = 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mTRANSACTION (0.9ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:295:in `advance_stage'
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:309:in `update_lead_quality'
+  [1m[36mLead Update (11.7ms)[0m  [1m[33mUPDATE "leads" SET "quality" = 'high', "updated_at" = '2025-10-30 00:38:25.868010' WHERE "leads"."id" = 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:309:in `update_lead_quality'
+  [1m[36mTRANSACTION (1.1ms)[0m  [1m[35mCOMMIT /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:309:in `update_lead_quality'
+  [1m[36mLead Load (0.8ms)[0m  [1m[34mSELECT "leads".* FROM "leads" WHERE "leads"."id" = 1 LIMIT 1 /*action='run_agents',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/services/lead_agent_service.rb:129:in `run_agents_for_lead'
+Completed 200 OK in 7257ms (Views: 1.8ms | ActiveRecord: 53.6ms (11 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/api/v1/leads" for 127.0.0.1 at 2025-10-29 20:38:25 -0400
+Processing by Api::V1::LeadsController#index as JSON
+  Parameters: {"lead"=>{}}
+  [1m[36mUser Load (1.2ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mLead Load (1.6ms)[0m  [1m[34mSELECT "leads".* FROM "leads" INNER JOIN "campaigns" ON "campaigns"."id" = "leads"."campaign_id" WHERE "campaigns"."user_id" = 1 /*action='index',application='CampaignManager',controller='leads'*/[0m
+  ↳ app/controllers/api/v1/leads_controller.rb:6:in `index'
+Completed 200 OK in 62ms (Views: 9.4ms | ActiveRecord: 2.8ms (2 queries, 0 cached) | GC: 0.0ms)
+
+
+Started POST "/api/v1/campaigns" for 127.0.0.1 at 2025-10-29 20:39:05 -0400
+Processing by Api::V1::CampaignsController#create as JSON
+  Parameters: {"campaign"=>{"title"=>"Insurtech Startup", "basePrompt"=>"Promote a groundbreaking valuation technique to price risk"}}
+  [1m[36mUser Load (0.9ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='create',application='CampaignManager',controller='campaigns'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mTRANSACTION (0.5ms)[0m  [1m[35mBEGIN /*action='create',application='CampaignManager',controller='campaigns'*/[0m
+  ↳ app/controllers/api/v1/campaigns_controller.rb:12:in `create'
+  [1m[36mCampaign Create (10.7ms)[0m  [1m[32mINSERT INTO "campaigns" ("base_prompt", "created_at", "title", "updated_at", "user_id") VALUES ('Promote a groundbreaking valuation technique to price risk', '2025-10-30 00:39:06.021609', 'Insurtech Startup', '2025-10-30 00:39:06.021609', 1) RETURNING "id" /*action='create',application='CampaignManager',controller='campaigns'*/[0m
+  ↳ app/controllers/api/v1/campaigns_controller.rb:12:in `create'
+  [1m[36mTRANSACTION (2.1ms)[0m  [1m[35mCOMMIT /*action='create',application='CampaignManager',controller='campaigns'*/[0m
+  ↳ app/controllers/api/v1/campaigns_controller.rb:12:in `create'
+Completed 201 Created in 108ms (Views: 1.4ms | ActiveRecord: 14.1ms (2 queries, 0 cached) | GC: 0.0ms)
+
+
+Started GET "/api/v1/campaigns/2/agent_configs" for 127.0.0.1 at 2025-10-29 20:39:06 -0400
+Processing by Api::V1::AgentConfigsController#index as JSON
+  Parameters: {"campaign_id"=>"2", "agent_config"=>{}}
+  [1m[36mUser Load (0.7ms)[0m  [1m[34mSELECT "users".* FROM "users" WHERE "users"."email" = 'admin@example.com' LIMIT 1 /*action='index',application='CampaignManager',controller='agent_configs'*/[0m
+  ↳ app/controllers/api/v1/base_controller.rb:18:in `current_user'
+  [1m[36mCampaign Load (0.7ms)[0m  [1m[34mSELECT "campaigns".* FROM "campaigns" WHERE "campaigns"."user_id" = 1 AND "campaigns"."id" = 2 LIMIT 1 /*action='index',application='CampaignManager',controller='agent_configs'*/[0m
+  ↳ app/controllers/api/v1/agent_configs_controller.rb:8:in `index'
+  [1m[36mAgentConfig Load (0.6ms)[0m  [1m[34mSELECT "agent_configs".* FROM "agent_configs" WHERE "agent_configs"."campaign_id" = 2 /*action='index',application='CampaignManager',controller='agent_configs'*/[0m
+  ↳ app/controllers/api/v1/agent_configs_controller.rb:15:in `map'
+Completed 200 OK in 66ms (Views: 0.2ms | ActiveRecord: 2.0ms (3 queries, 0 cached) | GC: 0.0ms)
+
+
