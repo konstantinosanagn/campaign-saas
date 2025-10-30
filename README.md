@@ -201,6 +201,7 @@ yarn test:coverage           # Run tests with coverage
 - API endpoint testing
 
 ## User Stories in Cucumber
+![Cucumber Pass](./cucumber_pass.png)
 The Cucumber test suite covers seven core user stories across both the UI and API. It verifies that authenticated users can access the main dashboard, campaigns can be created and updated through RESTful endpoints, and leads can be added under a user’s campaign. It also tests that invalid agent executions correctly return a 404 error, API keys for external services can be stored and retrieved from session data, and agent outputs linked to specific leads are properly returned to the client. Together, these scenarios comprehensively validate the application’s core workflows—from authentication and data creation to error handling and integration endpoints—with all seven features passing successfully.
 
 ## 🚀 Deployment
