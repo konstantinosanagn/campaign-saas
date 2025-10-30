@@ -5,8 +5,8 @@ const environment = require('./environment')
 // Configure webpack to use legacy OpenSSL provider
 const config = environment.toWebpackConfig()
 
-// Override the hash function to use legacy algorithm for Webpack 4
+// Override the hash function to use a supported algorithm for Webpack 4
 config.output = config.output || {}
-config.output.hashFunction = 'xxhash64'
+config.output.hashFunction = 'sha256'
 
 module.exports = config
