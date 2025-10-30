@@ -19,4 +19,9 @@ Given('a {string} agent output exists for the lead') do |agent_name|
   AgentOutput.create!(lead: @lead, agent_name: agent_name, status: 'completed', output_data: { sample: true })
 end
 
+Given('there is another user with a separate campaign') do
+  other = User.create!(email: 'other@example.com', password: 'password123', password_confirmation: 'password123', name: 'Other User')
+  @other_campaign = Campaign.create!(title: 'Other Campaign', base_prompt: 'Other', user: other)
+end
+
 
