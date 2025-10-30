@@ -55,7 +55,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:coverage:components": "jest --coverage --collectCoverageFrom='app/javascript/components/**/*.{ts,tsx}' --testPathPattern='components' --coverageReporters=text --coverageReporters=text-summary"
+    "test:coverage:components": "jest --coverage --collectCoverageFrom='app/javascript/components/**/*.{ts,tsx}' --testPathPattern='components' --coverageReporters=text --coverageReporters=text-summary",
+    "build": "NODE_OPTIONS='--legacy-openssl-provider' webpack --mode=production",
+    "build:dev": "NODE_OPTIONS='--legacy-openssl-provider' webpack --mode=development"
   },
   "jest": {
     "preset": "ts-jest",
