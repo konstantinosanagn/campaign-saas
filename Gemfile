@@ -43,6 +43,12 @@ gem "shoulda-matchers", "~> 6.0"
 gem "simplecov", "~> 0.22", require: false
 gem "rails-controller-testing"
 
+group :test do
+  gem "cucumber-rails", require: false
+  gem "capybara"
+  gem "database_cleaner-active_record"
+end
+
 group :development do
   gem "web-console"
 end
