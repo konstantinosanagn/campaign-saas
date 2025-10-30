@@ -24,34 +24,36 @@ CampAIgn is a comprehensive campaign management platform that automates the enti
 ## 📁 Codebase Structure
 
 ```
-web/
-├── campaign_manager/          # Rails application
-│   ├── app/
-│   │   ├── controllers/       # MVC controllers
-│   │   │   ├── api/v1/       # RESTful API endpoints
-│   │   │   └── concerns/     # Shared controller logic
-│   │   ├── models/            # ActiveRecord models
-│   │   │   ├── user.rb       # User authentication
-│   │   │   ├── campaign.rb   # Campaign management
-│   │   │   ├── lead.rb       # Lead information
-│   │   │   ├── agent_config.rb    # Agent configurations
-│   │   │   └── agent_output.rb    # Agent execution results
-│   │   ├── services/          # Business logic
-│   │   │   ├── orchestrator.rb     # Agent pipeline coordinator
-│   │   │   ├── search_agent.rb     # Company research agent
-│   │   │   ├── writer_agent.rb     # Email generation agent
-│   │   │   ├── critique_agent.rb   # Quality review agent
-│   │   │   └── lead_agent_service.rb # Lead processing service
-│   │   ├── javascript/        # React/TypeScript frontend
-│   │   │   ├── components/    # React components
-│   │   │   ├── hooks/         # Custom React hooks
-│   │   │   ├── libs/          # Utilities and API client
-│   │   │   └── types/         # TypeScript definitions
-│   │   └── views/             # ERB templates
-│   ├── config/                # Rails configuration
-│   ├── db/                    # Database migrations and seeds
-│   ├── spec/                  # RSpec test suite (178 tests)
-│   └── public/                # Static assets
+web/                          # Root directory (Rails application)
+├── app/
+│   ├── controllers/           # MVC controllers
+│   │   ├── api/v1/           # RESTful API endpoints
+│   │   └── concerns/         # Shared controller logic
+│   ├── models/                # ActiveRecord models
+│   │   ├── user.rb           # User authentication
+│   │   ├── campaign.rb       # Campaign management
+│   │   ├── lead.rb           # Lead information
+│   │   ├── agent_config.rb   # Agent configurations
+│   │   └── agent_output.rb   # Agent execution results
+│   ├── services/              # Business logic
+│   │   ├── orchestrator.rb   # Agent pipeline coordinator
+│   │   ├── search_agent.rb   # Company research agent
+│   │   ├── writer_agent.rb   # Email generation agent
+│   │   ├── critique_agent.rb # Quality review agent
+│   │   └── lead_agent_service.rb # Lead processing service
+│   ├── javascript/            # React/TypeScript frontend
+│   │   ├── components/        # React components
+│   │   ├── hooks/             # Custom React hooks
+│   │   ├── libs/              # Utilities and API client
+│   │   └── types/             # TypeScript definitions
+│   └── views/                 # ERB templates
+├── config/                    # Rails configuration
+├── db/                        # Database migrations and seeds
+├── spec/                      # RSpec test suite (178 tests)
+├── public/                    # Static assets
+├── package.json               # Node.js dependencies
+├── tsconfig.json              # TypeScript configuration
+├── tailwind.config.js         # Tailwind CSS configuration
 └── README.md                  # This file
 ```
 
@@ -59,18 +61,18 @@ web/
 
 ### Prerequisites
 
-- **Ruby:** 3.0+ 
+- **Ruby:** 3.3.9+ 
 - **Rails:** 8.1
 - **PostgreSQL:** 12+
-- **Node.js:** 18.0+
-- **Yarn:** Latest version
+- **Node.js:** 16.x (required for Webpacker compatibility)
+- **Yarn:** 1.22.x
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
    git clone <your-repo-url>
-   cd web/campaign_manager
+   cd web
    ```
 
 2. **Install dependencies**
@@ -111,7 +113,7 @@ web/
 
 ### Environment Variables
 
-Create a `.env` file in `campaign_manager/` directory:
+Create a `.env` file in the root `web/` directory:
 
 ```bash
 # Database
@@ -186,12 +188,25 @@ yarn test:coverage           # Run tests with coverage
 
 ## 🚀 Deployment
 
-The application is production-ready with:
-- Dockerfile for containerization
-- PostgreSQL database support
-- Redis for caching and rate limiting
-- Comprehensive error handling
-- Security best practices
+### Live Application
+The application is currently deployed and running on Heroku:
+**🌐 https://campaign-saas-7460a258bf90.herokuapp.com/**
+
+### Production Features
+- **Heroku PostgreSQL** - Managed database with automatic backups
+- **Redis** - Caching and rate limiting
+- **Asset Pipeline** - Optimized CSS and JavaScript compilation
+- **SSL/HTTPS** - Secure connections enforced
+- **Environment Variables** - Secure API key management
+- **Comprehensive Error Handling** - Production-ready error management
+- **Security Best Practices** - CSRF protection, rate limiting, and more
+
+### Deployment Configuration
+- **Node.js 16.x** - Pinned for Webpacker compatibility
+- **Ruby 3.3.9** - Latest stable Ruby version
+- **PostgreSQL** - Essential-0 plan on Heroku
+- **Buildpacks** - Node.js and Ruby buildpacks configured
+- **Asset Precompilation** - Optimized for production performance
 
 ## 📝 API Documentation
 
@@ -227,11 +242,20 @@ This project is licensed under the MIT License.
 - [ ] **API Documentation** - Swagger/OpenAPI specs
 
 ### Phase 7: Deployment & Monitoring
+- [x] **Heroku Deployment** - Production deployment completed
 - [ ] **Docker Compose** - Local development environment
 - [ ] **CI/CD Pipeline** - GitHub Actions automation
 - [ ] **Error Tracking** - Sentry integration
 - [ ] **Performance Monitoring** - APM tools
-- [ ] **Backup Strategy** - Database and file backups
+- [x] **Backup Strategy** - Heroku PostgreSQL automatic backups
+
+### Deployment Process Completed
+- [x] **Database Configuration** - Updated to use DATABASE_URL for Heroku
+- [x] **Asset Pipeline** - Fixed Webpacker and Tailwind CSS compilation
+- [x] **Node.js Compatibility** - Pinned to version 16.x for Webpacker
+- [x] **Asset Preloading** - Resolved preloading conflicts
+- [x] **Database Migrations** - Successfully ran on Heroku
+- [x] **Environment Variables** - Configured for production
 
 ### Code Quality & Maintenance
 - [ ] **RuboCop** - Ruby code quality checks
@@ -239,13 +263,6 @@ This project is licensed under the MIT License.
 - [ ] **Pre-commit Hooks** - Automated quality checks
 - [ ] **API Rate Limiting** - Enhanced throttling
 - [ ] **Security Headers** - Additional security measures
-
-### UI/UX Improvements
-- [ ] **Dark Mode** - Theme switching
-- [ ] **Mobile App** - React Native version
-- [ ] **Advanced Analytics** - Campaign performance metrics
-- [ ] **Bulk Operations** - Mass lead processing
-- [ ] **Export Features** - CSV/PDF exports
 
 ---
 
