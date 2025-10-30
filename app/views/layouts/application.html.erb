@@ -24,8 +24,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
 
-    <%= stylesheet_pack_tag 'application', "data-turbo-track": "reload" %>
-    <%= javascript_pack_tag 'application' %>
+    <%= stylesheet_pack_tag 'application', "data-turbo-track": "reload", preload: false %>
+    <%= javascript_pack_tag 'application', defer: true %>
   </head>
 
   <body class="font-inter">
