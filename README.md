@@ -6,8 +6,6 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 
 CampAIgn is a comprehensive campaign management platform that automates the entire lead processing pipeline using AI agents. Users can create campaigns, add leads, and let the AI system automatically research companies, generate personalized emails, and provide quality feedback.
 
-## 🏗️ How It Works
-
 ### AI Agent Pipeline
 1. **Search Agent** - Researches target companies using Tavily API for real-time news and information
 2. **Writer Agent** - Generates personalized B2B outreach emails using Google Gemini API
@@ -27,8 +25,7 @@ CampAIgn is a comprehensive campaign management platform that automates the enti
 web/                          # Root directory (Rails application)
 ├── app/
 │   ├── controllers/           # MVC controllers
-│   │   ├── api/v1/           # RESTful API endpoints
-│   │   └── concerns/         # Shared controller logic
+│   │   └── api/v1/           # RESTful API endpoints
 │   ├── models/                # ActiveRecord models
 │   │   ├── user.rb           # User authentication
 │   │   ├── campaign.rb       # Campaign management
@@ -57,7 +54,7 @@ web/                          # Root directory (Rails application)
 └── README.md                  # This file
 ```
 
-## 🚀 Quick Start
+## 🚀 How to Run This Application
 
 ### Prerequisites
 
@@ -229,40 +226,6 @@ API endpoints are available at `/api/v1/`:
 ## 📄 License
 
 This project is licensed under the MIT License.
-
----
-
-## 📋 TODO List
-
-### Phase 6: Advanced Features
-- [ ] **Real-time Features** - ActionCable channels for live updates
-- [ ] **File Uploads** - Active Storage for document attachments
-- [ ] **Background Jobs** - Sidekiq for async processing
-- [ ] **Redis Caching** - Performance optimization
-- [ ] **API Documentation** - Swagger/OpenAPI specs
-
-### Phase 7: Deployment & Monitoring
-- [x] **Heroku Deployment** - Production deployment completed
-- [ ] **Docker Compose** - Local development environment
-- [ ] **CI/CD Pipeline** - GitHub Actions automation
-- [ ] **Error Tracking** - Sentry integration
-- [ ] **Performance Monitoring** - APM tools
-- [x] **Backup Strategy** - Heroku PostgreSQL automatic backups
-
-### Deployment Process Completed
-- [x] **Database Configuration** - Updated to use DATABASE_URL for Heroku
-- [x] **Asset Pipeline** - Fixed Webpacker and Tailwind CSS compilation
-- [x] **Node.js Compatibility** - Pinned to version 16.x for Webpacker
-- [x] **Asset Preloading** - Resolved preloading conflicts
-- [x] **Database Migrations** - Successfully ran on Heroku
-- [x] **Environment Variables** - Configured for production
-
-### Code Quality & Maintenance
-- [ ] **RuboCop** - Ruby code quality checks
-- [ ] **ESLint** - JavaScript/TypeScript linting
-- [ ] **Pre-commit Hooks** - Automated quality checks
-- [ ] **API Rate Limiting** - Enhanced throttling
-- [ ] **Security Headers** - Additional security measures
 
 ---
 
