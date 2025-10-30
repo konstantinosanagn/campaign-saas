@@ -2,6 +2,13 @@
 
 A modern SaaS application for managing AI-powered marketing campaigns with intelligent agent workflows. Built with Ruby on Rails and React, featuring automated lead processing through AI agents.
 
+## Team members
+
+- Konstantinos Anagnostopulos (ka3037)
+- Riz Chen (sc5144)
+- Siying Ding (sd3609)
+- Aarushi Sharma (as6322)
+
 ## 🎯 Project Overview
 
 CampAIgn is a comprehensive campaign management platform that automates the entire lead processing pipeline using AI agents. Users can create campaigns, add leads, and let the AI system automatically research companies, generate personalized emails, and provide quality feedback.
