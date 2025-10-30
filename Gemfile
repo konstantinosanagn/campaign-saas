@@ -22,6 +22,7 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 # Basic caching
 gem "bootsnap", require: false
 gem "redis", ">= 4.0.1"
+gem "image_processing", "~> 1.2"
 
 # Tailwind CSS integration for Rails assets
 gem "tailwindcss-rails"
