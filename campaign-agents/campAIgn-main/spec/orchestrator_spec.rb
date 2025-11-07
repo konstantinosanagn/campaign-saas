@@ -63,7 +63,7 @@ RSpec.describe Orchestrator do
       end
 
       it 'calls SearchAgent with company name' do
-        expect_any_instance_of(SearchAgent).to receive(:run).with(company_name)
+        expect_any_instance_of(SearchAgent).to receive(:run).with(company_name, recipient: nil)
 
         orchestrator.run(company_name)
       end

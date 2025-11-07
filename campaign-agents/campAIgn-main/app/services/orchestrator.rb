@@ -53,8 +53,8 @@ class Orchestrator
     puts
 
     # Step 1: Search for information about the company
-    puts "Step 1: Searching for latest news about #{company_name}..."
-    search_results = @search_agent.run(company_name)
+    puts "Step 1: Searching for latest news about #{company_name} and #{recipient}..."
+    search_results = @search_agent.run(company_name,  recipient: recipient)
     puts "Found #{search_results[:sources].length} sources"
     
     # Step 2: Generate personalized email TO the company

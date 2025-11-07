@@ -52,3 +52,7 @@ end
 group :development do
   gem "web-console"
 end
+
+group :development, :test do
+  gem "rspec-rails", "~> 6.0"
+end

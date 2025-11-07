@@ -6,7 +6,7 @@ SimpleCov.start do
 end
 puts "SimpleCov started — coverage results will be saved to coverage/index.html"
 
-require 'rspec'
+# require 'rspec'
 require 'webmock/rspec'
 
 # Configure WebMock
