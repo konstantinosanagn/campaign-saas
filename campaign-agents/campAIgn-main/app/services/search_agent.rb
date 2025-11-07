@@ -23,8 +23,8 @@ class SearchAgent
   def run(domain, recipient)
     @logger.info("Running search for domain=#{domain.inspect}, recipient=#{recipient.inspect}")
 
-    domain_sources = domain.nil? || domain.strip.empty? ? [] : search(domain)
-    recipient_sources = recipient.nil? || recipient.strip.empty? ? [] : search(recipient)
+    domain_sources = domain.nil? || domain.strip.empty? ? [] : domain_search(domain)
+    recipient_sources = recipient.nil? || recipient.strip.empty? ? [] : recipient_search(recipient)
 
 
     {
@@ -44,11 +44,29 @@ class SearchAgent
   # Private helper method to launch the Tavily search query
   # @param domain [String]
   # @return [Array<Hash>] list of news sources
-  def search(entity)
+
+  def domain_search(entity) # For Target Company
     query = "latest news about #{entity}"
     results = tavily_search(query, topic: 'news')
     (results['results'] || []).first(5)
   end
+
+  def recipient_search(name) # For recipient
+    return [] if name.nil? || name.strip.empty?
+
+    queries = [
+      "#{name} LinkedIn",
+      "#{name} profile",
+      "#{name} professional background"
+    ]
+
+    all_results = queries.flat_map do |q|
+      res = tavily_search(q, topic: 'general')
+      res['results'] || []
+    end
+
+    all_results.uniq { |r| r["url"] }.first(5)
+    end
 
   # Method to perform a Tavily API request
   # @return [Hash] parsed response
