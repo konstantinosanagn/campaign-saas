@@ -2,7 +2,6 @@
 require "rubygems"
 require "bundler/setup"
 
-ARGV.unshift("--skip-files", "campaign-agents/campAIgn-main/app/services/spam_classifier_wrapper.rb")
 ARGV.unshift("--ensure-latest")
 
 load Gem.bin_path("brakeman", "brakeman")

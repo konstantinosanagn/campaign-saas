@@ -16,7 +16,8 @@ RSpec.describe LeadAgentService, type: :service do
       before do
         # Mock agent services to return expected outputs
         allow_any_instance_of(SearchAgent).to receive(:run).and_return({
-          company: lead.company,
+          domain: { domain: lead.company, sources: [ { title: 'News Article', url: 'https://example.com' } ] },
+          recipient: { name: lead.name, sources: [] },
           sources: [ { title: 'News Article', url: 'https://example.com' } ]
         })
 
@@ -97,7 +98,6 @@ RSpec.describe LeadAgentService, type: :service do
       it 'passes search output to writer agent' do
         lead.update!(stage: 'searched')
         search_result = {
-          company: 'Test Corp',
           sources: [ { title: 'Article', url: 'http://test.com' } ]
         }
         create(:agent_output, lead: lead, agent_name: 'SEARCH', status: 'completed', output_data: search_result)
@@ -248,7 +248,11 @@ RSpec.describe LeadAgentService, type: :service do
 
     context 'return format' do
       before do
-        allow_any_instance_of(SearchAgent).to receive(:run).and_return({ company: 'Test', sources: [] })
+        allow_any_instance_of(SearchAgent).to receive(:run).and_return({
+          domain: { domain: 'Test', sources: [] },
+          recipient: { name: lead.name, sources: [] },
+          sources: []
+        })
       end
 
       it 'returns status, outputs, lead, and agent lists' do

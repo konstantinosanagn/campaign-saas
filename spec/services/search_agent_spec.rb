@@ -1,8 +1,9 @@
 require 'rails_helper'
 
 RSpec.describe SearchAgent, type: :service do
-  let(:api_key) { 'test-tavily-key' }
-  let(:search_agent) { described_class.new(api_key: api_key) }
+  let(:api_key) { "test-tavily-key" }
+  let(:logger) { instance_double(::Logger, info: nil, error: nil) }
+  let(:search_agent) { described_class.new(api_key: api_key, logger: logger) }
 
   describe '#initialize' do
     context 'with valid API key' do
@@ -14,7 +15,7 @@ RSpec.describe SearchAgent, type: :service do
     context 'with blank API key' do
       it 'raises ArgumentError' do
         expect {
-          described_class.new(api_key: '')
+          described_class.new(api_key: '', logger: logger)
         }.to raise_error(ArgumentError, 'Tavily API key is required')
       end
     end
@@ -22,7 +23,7 @@ RSpec.describe SearchAgent, type: :service do
     context 'with nil API key' do
       it 'raises ArgumentError' do
         expect {
-          described_class.new(api_key: nil)
+          described_class.new(api_key: nil, logger: logger)
         }.to raise_error(ArgumentError, 'Tavily API key is required')
       end
     end
@@ -30,6 +31,7 @@ RSpec.describe SearchAgent, type: :service do
 
   describe '#run' do
     let(:domain) { 'example.com' }
+    let(:recipient) { 'Jane Doe' }
     let(:mock_response) do
       {
         'results' => [
@@ -46,40 +48,67 @@ RSpec.describe SearchAgent, type: :service do
         ]
       }
     end
-
-    before do
-      allow(search_agent).to receive(:tavily_search).and_return(mock_response)
+    let(:recipient_response) do
+      {
+        'results' => [
+          {
+            'title' => 'Recipient Insight',
+            'url' => 'https://example.com/profile',
+            'content' => 'Recipient background'
+          }
+        ]
+      }
     end
 
-    it 'returns domain and sources' do
-      result = search_agent.run(domain)
+    before do
+      allow(search_agent).to receive(:tavily_search).with(anything, topic: 'general').and_return(recipient_response)
+      allow(search_agent).to receive(:tavily_search).with(anything, topic: 'news').and_return(mock_response)
+    end
+
+    it 'returns domain, recipient, and combined sources' do
+      allow(search_agent).to receive(:tavily_search).with("latest news about #{domain}", topic: 'news').and_return(mock_response)
+
+      result = search_agent.run(domain, recipient: recipient)
 
       expect(result).to include(
-        domain: domain,
-        sources: mock_response['results']
+        domain: {
+          domain: domain,
+          sources: mock_response['results']
+        },
+        recipient: {
+          name: recipient,
+          sources: recipient_response['results']
+        },
+        sources: array_including(*mock_response['results'], *recipient_response['results'])
       )
+      expect(logger).to have_received(:info).with(/domain=#{domain.inspect}, recipient=#{recipient.inspect}/)
     end
 
     it 'calls search with correct parameters' do
-      expect(search_agent).to receive(:tavily_search).with(
-        "latest news about #{domain}",
-        topic: 'news'
-      )
+      expect(search_agent).to receive(:tavily_search).with("latest news about #{domain}", topic: 'news').and_return(mock_response)
+      search_agent.run(domain, recipient: recipient)
+    end
 
-      search_agent.run(domain)
+    it 'queries recipient-focused searches when recipient provided' do
+      allow(search_agent).to receive(:tavily_search).with("latest news about #{domain}", topic: 'news').and_return(mock_response)
+      expect(search_agent).to receive(:tavily_search).with("#{recipient} LinkedIn", topic: 'general').and_return(recipient_response)
+      search_agent.run(domain, recipient: recipient)
     end
 
     context 'when API returns empty results' do
       let(:empty_response) { {} }
 
       before do
-        allow(search_agent).to receive(:tavily_search).and_return(empty_response)
+        allow(search_agent).to receive(:tavily_search).with(anything, topic: 'news').and_return(empty_response)
+        allow(search_agent).to receive(:tavily_search).with(anything, topic: 'general').and_return(empty_response)
       end
 
       it 'returns empty sources array' do
-        result = search_agent.run(domain)
+        result = search_agent.run(domain, recipient: recipient)
 
         expect(result[:sources]).to eq([])
+        expect(result[:domain][:sources]).to eq([])
+        expect(result[:recipient][:sources]).to eq([])
       end
     end
 
@@ -87,13 +116,16 @@ RSpec.describe SearchAgent, type: :service do
       let(:nil_response) { { 'results' => nil } }
 
       before do
-        allow(search_agent).to receive(:tavily_search).and_return(nil_response)
+        allow(search_agent).to receive(:tavily_search).with(anything, topic: 'news').and_return(nil_response)
+        allow(search_agent).to receive(:tavily_search).with(anything, topic: 'general').and_return(nil_response)
       end
 
       it 'returns empty sources array' do
-        result = search_agent.run(domain)
+        result = search_agent.run(domain, recipient: recipient)
 
         expect(result[:sources]).to eq([])
+        expect(result[:domain][:sources]).to eq([])
+        expect(result[:recipient][:sources]).to eq([])
       end
     end
   end
@@ -152,9 +184,9 @@ RSpec.describe SearchAgent, type: :service do
       end
 
       it 'logs error message' do
-        expect {
-          search_agent.send(:tavily_search, query, topic: topic)
-        }.to output(/Tavily error: Network error/).to_stdout
+        expect(logger).to receive(:error).with(/Tavily error: Network error/)
+
+        search_agent.send(:tavily_search, query, topic: topic)
       end
     end
   end

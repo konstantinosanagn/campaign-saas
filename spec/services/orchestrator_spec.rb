@@ -7,7 +7,20 @@ RSpec.describe Orchestrator, type: :service do
 
   let(:mock_search_results) do
     {
-      company: 'Test Corp',
+      domain: {
+        domain: 'Test Corp',
+        sources: [
+          {
+            'title' => 'Test Article',
+            'url' => 'https://test.com/article',
+            'content' => 'Test content'
+          }
+        ]
+      },
+      recipient: {
+        name: 'John Doe',
+        sources: []
+      },
       sources: [
         {
           'title' => 'Test Article',
@@ -82,7 +95,7 @@ RSpec.describe Orchestrator, type: :service do
     end
 
     it 'calls SearchAgent with company name' do
-      expect_any_instance_of(SearchAgent).to receive(:run).with(company_name)
+      expect_any_instance_of(SearchAgent).to receive(:run).with(company_name, recipient: nil)
 
       orchestrator.run(company_name)
     end
@@ -184,7 +197,7 @@ RSpec.describe Orchestrator, type: :service do
     end
 
     context 'when search results are empty' do
-      let(:empty_search_results) { { company: 'Test Corp', sources: [] } }
+      let(:empty_search_results) { { domain: { domain: 'Test Corp', sources: [] }, recipient: { name: nil, sources: [] }, sources: [] } }
 
       before do
         allow_any_instance_of(SearchAgent).to receive(:run).and_return(empty_search_results)

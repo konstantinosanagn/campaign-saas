@@ -1,7 +1,6 @@
 require_relative "api_key_service"
 require_relative "search_agent"
 require_relative "writer_agent"
-require_relative "design_agent"
 require_relative "critique_agent"
 
 ##
@@ -15,10 +14,10 @@ require_relative "critique_agent"
 #   # Returns: { status: 'completed'|'partial'|'failed', outputs: {...}, lead: {...} }
 #
 class LeadAgentService
-  AGENT_ORDER = %w[SEARCH WRITER DESIGN CRITIQUE].freeze
-  # Stage progression: queued → searched → written → designed → critiqued → completed
+  AGENT_ORDER = %w[SEARCH WRITER CRITIQUE].freeze
+  # Stage progression: queued → searched → written → critiqued → completed
   # Each agent moves the lead to the next stage in the progression
-  STAGE_PROGRESSION = %w[queued searched written designed critiqued completed].freeze
+  STAGE_PROGRESSION = %w[queued searched written critiqued completed].freeze
 
   class << self
     ##
@@ -47,7 +46,6 @@ class LeadAgentService
       # Initialize agents
       search_agent = SearchAgent.new(api_key: tavily_key)
       writer_agent = WriterAgent.new(api_key: gemini_key)
-      design_agent = DesignAgent.new(api_key: gemini_key)
       critique_agent = CritiqueAgent.new(api_key: gemini_key)
 
       # Determine which agent to run based on current stage
@@ -95,10 +93,8 @@ class LeadAgentService
           result = execute_search_agent(search_agent, lead, agent_config)
         when "WRITER"
           result = execute_writer_agent(writer_agent, lead, agent_config, previous_outputs["SEARCH"])
-        when "DESIGN"
-          result = execute_design_agent(design_agent, lead, agent_config, previous_outputs["WRITER"])
         when "CRITIQUE"
-          result = execute_critique_agent(critique_agent, lead, agent_config, previous_outputs["DESIGN"] || previous_outputs["WRITER"])
+          result = execute_critique_agent(critique_agent, lead, agent_config, previous_outputs["WRITER"])
         end
 
         # Store output
@@ -160,8 +156,6 @@ class LeadAgentService
       when "searched"
         "WRITER"
       when "written"
-        "DESIGN"
-      when "designed"
         "CRITIQUE"
       else
         nil
@@ -179,17 +173,8 @@ class LeadAgentService
         outputs["SEARCH"] = search_output&.output_data
       end
 
-      # DESIGN needs WRITER output
-      if current_agent == "DESIGN"
-        writer_output = lead.agent_outputs.find_by(agent_name: "WRITER")
-        outputs["WRITER"] = writer_output&.output_data
-      end
-
-      # CRITIQUE needs DESIGN output (or WRITER if DESIGN not available)
       if current_agent == "CRITIQUE"
-        design_output = lead.agent_outputs.find_by(agent_name: "DESIGN")
         writer_output = lead.agent_outputs.find_by(agent_name: "WRITER")
-        outputs["DESIGN"] = design_output&.output_data
         outputs["WRITER"] = writer_output&.output_data
       end
 
@@ -225,7 +210,7 @@ class LeadAgentService
     def execute_search_agent(search_agent, lead, agent_config)
       # Extract domain from lead email or use company name
       domain = extract_domain_from_lead(lead)
-      search_agent.run(domain)
+      search_agent.run(domain, recipient: lead.name)
     end
 
     ##
@@ -262,20 +247,15 @@ class LeadAgentService
     end
 
     ##
-    # Executes the DesignAgent
-    def execute_design_agent(design_agent, lead, agent_config, writer_output)
-      # Prepare writer output for design
-      # Handle both string and symbol keys from JSONB storage
-      design_agent.run(writer_output || {})
-    end
-
-    ##
     # Executes the CritiqueAgent
-    def execute_critique_agent(critique_agent, lead, agent_config, design_output)
-      # Prepare design output (or writer output if design not available) for critique
+    def execute_critique_agent(critique_agent, lead, agent_config, writer_output)
+      # Prepare writer output for critique
       # Handle both string and symbol keys from JSONB storage
-      email_content = design_output&.dig("email") || design_output&.dig("formatted_email") ||
-                      design_output&.dig(:email) || design_output&.dig(:formatted_email) || ""
+      email_content = writer_output&.dig("email") ||
+                      writer_output&.dig(:email) ||
+                      writer_output&.dig("formatted_email") ||
+                      writer_output&.dig(:formatted_email) ||
+                      ""
 
       article = {
         "email_content" => email_content,
