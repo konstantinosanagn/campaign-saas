@@ -38,7 +38,7 @@ gem "httparty"
 
 # Testing
 gem "factory_bot_rails", "~> 6.4"
-gem "shoulda-matchers", "~> 6.0"
+gem "shoulda-matchers", "~> 7.0"
 gem "simplecov", "~> 0.22", require: false
 gem "rails-controller-testing"
 
