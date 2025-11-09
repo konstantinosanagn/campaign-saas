@@ -1,76 +1,71 @@
-# Rails application
-# See https://guides.rubyonrails.org/v8.1/command_line.html#rails-dbconsole for more about dbconsole.yml
+# Repository-wide ignores ----------------------------------------------------
 
-# Ignore bundler config.
+# Dependency directories
 /.bundle
+/node_modules/
+/**/node_modules/
+/vendor/bundle/
+/vendor/cache/
 
-# Ignore all logfiles and tempfiles.
-/log/*
-/tmp/*
-!/log/.keep
-!/tmp/.keep
-
-# Ignore pidfiles, but keep the directory.
-/tmp/pids/*
-!/tmp/pids/.keep
-
-# Ignore storage (uploaded files in development and any SQLite databases).
-/storage/*
-!/storage/.keep
-/tmp/storage/*
-!/tmp/storage/.keep
-
-# Ignore uploaded files in development.
-/storage/*
-!/storage/.keep
-
-# Ignore master key for decrypting credentials and more.
-/config/master.key
-
-# Ignore database files
-*.sqlite3
-*.sqlite3-*
-*.sqlite
-
-# Ignore node_modules
-node_modules/
+# Package manager artifacts
 yarn-error.log
 yarn-debug.log*
 .yarn-integrity
+package-lock.json
 
-# Ignore environment variables
+# Environment and credentials
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+/config/master.key
+/config/credentials/*.key
 
-# Ignore credentials
-config/credentials/*.key
-config/master.key
+# Logs, temp, and runtime files
+/log/
+/tmp/
+/storage/
+/**/log/
+/**/tmp/
+/**/storage/
+*.log
+*.pid
+*.pid.lock
+/tmp/cache/
+/tmp/pids/
+/tmp/storage/
+!/log/.keep
+!/tmp/.keep
+!/tmp/cache/.keep
+!/tmp/cache/bootsnap/.keep
+!/tmp/pids/.keep
+!/tmp/storage/.keep
+!/storage/.keep
 
-# Ignore compiled assets
+# Framework / build outputs
+/.next/
+/.turbo/
 /public/packs
 /public/packs-test
 /public/assets
-
-# Ignore webpacker cache
-/tmp/cache/webpacker
-
-# Ignore bootsnap cache
-/tmp/cache/bootsnap/*
-!/tmp/cache/bootsnap/.keep
-
-# Ignore coverage reports
+/campaign_manager/public/packs/
 /coverage
 /spec/tmp
+/dist/
+/build/
 
-# IDEs
+# Database artifacts
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+
+# IDE and editor files
 /.idea
 /.vscode
 *.swp
 *.swo
 *~
 
-# OS files
+# OS metadata
 .DS_Store
 .DS_Store?
 ._*
@@ -79,17 +74,9 @@ config/master.key
 ehthumbs.db
 Thumbs.db
 
-# Rails specific
-*.pid
-*.seed
-*.pid.lock
-
-# ESLint
+# ESLint cache
 .eslintcache
 
-# Test files
+# Ad-hoc test artifacts
 test-*.test.ts
 useApiKeys-simple.test.ts
-
-# Package manager lock files (keep yarn.lock, ignore package-lock.json)
-package-lock.json
