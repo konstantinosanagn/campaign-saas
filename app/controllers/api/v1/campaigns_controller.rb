@@ -37,6 +37,34 @@ module Api
         end
       end
 
+      ##
+      # POST /api/v1/campaigns/:id/send_emails
+      # Sends emails to all ready leads in the campaign
+      def send_emails
+        campaign = current_user.campaigns.find_by(id: params[:id])
+        
+        unless campaign
+          render json: { errors: ['Campaign not found or unauthorized'] }, status: :not_found
+          return
+        end
+
+        begin
+          result = EmailSenderService.send_emails_for_campaign(campaign)
+          
+          render json: {
+            success: true,
+            sent: result[:sent],
+            failed: result[:failed],
+            errors: result[:errors]
+          }, status: :ok
+        rescue => e
+          render json: {
+            success: false,
+            error: e.message
+          }, status: :internal_server_error
+        end
+      end
+
       private
 
       def campaign_params

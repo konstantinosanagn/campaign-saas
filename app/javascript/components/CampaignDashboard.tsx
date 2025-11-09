@@ -59,6 +59,8 @@ export default function CampaignDashboard() {
   const { loading: agentExecLoading, runAgentsForLead, runAgentsForMultipleLeads } = useAgentExecution()
   const { loading: outputsLoading, outputs, loadAgentOutputs } = useAgentOutputs()
   const { configs, loading: configsLoading, updateConfig } = useAgentConfigs(campaignObj?.id || null)
+  
+  const [sendingEmails, setSendingEmails] = useState(false)
 
   const campaignTitle = campaignObj ? (campaignObj.title || '') : '';
   const displayedTitle = useTypewriter(campaignTitle)
@@ -183,6 +185,53 @@ export default function CampaignDashboard() {
     setIsSettingsModalOpen(true)
   }, [])
 
+  // Check if a lead is ready to send (has reached critiqued or completed stage)
+  const isLeadReady = useCallback((lead: Lead) => {
+    return lead.stage === 'critiqued' || lead.stage === 'completed'
+  }, [])
+
+  // Count ready leads
+  const readyLeadsCount = React.useMemo(() => {
+    return filteredLeads.filter(isLeadReady).length
+  }, [filteredLeads, isLeadReady])
+
+  const handleSendEmails = useCallback(async () => {
+    if (!campaignObj?.id || readyLeadsCount === 0) {
+      return
+    }
+
+    if (!confirm(`Send emails to ${readyLeadsCount} ready lead(s)?`)) {
+      return
+    }
+
+    try {
+      setSendingEmails(true)
+      const response = await fetch(`/api/v1/campaigns/${campaignObj.id}/send_emails`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        alert(`Emails sent successfully!\nSent: ${data.sent}\nFailed: ${data.failed}${data.errors.length > 0 ? `\n\nErrors:\n${data.errors.map((e: any) => `- ${e.lead_email}: ${e.error}`).join('\n')}` : ''}`)
+        // Refresh leads to get updated status
+        await refreshLeads()
+      } else {
+        alert(`Failed to send emails: ${data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error sending emails:', error)
+      alert(`Error sending emails: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setSendingEmails(false)
+    }
+  }, [campaignObj, readyLeadsCount, refreshLeads])
+
   const handleSaveAgentConfig = async (config: AgentConfig) => {
     if (config.id) {
       // Update existing config
@@ -242,8 +291,13 @@ export default function CampaignDashboard() {
                       >
                         {agentExecLoading ? 'Running...' : 'Run Agents'}
                       </button>
-                      <button className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-full hover:text-green-600 hover:bg-transparent hover:border-green-600 transition-colors duration-200">
-                        Send
+                      <button 
+                        onClick={handleSendEmails}
+                        disabled={sendingEmails || !campaignObj || readyLeadsCount === 0}
+                        className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-full hover:text-green-600 hover:bg-transparent hover:border-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={readyLeadsCount === 0 ? 'No ready leads to send' : `Send emails to ${readyLeadsCount} ready lead(s)`}
+                      >
+                        {sendingEmails ? 'Sending...' : `Send${readyLeadsCount > 0 ? ` (${readyLeadsCount})` : ''}`}
                       </button>
                     </div>
                   </div>

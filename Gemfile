@@ -51,6 +51,7 @@ end
 
 group :development do
   gem "web-console"
+  gem "dotenv-rails"  # Load .env file in development
 end
 
 group :development, :test do

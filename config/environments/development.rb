@@ -33,14 +33,41 @@ Rails.application.configure do
     config.active_storage.service = :local
   end
 
-  # Don't care if the mailer can't send.
-  config.action_mailer.raise_delivery_errors = false
+  # Raise delivery errors in development if SMTP is configured
+  config.action_mailer.raise_delivery_errors = ENV['SMTP_ADDRESS'].present?
 
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false
 
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
+
+  # Configure email delivery method
+  # Option 1: Use SMTP (if SMTP_ADDRESS is set) - will actually send emails
+  # Option 2: Use file delivery (default) - saves emails to tmp/mail for testing
+  # Option 3: Use test delivery - accumulates emails in ActionMailer::Base.deliveries
+  if ENV['SMTP_ADDRESS'].present?
+    # Use SMTP if configured (for testing real email sending in development)
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.smtp_settings = {
+      address: ENV.fetch('SMTP_ADDRESS'),
+      port: ENV.fetch('SMTP_PORT', '587').to_i,
+      domain: ENV.fetch('SMTP_DOMAIN', 'localhost'),
+      user_name: ENV.fetch('SMTP_USER_NAME', ''),
+      password: ENV.fetch('SMTP_PASSWORD', ''),
+      authentication: ENV.fetch('SMTP_AUTHENTICATION', 'plain').to_sym,
+      enable_starttls_auto: ENV.fetch('SMTP_ENABLE_STARTTLS', 'true') == 'true',
+      # Fix SSL certificate verification issue in development
+      openssl_verify_mode: 'none'  # Only for development - disable SSL verification
+    }
+  elsif ENV['MAIL_DELIVERY_METHOD'] == 'test'
+    # Use test delivery (emails stored in ActionMailer::Base.deliveries array)
+    config.action_mailer.delivery_method = :test
+  else
+    # Default: Use file delivery (saves emails to tmp/mail directory)
+    config.action_mailer.delivery_method = :file
+    config.action_mailer.file_settings = { location: Rails.root.join('tmp', 'mail') }
+  end
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
