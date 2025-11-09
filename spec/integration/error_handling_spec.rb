@@ -11,7 +11,7 @@ RSpec.describe 'Error Handling Integration', type: :request do
 
   describe 'Invalid Resource Access' do
     context 'when authenticated' do
-      before { sign_in user }
+      before { sign_in user, scope: :user }
 
       it 'handles accessing non-existent campaign gracefully' do
         get '/campaigns/999999', headers: { "ACCEPT" => "text/html" }
@@ -86,7 +86,7 @@ RSpec.describe 'Error Handling Integration', type: :request do
 
   describe 'Validation Errors' do
     context 'when authenticated' do
-      before { sign_in user }
+      before { sign_in user, scope: :user }
 
       it 'returns proper error messages for invalid campaign data' do
         # Missing title
@@ -145,7 +145,7 @@ RSpec.describe 'Error Handling Integration', type: :request do
 
   describe 'Malformed Requests' do
     context 'when authenticated' do
-      before { sign_in user }
+      before { sign_in user, scope: :user }
 
       it 'handles malformed JSON gracefully' do
         # This is handled by Rails framework, but we can test edge cases

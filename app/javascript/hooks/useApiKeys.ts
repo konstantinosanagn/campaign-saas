@@ -6,6 +6,8 @@ interface ApiKeys {
   tavilyApiKey: string
 }
 
+const waitForRender = () => new Promise(resolve => setTimeout(resolve, 0))
+
 export function useApiKeys() {
   const [keys, setKeys] = React.useState<ApiKeys>({
     llmApiKey: '',
@@ -42,47 +44,52 @@ export function useApiKeys() {
 
   const saveKeys = async (newKeys: ApiKeys) => {
     try {
-      setError(null)
       const response = await apiClient.put<ApiKeys>('api_keys', newKeys) // Remove the ID since it's a singular resource
       
       if (response.error) {
         setError(response.error)
         console.error('Failed to save API keys:', response.error)
+        await waitForRender()
         return false
-      } else {
-        // Update local state with the saved keys
-        const savedKeys = response.data
-        if (savedKeys) {
-          setKeys(savedKeys)
-        }
-        return true
       }
+
+      const savedKeys = response.data
+      if (savedKeys) {
+        setKeys(savedKeys)
+      }
+      setError('')
+      await waitForRender()
+      return true
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save API keys'
       setError(errorMessage)
       console.error('Error saving API keys:', err)
+      await waitForRender()
       return false
     }
   }
 
   const clearKeys = async () => {
     try {
-      setError(null)
       const emptyKeys = { llmApiKey: '', tavilyApiKey: '' }
       const response = await apiClient.put<ApiKeys>('api_keys', emptyKeys) // Remove the ID since it's a singular resource
       
       if (response.error) {
         setError(response.error)
         console.error('Failed to clear API keys:', response.error)
+        await waitForRender()
         return false
-      } else {
-        setKeys(emptyKeys)
-        return true
       }
+
+      setKeys(emptyKeys)
+      setError('')
+      await waitForRender()
+      return true
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to clear API keys'
       setError(errorMessage)
       console.error('Error clearing API keys:', err)
+      await waitForRender()
       return false
     }
   }

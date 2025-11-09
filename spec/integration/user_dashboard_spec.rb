@@ -29,7 +29,7 @@ RSpec.describe 'User Dashboard Integration', type: :request do
 
   describe 'Dashboard Access' do
     context 'when authenticated' do
-      before { sign_in user }
+      before { sign_in user, scope: :user }
 
       it 'displays user dashboard with campaigns and leads' do
         # Create test data

@@ -3,10 +3,12 @@
 import { baseAgents } from '@/libs/constants/agents'
 import type { Lead } from '@/types'
 
+type ConfigurableAgentName = 'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE'
+
 interface AgentDashboardProps {
   hasSelectedCampaign: boolean
   onAddLeadClick: () => void
-  onAgentSettingsClick?: (agentName: 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE') => void
+  onAgentSettingsClick?: (agentName: ConfigurableAgentName) => void
   leads: Lead[]
 }
 
@@ -15,8 +17,8 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
     if (a.name === 'LEADS') {
       return { ...a, onClick: onAddLeadClick }
     }
-    if (a.name === 'SEARCH' || a.name === 'WRITER' || a.name === 'DESIGN' || a.name === 'CRITIQUE') {
-      const agentName = a.name as 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE'
+    if (a.name === 'SEARCH' || a.name === 'WRITER' || a.name === 'DESIGNER' || a.name === 'CRITIQUE') {
+      const agentName = a.name as ConfigurableAgentName
       return { ...a, onClick: () => {
         console.log('Agent clicked:', agentName)
         onAgentSettingsClick?.(agentName)
@@ -43,9 +45,8 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
       case 'WRITER':
         // Count leads currently in 'written' stage (just completed WRITER)
         return leads.filter(l => l.stage === 'written').length.toString()
-      case 'DESIGN':
-        // Count leads currently in 'designed' stage (just completed DESIGN)
-        return leads.filter(l => l.stage === 'designed').length.toString()
+      case 'DESIGNER':
+        return '0'
       case 'CRITIQUE':
         // Count leads currently in 'critiqued' stage (just completed CRITIQUE)
         return leads.filter(l => l.stage === 'critiqued').length.toString()

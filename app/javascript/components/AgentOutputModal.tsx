@@ -14,6 +14,26 @@ interface AgentOutputModalProps {
   onUpdateSearchOutput?: (leadId: number, agentName: string, updatedData: any) => Promise<void>
 }
 
+const formatTimestamp = (timestamp: string) => {
+  if (!timestamp) {
+    return 'N/A'
+  }
+
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) {
+    return timestamp
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(date)
+}
+
 export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, outputs, loading, onUpdateOutput, onUpdateSearchOutput }: AgentOutputModalProps) {
   const [activeTab, setActiveTab] = React.useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL'>('ALL')
   const [editingWriterOutput, setEditingWriterOutput] = React.useState(false)
@@ -653,7 +673,7 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
                       </span>
                     </div>
                     <span className="text-xs text-gray-500">
-                      {new Date(output.createdAt).toLocaleString()}
+                      {formatTimestamp(output.createdAt)}
                     </span>
                   </div>
                   {renderOutput(output)}

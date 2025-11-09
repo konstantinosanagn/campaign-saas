@@ -11,10 +11,11 @@ RSpec.describe 'Campaign Management Integration', type: :request do
 
   describe 'Complete Campaign Lifecycle' do
     context 'when authenticated' do
-      before { sign_in user }
+      before { sign_in user, scope: :user }
 
       it 'allows user to create, view, update, and delete a campaign through API' do
         # Create campaign
+        sign_in user, scope: :user
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'Test Campaign',
@@ -28,16 +29,19 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         expect(campaign_data['basePrompt']).to eq('This is a test prompt')
 
         # Verify campaign appears in index
+        sign_in user, scope: :user
         get '/api/v1/campaigns', headers: { "ACCEPT" => "application/json" }
         expect(response).to have_http_status(:ok)
         campaigns = JSON.parse(response.body)
         expect(campaigns.map { |c| c['id'] }).to include(campaign_id)
 
         # View campaign in HTML
+        sign_in user, scope: :user
         get "/campaigns/#{campaign_id}", headers: { "ACCEPT" => "text/html" }
         expect(response.status).to be_between(200, 599).inclusive
 
         # Update campaign
+        sign_in user, scope: :user
         put "/api/v1/campaigns/#{campaign_id}", params: {
           campaign: {
             title: 'Updated Campaign',
@@ -50,17 +54,17 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         expect(updated_data['basePrompt']).to eq('Updated prompt')
 
         # Delete campaign
+        sign_in user, scope: :user
         delete "/api/v1/campaigns/#{campaign_id}", headers: { "ACCEPT" => "application/json" }
         expect(response).to have_http_status(:no_content)
 
         # Verify campaign is gone
-        get '/api/v1/campaigns', headers: { "ACCEPT" => "application/json" }
-        campaigns = JSON.parse(response.body)
-        expect(campaigns.map { |c| c['id'] }).not_to include(campaign_id)
+        expect(Campaign.exists?(campaign_id)).to be(false)
       end
 
       it 'enforces user isolation - users can only see their own campaigns' do
         # Create campaign for user
+        sign_in user, scope: :user
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'User Campaign',
@@ -81,22 +85,26 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         other_campaign_id = JSON.parse(response.body)['id']
 
         # User should only see their own campaign
+        sign_in other_user, scope: :user
         get '/api/v1/campaigns', headers: { "ACCEPT" => "application/json" }
         campaigns = JSON.parse(response.body)
         expect(campaigns.map { |c| c['id'] }).to include(other_campaign_id)
         expect(campaigns.map { |c| c['id'] }).not_to include(user_campaign_id)
 
         # User cannot access other user's campaign
+        sign_in other_user, scope: :user
         get "/campaigns/#{user_campaign_id}", headers: { "ACCEPT" => "text/html" }
         expect(response.status).to be_between(300, 499)
 
         # User cannot update other user's campaign
+        sign_in other_user, scope: :user
         put "/api/v1/campaigns/#{user_campaign_id}", params: {
           campaign: { title: 'Hacked' }
         }, headers: { "ACCEPT" => "application/json" }
         expect(response.status).to be_between(400, 499)
 
         # User cannot delete other user's campaign
+        sign_in other_user, scope: :user
         delete "/api/v1/campaigns/#{user_campaign_id}", headers: { "ACCEPT" => "application/json" }
         expect(response.status).to be_between(400, 499)
       end
@@ -130,10 +138,11 @@ RSpec.describe 'Campaign Management Integration', type: :request do
 
   describe 'Campaign and Leads Integration' do
     context 'when authenticated' do
-      before { sign_in user }
+      before { sign_in user, scope: :user }
 
       it 'allows creating campaign and leads together' do
         # Create campaign
+        sign_in user, scope: :user
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'Lead Generation Campaign',
@@ -163,15 +172,18 @@ RSpec.describe 'Campaign Management Integration', type: :request do
           }
         }
 
+        sign_in user, scope: :user
         post '/api/v1/leads', params: lead1_data, headers: { "ACCEPT" => "application/json" }
         expect(response).to have_http_status(:created)
         lead1_id = JSON.parse(response.body)['id']
 
+        sign_in user, scope: :user
         post '/api/v1/leads', params: lead2_data, headers: { "ACCEPT" => "application/json" }
         expect(response).to have_http_status(:created)
         lead2_id = JSON.parse(response.body)['id']
 
         # Verify leads appear in campaign
+        sign_in user, scope: :user
         get '/api/v1/leads', headers: { "ACCEPT" => "application/json" }
         leads = JSON.parse(response.body)
         lead_ids = leads.map { |l| l['id'] }
@@ -179,14 +191,17 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         expect(leads.all? { |l| l['campaignId'] == campaign_id }).to be true
 
         # Verify leads appear when viewing campaign HTML
+        sign_in user, scope: :user
         get "/campaigns/#{campaign_id}", headers: { "ACCEPT" => "text/html" }
         expect(response.status).to be_between(200, 599).inclusive
 
         # Deleting campaign should delete associated leads
+        sign_in user, scope: :user
         delete "/api/v1/campaigns/#{campaign_id}", headers: { "ACCEPT" => "application/json" }
         expect(response).to have_http_status(:no_content)
 
         # Verify leads are gone
+        sign_in user, scope: :user
         get '/api/v1/leads', headers: { "ACCEPT" => "application/json" }
         leads = JSON.parse(response.body)
         expect(leads.map { |l| l['id'] }).not_to include(lead1_id, lead2_id)
@@ -194,6 +209,7 @@ RSpec.describe 'Campaign Management Integration', type: :request do
 
       it 'enforces lead ownership through campaign ownership' do
         # User creates campaign and lead
+        sign_in user, scope: :user
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'My Campaign',
@@ -202,6 +218,7 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         }
         my_campaign_id = JSON.parse(response.body)['id']
 
+        sign_in user, scope: :user
         post '/api/v1/leads', params: {
           lead: {
             name: 'My Lead',
@@ -225,6 +242,7 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         other_campaign_id = JSON.parse(response.body)['id']
 
         # Other user cannot create lead for user's campaign
+        sign_in other_user, scope: :user
         post '/api/v1/leads', params: {
           lead: {
             name: 'Hacked Lead',
@@ -237,17 +255,20 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         expect(response).to have_http_status(:unprocessable_entity)
 
         # Other user cannot see user's leads
+        sign_in other_user, scope: :user
         get '/api/v1/leads', headers: { "ACCEPT" => "application/json" }
         leads = JSON.parse(response.body)
         expect(leads.map { |l| l['id'] }).not_to include(my_lead_id)
 
         # Other user cannot update user's leads
+        sign_in other_user, scope: :user
         put "/api/v1/leads/#{my_lead_id}", params: {
           lead: { name: 'Hacked' }
         }, headers: { "ACCEPT" => "application/json" }
         expect(response.status).to be_between(400, 499)
 
         # Other user cannot delete user's leads
+        sign_in other_user, scope: :user
         delete "/api/v1/leads/#{my_lead_id}", headers: { "ACCEPT" => "application/json" }
         expect(response.status).to be_between(400, 499)
       end

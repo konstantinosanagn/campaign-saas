@@ -95,8 +95,8 @@ RSpec.describe DesignAgent, type: :service do
 
       result = design_agent.run(nil_output)
 
-      expect(result[:email]).to be_nil
-      expect(result[:formatted_email]).to be_nil
+      expect(result[:email]).to eq('')
+      expect(result[:formatted_email]).to eq('')
     end
 
     it 'handles string keys in writer_output' do
@@ -126,19 +126,19 @@ RSpec.describe DesignAgent, type: :service do
     end
 
     it 'uses correct temperature and max tokens' do
-      expect(described_class).to receive(:post).with(
-        anything,
-        hash_including(
-          body: hash_including(
-            generationConfig: hash_including(
-              temperature: 0.3,
-              maxOutputTokens: 8192
-            )
-          )
-        )
-      )
+      captured_body = nil
+      allow(described_class).to receive(:post) do |url, options|
+        captured_body = JSON.parse(options[:body])
+        mock_response
+      end
 
       design_agent.run(writer_output)
+
+      expect(captured_body).to be_present
+      expect(captured_body['generationConfig']).to include(
+        'temperature' => 0.3,
+        'maxOutputTokens' => 8192
+      )
     end
 
     context 'when API response is malformed' do

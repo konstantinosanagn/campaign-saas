@@ -2,6 +2,7 @@ module Api
   module V1
     class BaseController < ApplicationController
       protect_from_forgery with: :null_session
+      skip_before_action :verify_authenticity_token
 
       before_action :authenticate_user!, unless: :skip_auth?
 
@@ -14,14 +15,13 @@ module Api
 
       def current_user
         if skip_auth?
-          # Always use admin@example.com in development mode for testing
           admin_user = User.find_by(email: "admin@example.com") || User.create!(
             email: "admin@example.com",
             password: "password123",
             password_confirmation: "password123",
             name: "Admin User"
           )
-          admin_user
+          normalize_user(admin_user)
         else
           super
         end

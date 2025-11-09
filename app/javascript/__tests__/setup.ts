@@ -1,27 +1,6 @@
 // Jest setup file for React Testing Library
 import '@testing-library/jest-dom'
 
-// Suppress act() warnings that are false positives with @testing-library/user-event v14
-// These warnings appear because user-event internally uses act() but React still warns
-// See: https://github.com/testing-library/react-testing-library/issues/1051
-const originalError = console.error
-beforeAll(() => {
-  console.error = (...args: any[]) => {
-    if (
-      typeof args[0] === 'string' &&
-      args[0].includes('Warning: An update to') &&
-      args[0].includes('inside a test was not wrapped in act(...)')
-    ) {
-      return
-    }
-    originalError.call(console, ...args)
-  }
-})
-
-afterAll(() => {
-  console.error = originalError
-})
-
 // Mock window.matchMedia (required by some UI libraries)
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

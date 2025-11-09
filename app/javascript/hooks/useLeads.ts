@@ -1,6 +1,20 @@
+/* eslint-env browser */
+/* global console, window */
 import React from 'react'
 import { Lead, LeadFormData } from '@/types'
 import apiClient from '@/libs/utils/apiClient'
+
+type LeadActionError = {
+  success: false
+  error: string
+  errors?: string[]
+  deletedIds?: number[]
+}
+
+type LeadDeleteSuccess = {
+  success: true
+  deletedIds: number[]
+}
 
 export function useLeads() {
   const [leads, setLeads] = React.useState<Lead[]>([])
@@ -21,9 +35,10 @@ export function useLeads() {
       if (response.error) {
         setError(response.error)
         console.error('Failed to load leads:', response.error)
-      } else {
-        setLeads(response.data || [])
+        return
       }
+
+      setLeads(response.data || [])
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load leads'
       setError(errorMessage)
@@ -33,111 +48,228 @@ export function useLeads() {
     }
   }
 
-  const createLead = async (data: LeadFormData, campaignId: number) => {
+  const createLead = async (
+    data: LeadFormData & { campaignId?: number; website?: string }
+  ): Promise<boolean | LeadActionError> => {
     try {
       setError(null)
-      
-      // Add campaignId from parameter
-      const leadData = {
-        ...data,
-        website: data.email.split('@')[1] || '',
-        stage: 'queued',
-        quality: '-',
-        campaignId: campaignId
-      }
-      
-      const response = await apiClient.create<Lead>('leads', leadData)
 
-      if (response.error) {
-        const errorMsg = response.data?.errors ? response.data.errors.join(', ') : response.error
-        setError(errorMsg)
-        console.error('Failed to create lead:', response.error, response.data)
-        return false
-      } else {
-        // Add the new lead to the list
-        const newLead = response.data
-        if (newLead) {
-          setLeads(prev => [...prev, newLead])
+      const campaignId = data.campaignId
+
+      const hasAtSymbol = data.email.includes('@')
+      const website =
+        data.website && data.website.trim().length > 0
+          ? data.website
+          : hasAtSymbol
+            ? `https://${data.email.split('@')[1]}`.replace('https://https://', 'https://')
+            : ''
+
+      // When email is invalid, fall back to sending raw payload
+      if (!hasAtSymbol) {
+        const response = await apiClient.create<Lead>('leads', {
+          lead: {
+            ...data,
+            website: data.website ?? '',
+          },
+        })
+
+        if (response.error) {
+          setError(response.error)
+          console.error('Failed to create lead:', response.error)
+          return false
         }
+
+        if (!response.data) {
+          return {
+            success: false,
+            error: 'No data returned from server',
+            errors: [],
+          }
+        }
+
+        setLeads((prev) => [...prev, response.data])
         return true
       }
+
+      const payload = {
+        name: data.name,
+        email: data.email,
+        title: data.title,
+        company: data.company,
+        website,
+        stage: 'queued',
+        quality: '-',
+        campaignId,
+      }
+
+      const response = await apiClient.create<Lead>('leads', payload)
+
+      if (response.error) {
+        const errors = response.data?.errors ?? response.errors ?? []
+        const errorMsg = Array.isArray(errors) && errors.length > 0 ? errors.join(', ') : response.error
+        setError(errorMsg)
+
+        if (errors.length > 0) {
+          console.error('Failed to create lead:', response.error, { errors })
+        } else {
+          console.error('Failed to create lead:', response.error)
+        }
+
+        return errors.length > 0 ? false : {
+          success: false,
+          error: response.error ?? 'Failed to create lead',
+          errors: [],
+        }
+      }
+
+      const newLead = response.data
+      if (!newLead) {
+        return {
+          success: false,
+          error: 'No data returned from server',
+          errors: [],
+        }
+      }
+
+      setLeads((prev) => [...prev, newLead])
+      return true
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create lead'
       setError(errorMessage)
       console.error('Error creating lead:', err)
-      return false
+      return {
+        success: false,
+        error: errorMessage,
+        errors: [],
+      }
     }
   }
 
-  const updateLead = async (leadId: number, data: LeadFormData) => {
+  const updateLead = async (
+    leadId: number,
+    data: LeadFormData & { website?: string }
+  ): Promise<{ success: true; data: Lead } | LeadActionError> => {
     try {
       setError(null)
-      
-      const leadData = {
-        ...data,
-        website: data.email.split('@')[1] || ''
-      }
-      
-      const response = await apiClient.update<Lead>('leads', leadId, leadData)
+
+      const website =
+        data.website && data.website.trim().length > 0
+          ? data.website
+          : data.email.includes('@')
+            ? `https://${data.email.split('@')[1]}`.replace('https://https://', 'https://')
+            : ''
+
+      const response = await apiClient.update<Lead>(`leads/${leadId}`, {
+        lead: {
+          ...data,
+          website,
+        },
+      })
 
       if (response.error) {
         setError(response.error)
         console.error('Failed to update lead:', response.error)
-        return false
-      } else {
-        // Update the lead in the list
-        const updatedLead = response.data
-        if (updatedLead) {
-          setLeads(prev => prev.map(lead => lead.id === leadId ? updatedLead : lead))
+        return {
+          success: false,
+          error: response.error,
+          errors: [],
         }
-        return true
+      }
+
+      const updatedLead = response.data
+
+      if (!updatedLead) {
+        return {
+          success: false,
+          error: 'No data returned from server',
+          errors: [],
+        }
+      }
+
+      setLeads((prev) => prev.map((lead) => (lead.id === leadId ? updatedLead : lead)))
+      return {
+        success: true,
+        data: updatedLead,
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update lead'
       setError(errorMessage)
       console.error('Error updating lead:', err)
-      return false
+      return {
+        success: false,
+        error: errorMessage,
+        errors: [],
+      }
     }
   }
 
-  const deleteLeads = async (leadIds: number[]) => {
+  const deleteLeads = async (leadIds: number[]): Promise<LeadDeleteSuccess | LeadActionError> => {
     // Show confirmation dialog first (synchronously)
-    if (!confirm(`Are you sure you want to delete ${leadIds.length} lead(s)?`)) {
-      return false
+    if (!window.confirm(`Are you sure you want to delete ${leadIds.length} lead(s)?`)) {
+      return {
+        success: false,
+        error: 'Deletion cancelled by user',
+        deletedIds: [],
+      }
     }
 
     try {
       setError(null)
-      
-      // Delete each lead individually
-      const deletePromises = leadIds.map(leadId => 
-        apiClient.destroy('leads', leadId)
-      )
-      
-      const responses = await Promise.all(deletePromises)
-      
-      // Check if any deletions failed
-      const failedDeletions = responses.filter(response => response.error)
-      if (failedDeletions.length > 0) {
-        setError(`Failed to delete ${failedDeletions.length} lead(s)`)
-        console.error('Some lead deletions failed:', failedDeletions)
-        return false
+
+      const successfulIds: number[] = []
+
+      for (const leadId of leadIds) {
+        try {
+          const response = await apiClient.destroy(`leads/${leadId}`)
+          if (response && response.error) {
+            console.error(`Failed to delete lead ${leadId}:`, response.error)
+            const deletedIds = [...successfulIds]
+            if (deletedIds.length > 0) {
+              setLeads((prev) => prev.filter((lead) => !deletedIds.includes(lead.id)))
+            }
+            setError('Some leads could not be deleted')
+        return {
+          success: false,
+          error: 'Some leads could not be deleted',
+          deletedIds,
+        }
+          }
+
+          successfulIds.push(leadId)
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to delete leads'
+          setError(errorMessage)
+          console.error(`Error deleting lead ${leadId}:`, err)
+          const deletedIds = [...successfulIds]
+          if (deletedIds.length > 0) {
+            setLeads((prev) => prev.filter((lead) => !deletedIds.includes(lead.id)))
+          }
+          return {
+            success: false,
+            error: errorMessage,
+            deletedIds,
+          }
+        }
       }
-      
-      // Remove deleted leads from the list
-      setLeads(prev => prev.filter(lead => !leadIds.includes(lead.id)))
-      return true
+
+      setLeads((prev) => prev.filter((lead) => !successfulIds.includes(lead.id)))
+      return {
+        success: true,
+        deletedIds: successfulIds,
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete leads'
       setError(errorMessage)
       console.error('Error deleting leads:', err)
-      return false
+      return {
+        success: false,
+        error: errorMessage,
+        deletedIds: [],
+      }
     }
   }
 
-  const findLead = (leadId: number) => {
-    return leads.find((l) => l.id === leadId)
-  }
+  const findLeadById = (leadId: number) => leads.find((l) => l.id === leadId)
 
   return { 
     leads, 
@@ -146,7 +278,7 @@ export function useLeads() {
     createLead, 
     updateLead, 
     deleteLeads, 
-    findLead,
+    findLeadById,
     refreshLeads: loadLeads
   }
 }

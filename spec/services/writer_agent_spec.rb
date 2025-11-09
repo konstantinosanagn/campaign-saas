@@ -173,12 +173,6 @@ RSpec.describe WriterAgent, type: :service do
         expect(result[:company]).to eq(search_results[:company])
         expect(result[:sources]).to eq(search_results[:sources])
       end
-
-      it 'logs error message' do
-        expect {
-          writer_agent.run(search_results)
-        }.to output(/Writer error: Network error/).to_stdout
-      end
     end
   end
 

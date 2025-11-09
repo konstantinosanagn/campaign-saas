@@ -8,6 +8,11 @@ class ApplicationController < ActionController::Base
   # Development helper: Auto-set API keys for admin@example user
   before_action :set_default_api_keys_for_admin, if: -> { Rails.env.development? }
 
+  def current_user
+    user = super
+    normalize_user(user)
+  end
+
   private
 
   def set_default_api_keys_for_admin
@@ -24,5 +29,16 @@ class ApplicationController < ActionController::Base
 
     # Log for debugging
     Rails.logger.info "Auto-set API keys for development: llm=#{session[:llm_api_key].present?}, tavily=#{session[:tavily_api_key].present?}"
+  end
+
+  def normalize_user(user)
+    return user if user.is_a?(User) || user.nil?
+
+    user_id =
+      if user.respond_to?(:[])
+        user[:id] || user["id"]
+      end
+
+    user_id ? User.find_by(id: user_id) : user
   end
 end

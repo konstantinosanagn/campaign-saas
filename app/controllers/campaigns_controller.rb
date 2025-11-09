@@ -27,7 +27,7 @@ class CampaignsController < ApplicationController
         password_confirmation: "password123",
         name: "Admin User"
       )
-      admin_user
+      normalize_user(admin_user)
     else
       super
     end

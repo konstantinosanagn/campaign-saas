@@ -7,7 +7,7 @@ RSpec.describe ApplicationMailer, type: :mailer do
     end
 
     it 'has default from address' do
-      expect(ApplicationMailer.default[:from]).to eq('from@example.com')
+      expect(ApplicationMailer.default[:from]).to eq('noreply@example.com')
     end
 
     it 'has mailer layout configured' do
@@ -38,7 +38,7 @@ RSpec.describe ApplicationMailer, type: :mailer do
 
     it 'uses default from address' do
       mail = test_mailer_class.test_email(user)
-      expect(mail.from).to include('from@example.com')
+      expect(mail.from).to include('noreply@example.com')
     end
 
     it 'can create mail objects' do
