@@ -37,7 +37,6 @@ gem "rack-attack"
 gem "httparty"
 
 # Testing
-gem "rspec-rails", "~> 6.0"
 gem "factory_bot_rails", "~> 6.4"
 gem "shoulda-matchers", "~> 6.0"
 gem "simplecov", "~> 0.22", require: false
@@ -56,4 +55,7 @@ end
 
 group :development, :test do
   gem "rspec-rails", "~> 6.0"
+  gem "rubocop", require: false
+  gem "brakeman", require: false
+  gem "bundler-audit", require: false
 end
