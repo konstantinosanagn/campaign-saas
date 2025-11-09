@@ -56,6 +56,7 @@ end
 group :development, :test do
   gem "rspec-rails", "~> 6.0"
   gem "rubocop", require: false
+  gem "rubocop-rails-omakase", require: false
   gem "brakeman", require: false
   gem "bundler-audit", require: false
 end
