@@ -15,16 +15,21 @@ interface AgentOutputModalProps {
 }
 
 export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, outputs, loading, onUpdateOutput, onUpdateSearchOutput }: AgentOutputModalProps) {
-  const [activeTab, setActiveTab] = React.useState<'SEARCH' | 'WRITER' | 'CRITIQUE' | 'ALL'>('ALL')
+  const [activeTab, setActiveTab] = React.useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL'>('ALL')
   const [editingWriterOutput, setEditingWriterOutput] = React.useState(false)
+  const [editingDesignOutput, setEditingDesignOutput] = React.useState(false)
   const [editedEmail, setEditedEmail] = React.useState('')
+  const [editedDesignEmail, setEditedDesignEmail] = React.useState('')
   const [saving, setSaving] = React.useState(false)
   const [searchOutputData, setSearchOutputData] = React.useState<any>(null)
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   React.useEffect(() => {
     if (isOpen) {
       setEditingWriterOutput(false)
+      setEditingDesignOutput(false)
       setEditedEmail('')
+      setEditedDesignEmail('')
       // Initialize search output data
       const searchOutput = outputs.find(o => o.agentName === 'SEARCH')
       if (searchOutput && searchOutput.outputData) {
@@ -131,6 +136,110 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
     }
   }
 
+  const handleSaveDesignOutput = async () => {
+    if (!leadId || !onUpdateOutput) return
+    
+    setSaving(true)
+    try {
+      await onUpdateOutput(leadId, 'DESIGN', editedDesignEmail)
+      setEditingDesignOutput(false)
+    } catch (error) {
+      console.error('Failed to save design output:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Helper function to apply formatting
+  const applyFormatting = (format: 'bold' | 'italic' | 'strikethrough' | 'code' | 'link' | 'quote', textarea: HTMLTextAreaElement) => {
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = editedDesignEmail.substring(start, end)
+    
+    let formatted = ''
+    let newPos = start
+    
+    if (selectedText) {
+      switch (format) {
+        case 'bold':
+          formatted = `**${selectedText}**`
+          newPos = start + selectedText.length + 4
+          break
+        case 'italic':
+          formatted = `*${selectedText}*`
+          newPos = start + selectedText.length + 2
+          break
+        case 'strikethrough':
+          formatted = `~~${selectedText}~~`
+          newPos = start + selectedText.length + 4
+          break
+        case 'code':
+          formatted = `\`${selectedText}\``
+          newPos = start + selectedText.length + 2
+          break
+        case 'link':
+          formatted = `[${selectedText}](url)`
+          newPos = start + selectedText.length + 3 // Position after "url)"
+          break
+        case 'quote':
+          formatted = `> ${selectedText}`
+          newPos = start + selectedText.length + 2
+          break
+      }
+      const newText = editedDesignEmail.substring(0, start) + formatted + editedDesignEmail.substring(end)
+      setEditedDesignEmail(newText)
+      
+      setTimeout(() => {
+        textarea.focus()
+        if (format === 'link') {
+          textarea.setSelectionRange(newPos - 4, newPos - 1) // Select "url" part
+        } else {
+          textarea.setSelectionRange(newPos, newPos)
+        }
+      }, 0)
+    } else {
+      // Insert formatting markers at cursor
+      let marker = ''
+      switch (format) {
+        case 'bold':
+          marker = '****'
+          newPos = start + 2
+          break
+        case 'italic':
+          marker = '**'
+          newPos = start + 1
+          break
+        case 'strikethrough':
+          marker = '~~~~'
+          newPos = start + 2
+          break
+        case 'code':
+          marker = '``'
+          newPos = start + 1
+          break
+        case 'link':
+          marker = '[]()'
+          newPos = start + 1
+          break
+        case 'quote':
+          marker = '> '
+          newPos = start + 2
+          break
+      }
+      const newText = editedDesignEmail.substring(0, start) + marker + editedDesignEmail.substring(start)
+      setEditedDesignEmail(newText)
+      
+      setTimeout(() => {
+        textarea.focus()
+        if (format === 'link') {
+          textarea.setSelectionRange(start + 1, start + 1) // Position inside []
+        } else {
+          textarea.setSelectionRange(newPos, newPos)
+        }
+      }, 0)
+    }
+  }
+
   const formatWriterOutput = (output: any) => {
     if (!output || typeof output !== 'object') return null
     
@@ -180,6 +289,222 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
               }}
               className="absolute top-2 right-2 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200 opacity-0 group-hover:opacity-100"
               title="Edit email"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Helper to render markdown formatted text
+  const renderMarkdown = (text: string) => {
+    // Enhanced markdown rendering: **bold**, *italic*, ~~strikethrough~~, `code`, [links](url), >quotes
+    const parts: (string | JSX.Element)[] = []
+    let lastIndex = 0
+    let key = 0
+    
+    // Match patterns in order of specificity (most specific first)
+    const patterns = [
+      { regex: /\*\*(.+?)\*\*/g, type: 'bold' },
+      { regex: /~~(.+?)~~/g, type: 'strikethrough' },
+      { regex: /`(.+?)`/g, type: 'code' },
+      { regex: /\[(.+?)\]\((.+?)\)/g, type: 'link' },
+      { regex: /^>\s+(.+)$/gm, type: 'quote' },
+      { regex: /(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, type: 'italic' }
+    ]
+    
+    const matches: Array<{start: number, end: number, text: string, type: string, url?: string}> = []
+    
+    // Collect all matches
+    patterns.forEach(({ regex, type }) => {
+      let match
+      regex.lastIndex = 0 // Reset regex
+      while ((match = regex.exec(text)) !== null) {
+        const isOverlapping = matches.some(m => 
+          (match!.index >= m.start && match!.index < m.end) ||
+          (match!.index + match![0].length > m.start && match!.index + match![0].length <= m.end)
+        )
+        if (!isOverlapping) {
+          matches.push({
+            start: match.index,
+            end: match.index + match[0].length,
+            text: type === 'link' ? match[1] : match[1],
+            type: type,
+            url: type === 'link' ? match[2] : undefined
+          })
+        }
+      }
+    })
+    
+    // Sort matches by position
+    matches.sort((a, b) => a.start - b.start)
+    
+    // Build parts array
+    matches.forEach(m => {
+      if (m.start > lastIndex) {
+        // Check if this is a quote line
+        const beforeText = text.substring(lastIndex, m.start)
+        const lines = beforeText.split('\n')
+        lines.forEach((line, idx) => {
+          if (idx < lines.length - 1 || beforeText.endsWith('\n')) {
+            parts.push(line + (idx < lines.length - 1 ? '\n' : ''))
+          } else if (line) {
+            parts.push(line)
+          }
+        })
+      }
+      
+      switch (m.type) {
+        case 'bold':
+          parts.push(<strong key={key++}>{m.text}</strong>)
+          break
+        case 'italic':
+          parts.push(<em key={key++}>{m.text}</em>)
+          break
+        case 'strikethrough':
+          parts.push(<del key={key++}>{m.text}</del>)
+          break
+        case 'code':
+          parts.push(<code key={key++} className="bg-gray-200 px-1 rounded text-sm font-mono">{m.text}</code>)
+          break
+        case 'link':
+          parts.push(<a key={key++} href={m.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{m.text}</a>)
+          break
+        case 'quote':
+          parts.push(
+            <blockquote key={key++} className="border-l-4 border-gray-300 pl-4 italic text-gray-700 my-2">
+              {m.text}
+            </blockquote>
+          )
+          break
+        default:
+          parts.push(m.text)
+      }
+      lastIndex = m.end
+    })
+    
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex))
+    }
+    
+    return parts.length > 0 ? parts : text
+  }
+
+  const formatDesignOutput = (output: any) => {
+    if (!output || typeof output !== 'object') return null
+    
+    const email = output.formatted_email || output.email || ''
+    
+    if (editingDesignOutput) {
+      return (
+        <div className="space-y-4">
+          {/* Formatting Toolbar */}
+          <div className="flex flex-wrap items-center gap-2 p-3 bg-gray-100 rounded-lg border border-gray-300">
+            <div className="flex items-center space-x-1 border-r border-gray-300 pr-2">
+              <button
+                type="button"
+                onClick={() => textareaRef.current && applyFormatting('bold', textareaRef.current)}
+                className="px-3 py-1.5 text-sm font-bold bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                title="Bold: **text**"
+              >
+                <strong>B</strong>
+              </button>
+              <button
+                type="button"
+                onClick={() => textareaRef.current && applyFormatting('italic', textareaRef.current)}
+                className="px-3 py-1.5 text-sm italic bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                title="Italic: *text*"
+              >
+                <em>I</em>
+              </button>
+              <button
+                type="button"
+                onClick={() => textareaRef.current && applyFormatting('strikethrough', textareaRef.current)}
+                className="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors line-through"
+                title="Strikethrough: ~~text~~"
+              >
+                S
+              </button>
+            </div>
+            <div className="flex items-center space-x-1 border-r border-gray-300 pr-2">
+              <button
+                type="button"
+                onClick={() => textareaRef.current && applyFormatting('code', textareaRef.current)}
+                className="px-3 py-1.5 text-sm font-mono bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                title="Code: `text`"
+              >
+                &lt;/&gt;
+              </button>
+              <button
+                type="button"
+                onClick={() => textareaRef.current && applyFormatting('link', textareaRef.current)}
+                className="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                title="Link: [text](url)"
+              >
+                🔗
+              </button>
+              <button
+                type="button"
+                onClick={() => textareaRef.current && applyFormatting('quote', textareaRef.current)}
+                className="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                title="Quote: > text"
+              >
+                "
+              </button>
+            </div>
+            <div className="text-xs text-gray-500">
+              <strong>B</strong>old <em>I</em>talic <span className="line-through">S</span>trike <code>`code`</code> 🔗link &gt;quote
+            </div>
+          </div>
+          
+          <textarea
+            ref={textareaRef}
+            value={editedDesignEmail}
+            onChange={(e) => setEditedDesignEmail(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-sm text-gray-900 font-mono resize-y min-h-[200px]"
+            placeholder="Edit formatted email content... Use markdown: **bold** *italic* ~~strike~~ `code` [link](url) >quote"
+          />
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                setEditingDesignOutput(false)
+                setEditedDesignEmail('')
+              }}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors duration-200 text-sm font-medium"
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveDesignOutput}
+              disabled={saving || !editedDesignEmail.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      )
+    }
+    
+    return (
+      <div className="space-y-4">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 relative group">
+          <div className="whitespace-pre-wrap text-sm text-gray-900">
+            {renderMarkdown(email)}
+          </div>
+          {leadId && onUpdateOutput && (
+            <button
+              onClick={() => {
+                setEditedDesignEmail(email)
+                setEditingDesignOutput(true)
+              }}
+              className="absolute top-2 right-2 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200 opacity-0 group-hover:opacity-100"
+              title="Edit formatted email"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
@@ -249,6 +574,8 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
         return formatSearchOutput(data)
       case 'WRITER':
         return formatWriterOutput(data)
+      case 'DESIGN':
+        return formatDesignOutput(data)
       case 'CRITIQUE':
         return formatCritiqueOutput(data)
       default:
@@ -260,6 +587,7 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
     { id: 'ALL' as const, label: 'All Outputs', count: outputs.length },
     { id: 'SEARCH' as const, label: 'Search', count: outputs.filter(o => o.agentName === 'SEARCH').length },
     { id: 'WRITER' as const, label: 'Writer', count: outputs.filter(o => o.agentName === 'WRITER').length },
+    { id: 'DESIGN' as const, label: 'Design', count: outputs.filter(o => o.agentName === 'DESIGN').length },
     { id: 'CRITIQUE' as const, label: 'Critique', count: outputs.filter(o => o.agentName === 'CRITIQUE').length },
   ]
 

@@ -139,9 +139,9 @@ module Api
           return
         end
 
-        # Only allow updating WRITER and SEARCH
-        unless agent_name.in?(%w[WRITER SEARCH])
-          render json: { errors: ['Only WRITER and SEARCH agent outputs can be updated'] }, status: :unprocessable_entity
+        # Only allow updating WRITER, SEARCH, and DESIGN
+        unless agent_name.in?(%w[WRITER SEARCH DESIGN])
+          render json: { errors: ['Only WRITER, SEARCH, and DESIGN agent outputs can be updated'] }, status: :unprocessable_entity
           return
         end
 
@@ -165,6 +165,21 @@ module Api
 
           # Update the output data
           updated_data = agent_output.output_data.merge(email: new_email)
+          agent_output.update!(output_data: updated_data)
+        elsif agent_name == 'DESIGN'
+          # Get the new formatted email content from params
+          new_email = params[:content] || params[:email] || params[:formatted_email]
+
+          unless new_email
+            render json: { errors: ['Email content is required'] }, status: :unprocessable_entity
+            return
+          end
+
+          # Update the output data
+          updated_data = agent_output.output_data.merge(
+            email: new_email,
+            formatted_email: new_email
+          )
           agent_output.update!(output_data: updated_data)
         elsif agent_name == 'SEARCH'
           # Get the updated data from params

@@ -1,4 +1,4 @@
-export type AgentName = 'LEADS' | 'WRITER' | 'CRITIQUE' | 'DESIGNER' | 'SEARCH' | 'SENDER'
+export type AgentName = 'LEADS' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'SEARCH' | 'SENDER'
 
 export interface AgentConfig {
   name: AgentName
@@ -13,6 +13,7 @@ export const baseAgents: AgentConfig[] = [
       'M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z',
     clickable: true,
   },
+  { name: 'SEARCH', icon: 'm21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z', clickable: true },
   {
     name: 'WRITER',
     icon:
@@ -26,12 +27,11 @@ export const baseAgents: AgentConfig[] = [
     clickable: true,
   },
   {
-    name: 'DESIGNER',
+    name: 'DESIGN',
     icon:
       'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42',
     clickable: true,
   },
-  { name: 'SEARCH', icon: 'm21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z', clickable: true },
   { name: 'SENDER', icon: 'M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5', clickable: false },
 ]
 

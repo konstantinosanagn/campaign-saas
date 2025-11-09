@@ -1,8 +1,8 @@
 class AgentOutput < ApplicationRecord
   belongs_to :lead
 
-  # Valid agent names - only these three agents are implemented
-  VALID_AGENT_NAMES = %w[SEARCH WRITER CRITIQUE].freeze
+  # Valid agent names - SEARCH, WRITER, DESIGN, and CRITIQUE agents are implemented
+  VALID_AGENT_NAMES = %w[SEARCH WRITER DESIGN CRITIQUE].freeze
 
   # Valid status values
   VALID_STATUSES = %w[pending completed failed].freeze

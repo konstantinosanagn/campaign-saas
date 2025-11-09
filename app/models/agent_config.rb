@@ -1,8 +1,8 @@
 class AgentConfig < ApplicationRecord
   belongs_to :campaign
 
-  # Valid agent names - only these three agents are implemented
-  VALID_AGENT_NAMES = %w[SEARCH WRITER CRITIQUE].freeze
+  # Valid agent names - SEARCH, WRITER, DESIGN, and CRITIQUE agents are implemented
+  VALID_AGENT_NAMES = %w[SEARCH WRITER DESIGN CRITIQUE].freeze
 
   # Validations
   validates :campaign_id, presence: true

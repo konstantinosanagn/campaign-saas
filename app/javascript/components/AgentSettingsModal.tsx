@@ -6,7 +6,7 @@ import { AgentConfig } from '@/types'
 interface AgentSettingsModalProps {
   isOpen: boolean
   onClose: () => void
-  agentName: 'SEARCH' | 'WRITER' | 'CRITIQUE'
+  agentName: 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE'
   config: AgentConfig | null
   onSave: (config: AgentConfig) => Promise<void>
   loading: boolean
@@ -81,6 +81,8 @@ export default function AgentSettingsModal({
         return 'Search agent researches information about target companies using web search.'
       case 'WRITER':
         return 'Writer agent generates personalized email content based on research findings.'
+      case 'DESIGN':
+        return 'Design agent applies formatting (bold, italic, links, etc.) to email content.'
       case 'CRITIQUE':
         return 'Critique agent reviews and provides feedback on generated emails.'
       default:
