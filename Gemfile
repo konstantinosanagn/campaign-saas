@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 
 # Core Rails
-gem "rails", "~> 8.1.0"
+gem "rails", "~> 8.1.1"
 gem "sprockets-rails"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
