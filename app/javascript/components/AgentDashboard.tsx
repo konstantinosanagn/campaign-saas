@@ -6,7 +6,7 @@ import type { Lead } from '@/types'
 interface AgentDashboardProps {
   hasSelectedCampaign: boolean
   onAddLeadClick: () => void
-  onAgentSettingsClick?: (agentName: 'SEARCH' | 'WRITER' | 'CRITIQUE') => void
+  onAgentSettingsClick?: (agentName: 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE') => void
   leads: Lead[]
 }
 
@@ -15,8 +15,12 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
     if (a.name === 'LEADS') {
       return { ...a, onClick: onAddLeadClick }
     }
-    if (a.name === 'SEARCH' || a.name === 'WRITER' || a.name === 'CRITIQUE') {
-      return { ...a, onClick: () => onAgentSettingsClick?.(a.name as 'SEARCH' | 'WRITER' | 'CRITIQUE') }
+    if (a.name === 'SEARCH' || a.name === 'WRITER' || a.name === 'DESIGN' || a.name === 'CRITIQUE') {
+      const agentName = a.name as 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE'
+      return { ...a, onClick: () => {
+        console.log('Agent clicked:', agentName)
+        onAgentSettingsClick?.(agentName)
+      }}
     }
     return a
   }) as Array<
@@ -39,11 +43,14 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
       case 'WRITER':
         // Count leads currently in 'written' stage (just completed WRITER)
         return leads.filter(l => l.stage === 'written').length.toString()
+      case 'DESIGN':
+        // Count leads currently in 'designed' stage (just completed DESIGN)
+        return leads.filter(l => l.stage === 'designed').length.toString()
       case 'CRITIQUE':
         // Count leads currently in 'critiqued' stage (just completed CRITIQUE)
         return leads.filter(l => l.stage === 'critiqued').length.toString()
       case 'DESIGNER':
-        // Not implemented yet - show 0
+        // Legacy name - show 0
         return '0'
       case 'SENDER':
         // Count leads in 'completed' stage (final stage)
@@ -62,11 +69,15 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
           <div key={agent.name} className="text-left border-r border-gray-200 py-4 px-2 overflow-hidden">
             {hasSelectedCampaign && agent.clickable ? (
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('Button clicked for agent:', agent.name, 'onClick exists:', !!(agent as any).onClick)
                   if ((agent as any).onClick) {
                     ;(agent as any).onClick()
+                  } else {
+                    console.warn('No onClick handler for agent:', agent.name)
                   }
-                  // Placeholder for future agent settings functionality
                 }}
                 className="flex items-center mb-1 w-full text-left hover:bg-gray-50 rounded px-1 py-1 -mx-1 -my-1 transition-colors duration-200 group"
               >

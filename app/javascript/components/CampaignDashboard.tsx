@@ -34,7 +34,7 @@ export default function CampaignDashboard() {
   const [isOutputModalOpen, setIsOutputModalOpen] = useState(false)
   const [outputModalLead, setOutputModalLead] = useState<Lead | null>(null)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
-  const [settingsModalAgent, setSettingsModalAgent] = useState<'SEARCH' | 'WRITER' | 'CRITIQUE' | null>(null)
+  const [settingsModalAgent, setSettingsModalAgent] = useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | null>(null)
 
   const { campaigns, createCampaign, updateCampaign, deleteCampaign } = useCampaigns()
   const { leads, createLead, updateLead, deleteLeads, findLead, refreshLeads } = useLeads()
@@ -177,7 +177,8 @@ export default function CampaignDashboard() {
     }
   }, [filteredLeads, runAgentsForMultipleLeads, refreshLeads])
 
-  const handleAgentSettingsClick = useCallback((agentName: 'SEARCH' | 'WRITER' | 'CRITIQUE') => {
+  const handleAgentSettingsClick = useCallback((agentName: 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE') => {
+    console.log('handleAgentSettingsClick called with:', agentName)
     setSettingsModalAgent(agentName)
     setIsSettingsModalOpen(true)
   }, [])
@@ -371,17 +372,19 @@ export default function CampaignDashboard() {
         }}
       />
 
-      <AgentSettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => {
-          setIsSettingsModalOpen(false)
-          setSettingsModalAgent(null)
-        }}
-        agentName={settingsModalAgent!}
-        config={configs.find(c => c.agentName === settingsModalAgent) || null}
-        onSave={handleSaveAgentConfig}
-        loading={configsLoading}
-      />
+      {settingsModalAgent && (
+        <AgentSettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => {
+            setIsSettingsModalOpen(false)
+            setSettingsModalAgent(null)
+          }}
+          agentName={settingsModalAgent}
+          config={configs.find(c => c.agentName === settingsModalAgent) || null}
+          onSave={handleSaveAgentConfig}
+          loading={configsLoading}
+        />
+      )}
       </main>
     </>
   )
