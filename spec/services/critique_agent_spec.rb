@@ -87,27 +87,66 @@ RSpec.describe CritiqueAgent, type: :service do
       critique_agent.critique(article)
     end
 
-    it 'includes current date in prompt' do
+    context 'with custom model' do
+      let(:custom_model) { 'gemini-pro' }
+      let(:custom_agent) { described_class.new(api_key: api_key, model: custom_model) }
+
+      it 'uses custom model in API call' do
+        expect(described_class).to receive(:post).with(
+          "/models/#{custom_model}:generateContent?key=#{api_key}",
+          headers: { 'Content-Type' => 'application/json' },
+          body: anything
+        )
+
+        custom_agent.critique(article)
+      end
+    end
+
+    it 'includes model role with correct prompt structure' do
       expect(described_class).to receive(:post) do |_, options|
         body = JSON.parse(options[:body])
-        user_content = body['contents'].find { |c| c['role'] == 'user' }['parts'][0]['text']
-        expect(user_content).to include(Date.today.strftime('%d/%m/%Y'))
+        model_content = body['contents'].find { |c| c['role'] == 'model' }['parts'][0]['text']
+        expect(model_content).to include("Today's date is")
+        expect(model_content).to include(Date.today.strftime('%d/%m/%Y'))
+        expect(model_content).to include('You are the Critique Agent in a multi-agent workflow')
+        expect(model_content).to include('Readability & Clarity')
+        expect(model_content).to include('Engagement & Persuasion')
+        expect(model_content).to include('Structural & Stylistic Quality')
+        expect(model_content).to include('Brand Alignment & Tone Consistency')
+        expect(model_content).to include('Deliverability & Technical Health')
+        expect(model_content).to include('return exactly: None')
+        expect(model_content).to include('under 150 words')
         mock_response
       end
 
       critique_agent.critique(article)
     end
 
-    it 'includes email content in prompt' do
+    it 'includes user role with only email content' do
       expect(described_class).to receive(:post) do |_, options|
         body = JSON.parse(options[:body])
         user_content = body['contents'].find { |c| c['role'] == 'user' }['parts'][0]['text']
-        expect(user_content).to include(article['email_content'])
+        expect(user_content).to eq(article['email_content'])
         mock_response
       end
 
       critique_agent.critique(article)
     end
+
+    it 'sends correct structure with model and user roles' do
+      expect(described_class).to receive(:post) do |_, options|
+        body = JSON.parse(options[:body])
+        expect(body['contents'].length).to eq(2)
+        expect(body['contents'][0]['role']).to eq('model')
+        expect(body['contents'][1]['role']).to eq('user')
+        expect(body['contents'][0]['parts'][0]['text']).to be_a(String)
+        expect(body['contents'][1]['parts'][0]['text']).to eq(article['email_content'])
+        mock_response
+      end
+
+      critique_agent.critique(article)
+    end
+
 
     context 'when critique is "None"' do
       let(:none_response) do
@@ -191,6 +230,94 @@ RSpec.describe CritiqueAgent, type: :service do
       end
     end
 
+    context 'when number of revisions uses symbol key' do
+      let(:article_with_symbol_key) do
+        {
+          'email_content' => 'Subject: Test\n\nThis is a test email.',
+          number_of_revisions: 1
+        }
+      end
+
+      it 'returns nil critique to avoid infinite loop' do
+        result = critique_agent.critique(article_with_symbol_key)
+
+        expect(result).to eq({ 'critique' => nil })
+      end
+    end
+
+    context 'when number of revisions is missing' do
+      let(:article_without_revisions) do
+        {
+          'email_content' => 'Subject: Test\n\nThis is a test email.'
+        }
+      end
+
+      it 'processes critique normally' do
+        result = critique_agent.critique(article_without_revisions)
+
+        expect(result).to eq({ 'critique' => 'This email needs improvement.' })
+      end
+    end
+
+    context 'when email_content is nil' do
+      let(:article_with_nil_content) do
+        {
+          'email_content' => nil,
+          'number_of_revisions' => 0
+        }
+      end
+
+      it 'converts nil to empty string' do
+        expect(described_class).to receive(:post) do |_, options|
+          body = JSON.parse(options[:body])
+          user_content = body['contents'].find { |c| c['role'] == 'user' }['parts'][0]['text']
+          expect(user_content).to eq('')
+          mock_response
+        end
+
+        critique_agent.critique(article_with_nil_content)
+      end
+    end
+
+    context 'when email_content is not a string' do
+      let(:article_with_non_string_content) do
+        {
+          'email_content' => 12345,
+          'number_of_revisions' => 0
+        }
+      end
+
+      it 'converts to string' do
+        expect(described_class).to receive(:post) do |_, options|
+          body = JSON.parse(options[:body])
+          user_content = body['contents'].find { |c| c['role'] == 'user' }['parts'][0]['text']
+          expect(user_content).to eq('12345')
+          mock_response
+        end
+
+        critique_agent.critique(article_with_non_string_content)
+      end
+    end
+
+    context 'when email_content is missing' do
+      let(:article_without_content) do
+        {
+          'number_of_revisions' => 0
+        }
+      end
+
+      it 'converts missing key to empty string' do
+        expect(described_class).to receive(:post) do |_, options|
+          body = JSON.parse(options[:body])
+          user_content = body['contents'].find { |c| c['role'] == 'user' }['parts'][0]['text']
+          expect(user_content).to eq('')
+          mock_response
+        end
+
+        critique_agent.critique(article_without_content)
+      end
+    end
+
     context 'when response is empty' do
       let(:empty_response) do
         double('response', parsed_response: {
@@ -252,6 +379,120 @@ RSpec.describe CritiqueAgent, type: :service do
         result = critique_agent.critique(article)
 
         expect(result).to eq({ 'critique' => nil })
+      end
+    end
+
+    context 'when response text is nil' do
+      let(:nil_text_response) do
+        double('response', parsed_response: {
+          'candidates' => [
+            {
+              'content' => {
+                'parts' => [
+                  { 'text' => nil }
+                ]
+              }
+            }
+          ]
+        })
+      end
+
+      before do
+        allow(described_class).to receive(:post).and_return(nil_text_response)
+      end
+
+      it 'returns nil critique' do
+        result = critique_agent.critique(article)
+
+        expect(result).to eq({ 'critique' => nil })
+      end
+    end
+
+    context 'when response has no candidates' do
+      let(:no_candidates_response) do
+        double('response', parsed_response: {
+          'candidates' => []
+        })
+      end
+
+      before do
+        allow(described_class).to receive(:post).and_return(no_candidates_response)
+      end
+
+      it 'returns nil critique' do
+        result = critique_agent.critique(article)
+
+        expect(result).to eq({ 'critique' => nil })
+      end
+    end
+
+    context 'when response has no content' do
+      let(:no_content_response) do
+        double('response', parsed_response: {
+          'candidates' => [
+            {}
+          ]
+        })
+      end
+
+      before do
+        allow(described_class).to receive(:post).and_return(no_content_response)
+      end
+
+      it 'returns nil critique' do
+        result = critique_agent.critique(article)
+
+        expect(result).to eq({ 'critique' => nil })
+      end
+    end
+
+    context 'when response has no parts' do
+      let(:no_parts_response) do
+        double('response', parsed_response: {
+          'candidates' => [
+            {
+              'content' => {
+                'parts' => []
+              }
+            }
+          ]
+        })
+      end
+
+      before do
+        allow(described_class).to receive(:post).and_return(no_parts_response)
+      end
+
+      it 'returns nil critique' do
+        result = critique_agent.critique(article)
+
+        expect(result).to eq({ 'critique' => nil })
+      end
+    end
+
+    context 'when response text has whitespace' do
+      let(:whitespace_response) do
+        double('response', parsed_response: {
+          'candidates' => [
+            {
+              'content' => {
+                'parts' => [
+                  { 'text' => '  Valid critique with spaces  ' }
+                ]
+              }
+            }
+          ]
+        })
+      end
+
+      before do
+        allow(described_class).to receive(:post).and_return(whitespace_response)
+      end
+
+      it 'strips whitespace and returns critique' do
+        result = critique_agent.critique(article)
+
+        expect(result).to eq({ 'critique' => 'Valid critique with spaces' })
       end
     end
   end

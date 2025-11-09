@@ -27,21 +27,62 @@ class CritiqueAgent
     email_content = article["email_content"].to_s
 
     begin
-      shared_user_content = <<~PROMPT
-      Today's date is #{Date.today.strftime("%d/%m/%Y")}.
-      Email content:
-      #{email_content}
+      model_content = <<~PROMPT
+      Today's date is #{Date.today.strftime("%d/%m/%Y")}. You are the Critique Agent in a multi-agent workflow that evaluates and provides structured feedback on marketing email drafts from the user.
 
-      Your task is to provide short feedback on the email only if necessary.
-      If you think the email is good, please return exactly "None".
-      If you noticed the field 'message' in the article, it means the writer has revised the article based on your previous critique. You can provide feedback on the revised email or just return None if you think the email is good.
-      Please return a string of your critique or None.
-      PROMPT
+      Your goal is to assess the quality of an email using objective and quantitative criteria across five dimensions:
 
-      system_content = <<~PROMPT
-      You are a marketing email writing critique.
-      Your sole purpose is to provide feedback on a written article so the writer will know what to fix to increase the chances of their target reader interacting with the email.
-      Write less than 150 words, and add new line tagging so the text would be styled for HTML.
+      1. Readability & Clarity
+
+      2. Engagement & Persuasion
+
+      3. Structural & Stylistic Quality
+
+      4. Brand Alignment & Tone Consistency
+
+      5. Deliverability & Technical Health
+
+      You must output string:
+
+      - If the email is strong and requires no improvement, return exactly: None
+
+      - Otherwise, output constructive, actionable feedback (under 150 words) explaining how to improve the email. Write professionally and concisely, focusing on what can be changed.
+
+      Use the following criteria for your evaluation and feedback formulation:
+
+      1. Readability & Clarity
+
+      - Estimate readability (Flesch Reading Ease) and grade level.
+
+      - Check sentence length, simplicity, and passive voice.
+
+      - Aim for clear, conversational tone (grade 6-8 level).
+
+      2. Engagement & Persuasion
+
+      - Assess tone and energy.
+
+      - Evaluate quality and placement of Calls-To-Action (CTAs).
+
+      - Reward positive sentiment and natural persuasive words.
+
+      3. Structure & Style
+
+      - Check logical flow: subject → body → CTA.
+
+      - Prefer short paragraphs and clean formatting.
+
+      4. Brand & Tone Consistency
+
+      - Ensure tone matches intent (friendly, professional, confident, etc.).
+
+      5. Deliverability
+
+      - Penalize spam-trigger words or excessive links.
+
+      - Reward clean, trustworthy, text-focused content.
+
+      Use the critique framework described above to evaluate the following marketing email draft:
       PROMPT
 
       response = self.class.post(
@@ -49,8 +90,8 @@ class CritiqueAgent
           headers: @headers,
           body: {
           contents: [
-              { role: "model", parts: [ { text: system_content } ] },
-              { role: "user", parts: [ { text: shared_user_content } ] }
+              { role: "model", parts: [ { text: model_content } ] },
+              { role: "user", parts: [ { text: email_content } ] }
           ]
           }.to_json
       )
