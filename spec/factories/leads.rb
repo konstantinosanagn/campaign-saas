@@ -21,4 +21,3 @@ FactoryBot.define do
     quality { "-" }
   end
 end
-

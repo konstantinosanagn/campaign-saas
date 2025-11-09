@@ -55,10 +55,10 @@ Rails.application.configure do
   # config.active_job.queue_adapter = :resque
 
   # Raise delivery errors in production if SMTP is configured
-  config.action_mailer.raise_delivery_errors = ENV['SMTP_ADDRESS'].present?
+  config.action_mailer.raise_delivery_errors = ENV["SMTP_ADDRESS"].present?
 
   # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { 
+  config.action_mailer.default_url_options = {
     host: ENV.fetch("MAILER_HOST", "example.com"),
     protocol: "https"
   }
@@ -66,21 +66,21 @@ Rails.application.configure do
   # Configure SMTP settings via environment variables
   # Set these environment variables in your production environment:
   # SMTP_ADDRESS, SMTP_PORT, SMTP_USER_NAME, SMTP_PASSWORD, SMTP_DOMAIN (optional)
-  if ENV['SMTP_ADDRESS'].present?
+  if ENV["SMTP_ADDRESS"].present?
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.smtp_settings = {
-      address: ENV.fetch('SMTP_ADDRESS'),
-      port: ENV.fetch('SMTP_PORT', '587').to_i,
-      domain: ENV.fetch('SMTP_DOMAIN', ENV.fetch('MAILER_HOST', 'example.com')),
-      user_name: ENV.fetch('SMTP_USER_NAME'),
-      password: ENV.fetch('SMTP_PASSWORD'),
-      authentication: ENV.fetch('SMTP_AUTHENTICATION', 'plain').to_sym,
-      enable_starttls_auto: ENV.fetch('SMTP_ENABLE_STARTTLS', 'true') == 'true'
+      address: ENV.fetch("SMTP_ADDRESS"),
+      port: ENV.fetch("SMTP_PORT", "587").to_i,
+      domain: ENV.fetch("SMTP_DOMAIN", ENV.fetch("MAILER_HOST", "example.com")),
+      user_name: ENV.fetch("SMTP_USER_NAME"),
+      password: ENV.fetch("SMTP_PASSWORD"),
+      authentication: ENV.fetch("SMTP_AUTHENTICATION", "plain").to_sym,
+      enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "true") == "true"
     }
   else
     # Fallback to file delivery if SMTP is not configured (for testing)
     config.action_mailer.delivery_method = :file
-    config.action_mailer.file_settings = { location: Rails.root.join('tmp', 'mail') }
+    config.action_mailer.file_settings = { location: Rails.root.join("tmp", "mail") }
   end
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to

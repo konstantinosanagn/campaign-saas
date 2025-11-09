@@ -10,10 +10,10 @@ module Api
         # Verify the campaign belongs to current user before creating lead
         campaign = current_user.campaigns.find_by(id: lead_params[:campaign_id])
         unless campaign
-          render json: { errors: ['Campaign not found or unauthorized'] }, status: :unprocessable_entity
+          render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :unprocessable_entity
           return
         end
-        
+
         lead = campaign.leads.build(lead_params.except(:campaign_id))
         if lead.save
           render json: lead, status: :created
@@ -28,7 +28,7 @@ module Api
         if lead && lead.update(lead_params.except(:campaign_id))
           render json: lead
         else
-          render json: { errors: lead ? lead.errors.full_messages : ['Not found or unauthorized'] }, status: :unprocessable_entity
+          render json: { errors: lead ? lead.errors.full_messages : [ "Not found or unauthorized" ] }, status: :unprocessable_entity
         end
       end
 
@@ -39,7 +39,7 @@ module Api
           lead.destroy
           head :no_content
         else
-          render json: { errors: ['Not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Not found or unauthorized" ] }, status: :not_found
         end
       end
 
@@ -49,9 +49,9 @@ module Api
       def run_agents
         # Find lead and verify ownership
         lead = Lead.joins(:campaign).where(campaigns: { user_id: current_user.id }).find_by(id: params[:id])
-        
+
         unless lead
-          render json: { errors: ['Lead not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Lead not found or unauthorized" ] }, status: :not_found
           return
         end
 
@@ -61,17 +61,17 @@ module Api
         begin
           # Run agents using LeadAgentService
           result = LeadAgentService.run_agents_for_lead(lead, campaign, session)
-          
+
           # Check for service-level errors
-          if result[:status] == 'failed' && result[:error]
-            render json: { 
+          if result[:status] == "failed" && result[:error]
+            render json: {
               status: result[:status],
               error: result[:error],
               lead: lead
             }, status: :unprocessable_entity
             return
           end
-          
+
           # Return success response with results
           render json: {
             status: result[:status],
@@ -80,11 +80,11 @@ module Api
             completedAgents: result[:completed_agents],
             failedAgents: result[:failed_agents]
           }, status: :ok
-          
+
         rescue => e
           # Handle any unexpected errors
-          render json: { 
-            status: 'error',
+          render json: {
+            status: "error",
             error: e.message
           }, status: :internal_server_error
         end
@@ -96,9 +96,9 @@ module Api
       def agent_outputs
         # Find lead and verify ownership
         lead = Lead.joins(:campaign).where(campaigns: { user_id: current_user.id }).find_by(id: params[:id])
-        
+
         unless lead
-          render json: { errors: ['Lead not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Lead not found or unauthorized" ] }, status: :not_found
           return
         end
 
@@ -113,7 +113,7 @@ module Api
             updatedAt: output.updated_at
           }
         end
-        
+
         render json: {
           leadId: lead.id,
           outputs: outputs
@@ -126,52 +126,52 @@ module Api
       def update_agent_output
         # Find lead and verify ownership
         lead = Lead.joins(:campaign).where(campaigns: { user_id: current_user.id }).find_by(id: params[:id])
-        
+
         unless lead
-          render json: { errors: ['Lead not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Lead not found or unauthorized" ] }, status: :not_found
           return
         end
 
         agent_name = params[:agentName] || params[:agent_name]
-        
+
         unless agent_name
-          render json: { errors: ['Agent name is required'] }, status: :unprocessable_entity
+          render json: { errors: [ "Agent name is required" ] }, status: :unprocessable_entity
           return
         end
 
         # Only allow updating WRITER, SEARCH, and DESIGN
         unless agent_name.in?(%w[WRITER SEARCH DESIGN])
-          render json: { errors: ['Only WRITER, SEARCH, and DESIGN agent outputs can be updated'] }, status: :unprocessable_entity
+          render json: { errors: [ "Only WRITER, SEARCH, and DESIGN agent outputs can be updated" ] }, status: :unprocessable_entity
           return
         end
 
         # Find the agent output
         agent_output = lead.agent_outputs.find_by(agent_name: agent_name)
-        
+
         unless agent_output
-          render json: { errors: ['Agent output not found'] }, status: :not_found
+          render json: { errors: [ "Agent output not found" ] }, status: :not_found
           return
         end
 
         # Handle different agent types
-        if agent_name == 'WRITER'
+        if agent_name == "WRITER"
           # Get the new email content from params
           new_email = params[:content] || params[:email]
 
           unless new_email
-            render json: { errors: ['Email content is required'] }, status: :unprocessable_entity
+            render json: { errors: [ "Email content is required" ] }, status: :unprocessable_entity
             return
           end
 
           # Update the output data
           updated_data = agent_output.output_data.merge(email: new_email)
           agent_output.update!(output_data: updated_data)
-        elsif agent_name == 'DESIGN'
+        elsif agent_name == "DESIGN"
           # Get the new formatted email content from params
           new_email = params[:content] || params[:email] || params[:formatted_email]
 
           unless new_email
-            render json: { errors: ['Email content is required'] }, status: :unprocessable_entity
+            render json: { errors: [ "Email content is required" ] }, status: :unprocessable_entity
             return
           end
 
@@ -181,12 +181,12 @@ module Api
             formatted_email: new_email
           )
           agent_output.update!(output_data: updated_data)
-        elsif agent_name == 'SEARCH'
+        elsif agent_name == "SEARCH"
           # Get the updated data from params
           updated_data_param = params[:updatedData] || params[:updated_data]
 
           unless updated_data_param
-            render json: { errors: ['Updated data is required for SEARCH agent'] }, status: :unprocessable_entity
+            render json: { errors: [ "Updated data is required for SEARCH agent" ] }, status: :unprocessable_entity
             return
           end
 
@@ -213,5 +213,3 @@ module Api
     end
   end
 end
-
-

@@ -52,4 +52,3 @@ FactoryBot.define do
     error_message { 'API key is invalid' }
   end
 end
-

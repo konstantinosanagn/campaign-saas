@@ -13,15 +13,15 @@ class ApplicationController < ActionController::Base
   def set_default_api_keys_for_admin
     # In development, always set keys for any request
     # This ensures API keys are available even when auth is skipped
-    
+
     # Don't overwrite if keys are already set by user
     return if session[:llm_api_key].present? && session[:tavily_api_key].present?
 
     # Set default API keys for development testing
     # These are the keys you provided
-    session[:llm_api_key] = 'AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE'
-    session[:tavily_api_key] = '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'
-    
+    session[:llm_api_key] = "AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE"
+    session[:tavily_api_key] = "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"
+
     # Log for debugging
     Rails.logger.info "Auto-set API keys for development: llm=#{session[:llm_api_key].present?}, tavily=#{session[:tavily_api_key].present?}"
   end

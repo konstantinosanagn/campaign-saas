@@ -169,4 +169,3 @@ RSpec.describe 'Error Handling Integration', type: :request do
     end
   end
 end
-

@@ -19,7 +19,7 @@ RSpec.describe Api::V1::ApiKeysController, type: :request do
       it 'returns stored keys from session' do
         # Set session keys directly (simulating previous update)
         get '/api/v1/api_keys', headers: { 'Accept' => 'application/json' }
-        
+
         # Update keys first
         put '/api/v1/api_keys', params: {
           llmApiKey: 'test-llm-key',
@@ -158,4 +158,3 @@ RSpec.describe Api::V1::ApiKeysController, type: :request do
     end
   end
 end
-

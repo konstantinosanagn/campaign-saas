@@ -13,4 +13,3 @@ FactoryBot.define do
     name { "Admin User" }
   end
 end
-

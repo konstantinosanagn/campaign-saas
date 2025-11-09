@@ -18,9 +18,7 @@ class Campaign < ApplicationRecord
   # Override as_json to maintain API compatibility with camelCase
   def as_json(options = {})
     super(options).merge(
-      'basePrompt' => base_prompt
-    ).except('base_prompt')
+      "basePrompt" => base_prompt
+    ).except("base_prompt")
   end
 end
-
-

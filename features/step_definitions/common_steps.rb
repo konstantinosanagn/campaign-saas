@@ -86,5 +86,3 @@ end
 Then('the dashboard root should have CSS class {string}') do |klass|
   expect(page).to have_css("#campaign-dashboard-root.#{klass}")
 end
-
-

@@ -21,11 +21,11 @@ class ApiKeyService
     # @raise [ArgumentError] if API key is missing or blank
     def get_gemini_api_key(session)
       key = session[LLM_KEY_NAME]
-      
+
       if key.blank?
         raise ArgumentError, "Gemini API key is required. Please add your Gemini API key in the API Keys section."
       end
-      
+
       key
     end
 
@@ -36,11 +36,11 @@ class ApiKeyService
     # @raise [ArgumentError] if API key is missing or blank
     def get_tavily_api_key(session)
       key = session[TAVILY_KEY_NAME]
-      
+
       if key.blank?
         raise ArgumentError, "Tavily API key is required. Please add your Tavily API key in the API Keys section."
       end
-      
+
       key
     end
 
@@ -58,8 +58,8 @@ class ApiKeyService
     # @return [Array<String>] Array of missing key names
     def missing_keys(session)
       missing = []
-      missing << 'Gemini' if session[LLM_KEY_NAME].blank?
-      missing << 'Tavily' if session[TAVILY_KEY_NAME].blank?
+      missing << "Gemini" if session[LLM_KEY_NAME].blank?
+      missing << "Tavily" if session[TAVILY_KEY_NAME].blank?
       missing
     end
   end

@@ -11,7 +11,7 @@ RSpec.describe Lead, type: :model do
     it { should validate_presence_of(:email) }
     it { should validate_presence_of(:title) }
     it { should validate_presence_of(:company) }
-    
+
     it { should allow_value('test@example.com').for(:email) }
     it { should allow_value('user.name+tag@domain.co.uk').for(:email) }
     it { should_not allow_value('invalid-email').for(:email) }
@@ -143,4 +143,3 @@ RSpec.describe Lead, type: :model do
     end
   end
 end
-

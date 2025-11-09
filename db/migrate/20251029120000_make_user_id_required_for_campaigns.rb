@@ -10,7 +10,7 @@ class MakeUserIdRequiredForCampaigns < ActiveRecord::Migration[8.1]
       )
       Campaign.where(user_id: nil).update_all(user_id: default_user.id)
     end
-    
+
     # Add NOT NULL constraint
     change_column_null :campaigns, :user_id, false
   end
@@ -19,4 +19,3 @@ class MakeUserIdRequiredForCampaigns < ActiveRecord::Migration[8.1]
     change_column_null :campaigns, :user_id, true
   end
 end
-

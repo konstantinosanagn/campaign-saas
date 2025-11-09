@@ -276,4 +276,3 @@ RSpec.describe Api::V1::AgentConfigsController, type: :request do
     end
   end
 end
-

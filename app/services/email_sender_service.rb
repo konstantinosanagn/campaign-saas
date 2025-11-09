@@ -19,13 +19,13 @@ class EmailSenderService
     # @return [Hash] Result with counts of sent/failed emails and any errors
     def send_emails_for_campaign(campaign)
       ready_leads = find_ready_leads(campaign)
-      
+
       results = {
         sent: 0,
         failed: 0,
         errors: []
       }
-      
+
       ready_leads.each do |lead|
         begin
           send_email_to_lead(lead)
@@ -40,10 +40,10 @@ class EmailSenderService
           Rails.logger.error("Failed to send email to lead #{lead.id}: #{e.message}")
         end
       end
-      
+
       results
     end
-    
+
     ##
     # Checks if a lead is ready to have its email sent
     # A lead is ready if:
@@ -55,46 +55,46 @@ class EmailSenderService
     def lead_ready?(lead)
       # Must be at critiqued or completed stage
       return false unless lead.stage.in?(%w[critiqued completed])
-      
+
       # Check for DESIGN output first (preferred)
-      design_output = lead.agent_outputs.find_by(agent_name: 'DESIGN', status: 'completed')
-      if design_output && design_output.output_data['formatted_email'].present?
+      design_output = lead.agent_outputs.find_by(agent_name: "DESIGN", status: "completed")
+      if design_output && design_output.output_data["formatted_email"].present?
         return true
       end
-      
+
       # Fallback to WRITER output if DESIGN is not available
-      writer_output = lead.agent_outputs.find_by(agent_name: 'WRITER', status: 'completed')
-      if writer_output && writer_output.output_data['email'].present?
+      writer_output = lead.agent_outputs.find_by(agent_name: "WRITER", status: "completed")
+      if writer_output && writer_output.output_data["email"].present?
         return true
       end
-      
+
       false
     end
-    
+
     private
-    
+
     ##
     # Finds all leads in a campaign that are ready to send
     def find_ready_leads(campaign)
       campaign.leads.select { |lead| lead_ready?(lead) }
     end
-    
+
     ##
     # Sends email to a single lead
     def send_email_to_lead(lead)
       # Get the email content (prefer DESIGN formatted_email, fallback to WRITER email)
-      design_output = lead.agent_outputs.find_by(agent_name: 'DESIGN', status: 'completed')
-      writer_output = lead.agent_outputs.find_by(agent_name: 'WRITER', status: 'completed')
-      
+      design_output = lead.agent_outputs.find_by(agent_name: "DESIGN", status: "completed")
+      writer_output = lead.agent_outputs.find_by(agent_name: "WRITER", status: "completed")
+
       email_content = nil
-      if design_output && design_output.output_data['formatted_email'].present?
-        email_content = design_output.output_data['formatted_email']
-      elsif writer_output && writer_output.output_data['email'].present?
-        email_content = writer_output.output_data['email']
+      if design_output && design_output.output_data["formatted_email"].present?
+        email_content = design_output.output_data["formatted_email"]
+      elsif writer_output && writer_output.output_data["email"].present?
+        email_content = writer_output.output_data["email"]
       end
-      
+
       raise "No email content found for lead #{lead.id}" if email_content.blank?
-      
+
       # Send email using CampaignMailer
       CampaignMailer.send_email(
         to: lead.email,
@@ -105,4 +105,3 @@ class EmailSenderService
     end
   end
 end
-

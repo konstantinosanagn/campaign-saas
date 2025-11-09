@@ -188,4 +188,3 @@ RSpec.describe 'Lead Management Integration', type: :request do
     end
   end
 end
-

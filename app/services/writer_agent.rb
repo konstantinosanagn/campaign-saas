@@ -1,5 +1,5 @@
-require 'httparty'
-require 'json'
+require "httparty"
+require "json"
 
 =begin
 WRITER AGENT
@@ -49,9 +49,9 @@ KEY FEATURES:
 
 class WriterAgent
   include HTTParty
-  base_uri 'https://generativelanguage.googleapis.com/v1beta'
+  base_uri "https://generativelanguage.googleapis.com/v1beta"
 
-  def initialize(api_key:, model: 'gemini-2.5-flash')
+  def initialize(api_key:, model: "gemini-2.5-flash")
     @api_key = api_key
     @model = model
     raise ArgumentError, "Gemini API key is required" if @api_key.blank?
@@ -63,14 +63,14 @@ class WriterAgent
     image = search_results[:image]
 
     prompt = build_prompt(company_name, sources, image, recipient, company_name, product_info, sender_company)
-    
+
     # Build full prompt with system instructions
     full_prompt = "You are an expert B2B marketing email writer who creates personalized, empathetic, and engaging outreach emails that build authentic customer relationships and drive engagement.\n\n#{prompt}"
 
     response = self.class.post(
       "/models/#{@model}:generateContent?key=#{@api_key}",
       headers: {
-        'Content-Type' => 'application/json'
+        "Content-Type" => "application/json"
       },
       body: {
         contents: [
@@ -90,15 +90,15 @@ class WriterAgent
     )
 
     parsed_response = JSON.parse(response.body)
-    
+
     # Extract email text from Gemini response
-    candidate = parsed_response.dig('candidates', 0)
-    
+    candidate = parsed_response.dig("candidates", 0)
+
     # Extract email text from Gemini response
-    if candidate && candidate['content'] && candidate['content']['parts']
-      email = candidate['content']['parts'][0]['text'] || 'Failed to generate email'
+    if candidate && candidate["content"] && candidate["content"]["parts"]
+      email = candidate["content"]["parts"][0]["text"] || "Failed to generate email"
     else
-      email = 'Failed to generate email'
+      email = "Failed to generate email"
     end
 
     {
@@ -141,8 +141,8 @@ class WriterAgent
       prompt += "Use the following real-time research sources to create contextually relevant content:\n\n"
       sources.each_with_index do |source, index|
         prompt += "Source #{index + 1}:\n"
-        prompt += "Title: #{source['title']}\n" if source['title']
-        prompt += "URL: #{source['url']}\n" if source['url']
+        prompt += "Title: #{source['title']}\n" if source["title"]
+        prompt += "URL: #{source['url']}\n" if source["url"]
         prompt += "Content: #{source['content'] || 'No content available'}\n"
         prompt += "\n"
       end
@@ -163,7 +163,7 @@ class WriterAgent
     prompt += "- Call-to-Action: Clear, compelling CTA that provides next steps\n"
     prompt += "- Length: Concise and scannable (150-300 words ideal for B2B outreach)\n"
     prompt += "- Spam Prevention: Avoid excessive promotional language, all caps, or multiple exclamation marks\n\n"
-    
+
     prompt += "Focus on:\n"
     prompt += "- Building authentic relationships, not just selling\n"
     prompt += "- Demonstrating understanding of their business context\n"

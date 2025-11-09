@@ -16,14 +16,14 @@ if admin_user.campaigns.count == 0
     base_prompt: 'Generate personalized outreach emails for tech startup leads focusing on growth marketing, demand generation, and VP marketing roles. Target companies like NovaCorp, Orbit AI, and Stackly with personalized messaging based on their company size and industry focus.'
   )
   puts "Created campaign: #{campaign.title}"
-  
+
   # Create sample leads for the campaign
   leads_data = [
     { name: 'Alex Martin', email: 'alex@novacorp.io', title: 'VP Marketing', company: 'NovaCorp', website: 'novacorp.io', stage: 'queued', quality: '-' },
     { name: 'Priya Shah', email: 'priya@orbitai.com', title: 'Head of Demand Gen', company: 'Orbit AI', website: 'orbitai.com', stage: 'queued', quality: '-' },
     { name: 'Daniel Cho', email: 'daniel@stackly.dev', title: 'Growth Lead', company: 'Stackly', website: 'stackly.dev', stage: 'queued', quality: '-' }
   ]
-  
+
   leads_data.each do |lead_data|
     lead = campaign.leads.create!(lead_data)
     puts "Created lead: #{lead.name} (#{lead.email})"

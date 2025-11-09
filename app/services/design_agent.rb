@@ -1,5 +1,5 @@
-require 'httparty'
-require 'json'
+require "httparty"
+require "json"
 
 =begin
 DESIGN AGENT
@@ -41,18 +41,18 @@ KEY FEATURES:
 
 class DesignAgent
   include HTTParty
-  base_uri 'https://generativelanguage.googleapis.com/v1beta'
+  base_uri "https://generativelanguage.googleapis.com/v1beta"
 
-  def initialize(api_key:, model: 'gemini-2.5-flash')
+  def initialize(api_key:, model: "gemini-2.5-flash")
     @api_key = api_key
     @model = model
     raise ArgumentError, "Gemini API key is required" if @api_key.blank?
   end
 
   def run(writer_output)
-    email_content = writer_output[:email] || writer_output['email'] || ''
-    company = writer_output[:company] || writer_output['company']
-    recipient = writer_output[:recipient] || writer_output['recipient']
+    email_content = writer_output[:email] || writer_output["email"] || ""
+    company = writer_output[:company] || writer_output["company"]
+    recipient = writer_output[:recipient] || writer_output["recipient"]
 
     # If email is empty, return original output
     if email_content.blank?
@@ -65,14 +65,14 @@ class DesignAgent
     end
 
     prompt = build_prompt(email_content, company, recipient)
-    
+
     # Build full prompt with system instructions
     full_prompt = "You are an expert email designer who enhances email content with strategic formatting to improve readability and engagement. Apply bold and italic formatting thoughtfully.\n\n#{prompt}"
 
     response = self.class.post(
       "/models/#{@model}:generateContent?key=#{@api_key}",
       headers: {
-        'Content-Type' => 'application/json'
+        "Content-Type" => "application/json"
       },
       body: {
         contents: [
@@ -92,12 +92,12 @@ class DesignAgent
     )
 
     parsed_response = JSON.parse(response.body)
-    
+
     # Extract formatted email from Gemini response
-    candidate = parsed_response.dig('candidates', 0)
-    
-    if candidate && candidate['content'] && candidate['content']['parts']
-      formatted_email = candidate['content']['parts'][0]['text'] || email_content
+    candidate = parsed_response.dig("candidates", 0)
+
+    if candidate && candidate["content"] && candidate["content"]["parts"]
+      formatted_email = candidate["content"]["parts"][0]["text"] || email_content
     else
       formatted_email = email_content
     end
@@ -134,23 +134,22 @@ class DesignAgent
     prompt += "- Maintain all line breaks and structure\n"
     prompt += "- Do not change the content, only add formatting\n"
     prompt += "- Be selective - don't over-format. Only format truly important elements\n\n"
-    
+
     if company
       prompt += "Company: #{company}\n"
     end
-    
+
     if recipient
       prompt += "Recipient: #{recipient}\n"
     end
-    
+
     prompt += "\nEmail content to format:\n"
     prompt += "---\n"
     prompt += email_content
     prompt += "\n---\n\n"
-    
+
     prompt += "Return the formatted email with markdown formatting applied. Keep the exact same structure and content, only add formatting (bold, italic, strikethrough, code, links, quotes) where appropriate."
 
     prompt
   end
 end
-

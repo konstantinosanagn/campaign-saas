@@ -147,10 +147,10 @@ RSpec.describe 'User Dashboard Integration', type: :request do
           get '/api/v1/leads', headers: { "ACCEPT" => "application/json" }
           expect(response).to have_http_status(:ok)
           all_leads = JSON.parse(response.body)
-          
+
           # Ensure we have an array
           expect(all_leads).to be_an(Array)
-          
+
           # Verify all created leads are present
           lead_ids = all_leads.map { |l| l['id'] }
           expect(lead_ids).to include(lead1.id, lead2.id, lead3.id)
@@ -159,4 +159,3 @@ RSpec.describe 'User Dashboard Integration', type: :request do
     end
   end
 end
-

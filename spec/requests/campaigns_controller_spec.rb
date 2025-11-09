@@ -1,5 +1,6 @@
 # spec/requests/campaigns_controller_spec.rb
 # frozen_string_literal: true
+
 require "rails_helper"
 
 RSpec.describe "CampaignsController", type: :request do
@@ -24,7 +25,7 @@ RSpec.describe "CampaignsController", type: :request do
       # Some helper paths in newer webpacker call this:
       if fake_manifest.respond_to?(:lookup_pack_with_chunks!)
         allow(fake_manifest).to receive(:lookup_pack_with_chunks!)
-          .and_return({"application.js" => "/packs/application.js"})
+          .and_return({ "application.js" => "/packs/application.js" })
       end
     end
   end
@@ -45,7 +46,7 @@ RSpec.describe "CampaignsController", type: :request do
   let(:user)          { create(:user) }
   let(:other_user)    { create(:user) }
   let(:campaign)      { create(:campaign, user: user) }
-  let(:other_campaign){ create(:campaign, user: other_user) }
+  let(:other_campaign) { create(:campaign, user: other_user) }
 
   describe "GET /campaigns (index)" do
     context "when authenticated" do

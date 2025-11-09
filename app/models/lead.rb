@@ -19,15 +19,13 @@ class Lead < ApplicationRecord
   # Override as_json to maintain API compatibility with camelCase
   def as_json(options = {})
     super(options).merge(
-      'campaignId' => campaign_id
-    ).except('campaign_id')
+      "campaignId" => campaign_id
+    ).except("campaign_id")
   end
 
   private
 
   def set_default_website
-    self.website = email.split('@')[1] if website.to_s.strip.empty?
+    self.website = email.split("@")[1] if website.to_s.strip.empty?
   end
 end
-
-

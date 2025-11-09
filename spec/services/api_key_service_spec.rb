@@ -156,7 +156,7 @@ RSpec.describe ApiKeyService, type: :service do
       let(:session) { { tavily_api_key: 'test-tavily-key' } }
 
       it 'returns array with Gemini' do
-        expect(described_class.missing_keys(session)).to eq(['Gemini'])
+        expect(described_class.missing_keys(session)).to eq([ 'Gemini' ])
       end
     end
 
@@ -164,7 +164,7 @@ RSpec.describe ApiKeyService, type: :service do
       let(:session) { { llm_api_key: 'test-gemini-key' } }
 
       it 'returns array with Tavily' do
-        expect(described_class.missing_keys(session)).to eq(['Tavily'])
+        expect(described_class.missing_keys(session)).to eq([ 'Tavily' ])
       end
     end
 
@@ -172,7 +172,7 @@ RSpec.describe ApiKeyService, type: :service do
       let(:session) { {} }
 
       it 'returns array with both keys' do
-        expect(described_class.missing_keys(session)).to eq(['Gemini', 'Tavily'])
+        expect(described_class.missing_keys(session)).to eq([ 'Gemini', 'Tavily' ])
       end
     end
 
@@ -185,7 +185,7 @@ RSpec.describe ApiKeyService, type: :service do
       end
 
       it 'returns array with both keys' do
-        expect(described_class.missing_keys(session)).to eq(['Gemini', 'Tavily'])
+        expect(described_class.missing_keys(session)).to eq([ 'Gemini', 'Tavily' ])
       end
     end
 
@@ -198,7 +198,7 @@ RSpec.describe ApiKeyService, type: :service do
       end
 
       it 'returns array with both keys' do
-        expect(described_class.missing_keys(session)).to eq(['Gemini', 'Tavily'])
+        expect(described_class.missing_keys(session)).to eq([ 'Gemini', 'Tavily' ])
       end
     end
   end

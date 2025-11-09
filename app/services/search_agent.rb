@@ -1,5 +1,5 @@
-require 'httparty'
-require 'json'
+require "httparty"
+require "json"
 
 ##
 # SearchAgent integrates with the Tavily API to fetch recent news
@@ -9,7 +9,7 @@ require 'json'
 
 class SearchAgent
   include HTTParty
-  base_uri 'https://api.tavily.com'
+  base_uri "https://api.tavily.com"
 
   def initialize(api_key:)
     @api_key = api_key
@@ -31,18 +31,18 @@ class SearchAgent
   # @return [Array<Hash>] list of news sources
   def search(domain)
     query = "latest news about #{domain}"
-    results = tavily_search(query, topic: 'news')
-    results['results'] || []
+    results = tavily_search(query, topic: "news")
+    results["results"] || []
   end
 
   # Method to perform a Tavily API request
   # @return [Hash] parsed response
-  def tavily_search(query, topic:, include_images:false)
+  def tavily_search(query, topic:, include_images: false)
     response = self.class.post(
-      '/search',
+      "/search",
       headers: {
-        'Content-Type' => 'application/json',
-        'Authorization' => "Bearer #{@api_key}"
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{@api_key}"
       },
       body: {
         query: query,

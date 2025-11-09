@@ -3,11 +3,11 @@
 
 RSpec.configure do |config|
   config.include Devise::Test::IntegrationHelpers, type: :request
-  
+
   config.before(:each, type: :request) do
     Warden.test_mode!
   end
-  
+
   config.after(:each, type: :request) do
     Warden.test_reset!
   end
@@ -23,10 +23,3 @@ end
 RSpec.configure do |config|
   config.include AuthenticationHelpers, type: :request
 end
-
-
-
-
-
-
-

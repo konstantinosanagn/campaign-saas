@@ -32,7 +32,7 @@ class CreateAgentConfigs < ActiveRecord::Migration[8.1]
 
     # Unique constraint: one config per agent per campaign
     # Note: campaign_id index already created by t.references above
-    add_index :agent_configs, [:campaign_id, :agent_name], unique: true, name: 'index_agent_configs_on_campaign_id_and_agent_name'
+    add_index :agent_configs, [ :campaign_id, :agent_name ], unique: true, name: 'index_agent_configs_on_campaign_id_and_agent_name'
 
     # Performance index for agent_name queries
     add_index :agent_configs, :agent_name

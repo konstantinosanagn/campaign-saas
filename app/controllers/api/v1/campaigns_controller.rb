@@ -22,7 +22,7 @@ module Api
         if campaign && campaign.update(campaign_params)
           render json: campaign
         else
-          render json: { errors: campaign ? campaign.errors.full_messages : ['Not found or unauthorized'] }, status: :unprocessable_entity
+          render json: { errors: campaign ? campaign.errors.full_messages : [ "Not found or unauthorized" ] }, status: :unprocessable_entity
         end
       end
 
@@ -33,7 +33,7 @@ module Api
           campaign.destroy
           head :no_content
         else
-          render json: { errors: ['Not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Not found or unauthorized" ] }, status: :not_found
         end
       end
 
@@ -42,15 +42,15 @@ module Api
       # Sends emails to all ready leads in the campaign
       def send_emails
         campaign = current_user.campaigns.find_by(id: params[:id])
-        
+
         unless campaign
-          render json: { errors: ['Campaign not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
           return
         end
 
         begin
           result = EmailSenderService.send_emails_for_campaign(campaign)
-          
+
           render json: {
             success: true,
             sent: result[:sent],
@@ -76,5 +76,3 @@ module Api
     end
   end
 end
-
-

@@ -17,7 +17,7 @@ RSpec.describe AgentConfig, type: :model do
       expect(config).not_to be_valid
       expect(config.errors[:settings]).to be_present
     end
-    it { should validate_inclusion_of(:enabled).in_array([true, false]) }
+    it { should validate_inclusion_of(:enabled).in_array([ true, false ]) }
 
     it 'validates agent_name inclusion' do
       valid_names = %w[SEARCH WRITER CRITIQUE]
@@ -99,7 +99,7 @@ RSpec.describe AgentConfig, type: :model do
     it 'prevents duplicate agent configs for the same campaign and agent' do
       create(:agent_config, campaign: campaign, agent_name: 'WRITER')
       duplicate = build(:agent_config, campaign: campaign, agent_name: 'WRITER')
-      
+
       expect { duplicate.save! }.to raise_error(ActiveRecord::RecordNotUnique)
     end
 
@@ -152,4 +152,3 @@ RSpec.describe AgentConfig, type: :model do
     end
   end
 end
-

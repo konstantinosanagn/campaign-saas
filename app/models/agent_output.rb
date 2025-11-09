@@ -15,15 +15,14 @@ class AgentOutput < ApplicationRecord
 
   # Status query methods
   def completed?
-    status == 'completed'
+    status == "completed"
   end
 
   def failed?
-    status == 'failed'
+    status == "failed"
   end
 
   def pending?
-    status == 'pending'
+    status == "pending"
   end
 end
-

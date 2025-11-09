@@ -256,4 +256,3 @@ RSpec.describe Api::V1::CampaignsController, type: :request do
     end
   end
 end
-

@@ -8,8 +8,8 @@ class AgentConfig < ApplicationRecord
   validates :campaign_id, presence: true
   validates :agent_name, presence: true, inclusion: { in: VALID_AGENT_NAMES }
   # Allow empty hash for settings (SEARCH and CRITIQUE have no settings yet)
-  validates :settings, exclusion: { in: [nil] } # Allow empty hash, but not nil
-  validates :enabled, inclusion: { in: [true, false] }
+  validates :settings, exclusion: { in: [ nil ] } # Allow empty hash, but not nil
+  validates :enabled, inclusion: { in: [ true, false ] }
 
   # Status query methods
   def enabled?
@@ -29,4 +29,3 @@ class AgentConfig < ApplicationRecord
     self.settings = settings.merge(key.to_s => value)
   end
 end
-

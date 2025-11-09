@@ -23,5 +23,3 @@ Given('there is another user with a separate campaign') do
   other = User.create!(email: 'other@example.com', password: 'password123', password_confirmation: 'password123', name: 'Other User')
   @other_campaign = Campaign.create!(title: 'Other Campaign', base_prompt: 'Other', user: other)
 end
-
-

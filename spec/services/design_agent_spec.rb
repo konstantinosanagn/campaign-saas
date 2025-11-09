@@ -82,7 +82,7 @@ RSpec.describe DesignAgent, type: :service do
 
     it 'handles empty email content gracefully' do
       empty_output = { email: '', company: 'Test Corp', recipient: 'John Doe' }
-      
+
       result = design_agent.run(empty_output)
 
       expect(result[:email]).to eq('')
@@ -92,7 +92,7 @@ RSpec.describe DesignAgent, type: :service do
 
     it 'handles nil email content gracefully' do
       nil_output = { email: nil, company: 'Test Corp' }
-      
+
       result = design_agent.run(nil_output)
 
       expect(result[:email]).to be_nil
@@ -248,4 +248,3 @@ RSpec.describe DesignAgent, type: :service do
     end
   end
 end
-

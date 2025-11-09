@@ -7,11 +7,10 @@ RSpec.configure do |config|
     allow_any_instance_of(ActionView::Base).to receive(:javascript_pack_tag) do |*args|
       '<script src="/packs/application.js"></script>'.html_safe
     end
-    
+
     # Stub stylesheet_pack_tag if needed
     allow_any_instance_of(ActionView::Base).to receive(:stylesheet_pack_tag) do |*args|
       '<link rel="stylesheet" href="/packs/application.css">'.html_safe
     end
   end
 end
-

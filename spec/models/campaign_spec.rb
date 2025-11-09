@@ -107,4 +107,3 @@ RSpec.describe Campaign, type: :model do
     end
   end
 end
-

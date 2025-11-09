@@ -6,12 +6,12 @@ module Api
       # Returns all agent configs for a campaign
       def index
         campaign = current_user.campaigns.find_by(id: params[:campaign_id])
-        
+
         unless campaign
-          render json: { errors: ['Campaign not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
           return
         end
-        
+
         configs = campaign.agent_configs.map do |config|
           {
             id: config.id,
@@ -22,7 +22,7 @@ module Api
             updatedAt: config.updated_at
           }
         end
-        
+
         render json: {
           campaignId: campaign.id,
           configs: configs
@@ -34,19 +34,19 @@ module Api
       # Returns a specific agent config
       def show
         campaign = current_user.campaigns.find_by(id: params[:campaign_id])
-        
+
         unless campaign
-          render json: { errors: ['Campaign not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
           return
         end
-        
+
         config = campaign.agent_configs.find_by(id: params[:id])
-        
+
         unless config
-          render json: { errors: ['Agent config not found'] }, status: :not_found
+          render json: { errors: [ "Agent config not found" ] }, status: :not_found
           return
         end
-        
+
         render json: {
           id: config.id,
           agentName: config.agent_name,
@@ -62,31 +62,31 @@ module Api
       # Creates a new agent config
       def create
         campaign = current_user.campaigns.find_by(id: params[:campaign_id])
-        
+
         unless campaign
-          render json: { errors: ['Campaign not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
           return
         end
-        
+
         # Validate agent name
         unless AgentConfig::VALID_AGENT_NAMES.include?(agent_config_params[:agent_name])
-          render json: { errors: ['Invalid agent name. Must be one of: SEARCH, WRITER, CRITIQUE'] }, status: :unprocessable_entity
+          render json: { errors: [ "Invalid agent name. Must be one of: SEARCH, WRITER, CRITIQUE" ] }, status: :unprocessable_entity
           return
         end
-        
+
         # Check if config already exists
         existing_config = campaign.agent_configs.find_by(agent_name: agent_config_params[:agent_name])
         if existing_config
-          render json: { errors: ['Agent config already exists for this campaign'] }, status: :unprocessable_entity
+          render json: { errors: [ "Agent config already exists for this campaign" ] }, status: :unprocessable_entity
           return
         end
-        
+
         config = campaign.agent_configs.build(
           agent_name: agent_config_params[:agent_name],
           enabled: agent_config_params[:enabled] != false, # Default to true
           settings: agent_config_params[:settings] || {}
         )
-        
+
         if config.save
           render json: {
             id: config.id,
@@ -106,23 +106,23 @@ module Api
       # Updates an existing agent config
       def update
         campaign = current_user.campaigns.find_by(id: params[:campaign_id])
-        
+
         unless campaign
-          render json: { errors: ['Campaign not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
           return
         end
-        
+
         config = campaign.agent_configs.find_by(id: params[:id])
-        
+
         unless config
-          render json: { errors: ['Agent config not found'] }, status: :not_found
+          render json: { errors: [ "Agent config not found" ] }, status: :not_found
           return
         end
-        
+
         # Only allow updating enabled status and settings
         # Agent name cannot be changed
         update_params = agent_config_params.except(:agent_name)
-        
+
         if config.update(update_params)
           render json: {
             id: config.id,
@@ -142,19 +142,19 @@ module Api
       # Deletes an agent config
       def destroy
         campaign = current_user.campaigns.find_by(id: params[:campaign_id])
-        
+
         unless campaign
-          render json: { errors: ['Campaign not found or unauthorized'] }, status: :not_found
+          render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
           return
         end
-        
+
         config = campaign.agent_configs.find_by(id: params[:id])
-        
+
         if config
           config.destroy
           head :no_content
         else
-          render json: { errors: ['Agent config not found'] }, status: :not_found
+          render json: { errors: [ "Agent config not found" ] }, status: :not_found
         end
       end
 
@@ -169,4 +169,3 @@ module Api
     end
   end
 end
-

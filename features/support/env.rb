@@ -14,5 +14,3 @@ end
 Before do
   ENV['DISABLE_AUTH'] = 'true'
 end
-
-

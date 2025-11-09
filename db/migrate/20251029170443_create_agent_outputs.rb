@@ -30,7 +30,7 @@ class CreateAgentOutputs < ActiveRecord::Migration[8.1]
 
     # Unique constraint: one output per agent per lead
     # Note: lead_id index already created by t.references above
-    add_index :agent_outputs, [:lead_id, :agent_name], unique: true, name: 'index_agent_outputs_on_lead_id_and_agent_name'
+    add_index :agent_outputs, [ :lead_id, :agent_name ], unique: true, name: 'index_agent_outputs_on_lead_id_and_agent_name'
 
     # Performance index for agent_name queries
     add_index :agent_outputs, :agent_name

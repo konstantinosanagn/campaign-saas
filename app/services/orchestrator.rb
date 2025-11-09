@@ -1,6 +1,6 @@
-require_relative 'search_agent'
-require_relative 'writer_agent'
-require_relative 'critique_agent'
+require_relative "search_agent"
+require_relative "writer_agent"
+require_relative "critique_agent"
 
 =begin
 ORCHESTRATOR
@@ -46,11 +46,11 @@ class Orchestrator
   def run(company_name, recipient: nil, product_info: nil, sender_company: nil)
     # Step 1: Search for information about the company
     search_results = @search_agent.run(company_name)
-    
+
     # Step 2: Generate personalized email TO the company
     writer_output = @writer_agent.run(
-      search_results, 
-      recipient: recipient, 
+      search_results,
+      recipient: recipient,
       company: company_name,
       product_info: product_info,
       sender_company: sender_company
@@ -92,9 +92,9 @@ class Orchestrator
 
   def self.run(company_name, gemini_api_key:, tavily_api_key:, recipient: nil, product_info: nil, sender_company: nil)
     new(gemini_api_key: gemini_api_key, tavily_api_key: tavily_api_key).run(
-      company_name, 
-      recipient: recipient, 
-      product_info: product_info, 
+      company_name,
+      recipient: recipient,
+      product_info: product_info,
       sender_company: sender_company
     )
   end

@@ -39,4 +39,3 @@ FactoryBot.define do
     enabled { false }
   end
 end
-

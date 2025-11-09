@@ -254,4 +254,3 @@ RSpec.describe 'Campaign Management Integration', type: :request do
     end
   end
 end
-
