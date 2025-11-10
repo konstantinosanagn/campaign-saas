@@ -105,11 +105,11 @@ class CritiqueAgent
 
     number_of_revisions = article["number_of_revisions"] || article[:number_of_revisions]
 
-    # If the number of revision is 1 (AKA the email has been revised before
+    # If the number of revision >= 3 (AKA the email has been revised multiple times
     # based on critique), we decide to provide no further critique to avoid
     # infinitely calling the critique agents. Also, if the critique is "None",
     # we return nil critique.
-    if text.casecmp("none").zero? || number_of_revisions.to_s == "1"
+    if text.casecmp("none").zero? || number_of_revisions.to_s >= "3"
       return { "critique" => nil }
     end
     if text.empty?

@@ -208,10 +208,10 @@ RSpec.describe CritiqueAgent, type: :service do
         }
       end
 
-      it 'returns nil critique to avoid infinite loop' do
+      it 'processes critique normally (revision limit is >= 3)' do
         result = critique_agent.critique(article_with_revisions)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to eq({ 'critique' => 'This email needs improvement.' })
       end
     end
 
@@ -223,6 +223,51 @@ RSpec.describe CritiqueAgent, type: :service do
         }
       end
 
+      it 'processes critique normally (revision limit is >= 3)' do
+        result = critique_agent.critique(article_with_revisions)
+
+        expect(result).to eq({ 'critique' => 'This email needs improvement.' })
+      end
+    end
+
+    context 'when number of revisions is 2' do
+      let(:article_with_revisions) do
+        {
+          'email_content' => 'Subject: Test\n\nThis is a test email.',
+          'number_of_revisions' => 2
+        }
+      end
+
+      it 'processes critique normally (revision limit is >= 3)' do
+        result = critique_agent.critique(article_with_revisions)
+
+        expect(result).to eq({ 'critique' => 'This email needs improvement.' })
+      end
+    end
+
+    context 'when number of revisions is string "2"' do
+      let(:article_with_revisions) do
+        {
+          'email_content' => 'Subject: Test\n\nThis is a test email.',
+          'number_of_revisions' => '2'
+        }
+      end
+
+      it 'processes critique normally (revision limit is >= 3)' do
+        result = critique_agent.critique(article_with_revisions)
+
+        expect(result).to eq({ 'critique' => 'This email needs improvement.' })
+      end
+    end
+
+    context 'when number of revisions is 3' do
+      let(:article_with_revisions) do
+        {
+          'email_content' => 'Subject: Test\n\nThis is a test email.',
+          'number_of_revisions' => 3
+        }
+      end
+
       it 'returns nil critique to avoid infinite loop' do
         result = critique_agent.critique(article_with_revisions)
 
@@ -230,16 +275,31 @@ RSpec.describe CritiqueAgent, type: :service do
       end
     end
 
-    context 'when number of revisions uses symbol key' do
-      let(:article_with_symbol_key) do
+    context 'when number of revisions is string "3"' do
+      let(:article_with_revisions) do
         {
           'email_content' => 'Subject: Test\n\nThis is a test email.',
-          number_of_revisions: 1
+          'number_of_revisions' => '3'
         }
       end
 
       it 'returns nil critique to avoid infinite loop' do
-        result = critique_agent.critique(article_with_symbol_key)
+        result = critique_agent.critique(article_with_revisions)
+
+        expect(result).to eq({ 'critique' => nil })
+      end
+    end
+
+    context 'when number of revisions is greater than 3' do
+      let(:article_with_revisions) do
+        {
+          'email_content' => 'Subject: Test\n\nThis is a test email.',
+          'number_of_revisions' => 4
+        }
+      end
+
+      it 'returns nil critique to avoid infinite loop' do
+        result = critique_agent.critique(article_with_revisions)
 
         expect(result).to eq({ 'critique' => nil })
       end
