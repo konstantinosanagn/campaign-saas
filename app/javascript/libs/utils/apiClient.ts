@@ -1,7 +1,7 @@
 // API Client for Rails API communication
 // Handles CSRF tokens, error handling, and response formatting
 
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   data?: T
   error?: string
   status: number
@@ -10,7 +10,7 @@ interface ApiResponse<T = any> {
 interface ApiError {
   message: string
   status: number
-  details?: any
+  details?: unknown
 }
 
 class ApiClient {
@@ -50,7 +50,7 @@ class ApiClient {
       const response = await fetch(url, config)
       
       // Handle different response types
-      let data: any = null
+      let data: unknown = null
       const contentType = response.headers?.get('content-type')
       
       if (contentType && contentType.includes('application/json')) {
@@ -77,23 +77,23 @@ class ApiClient {
         
         // Handle validation errors (422) - Rails returns { errors: [...] }
         let errorMessage = `HTTP ${response.status}`
-        if (data && data.errors && Array.isArray(data.errors)) {
-          errorMessage = data.errors.join(', ')
-        } else if (data && data.error) {
-          errorMessage = data.error
-        } else if (data && data.message) {
-          errorMessage = data.message
+        if (data && typeof data === 'object' && 'errors' in data && Array.isArray((data as Record<string, unknown>).errors)) {
+          errorMessage = ((data as { errors: string[] }).errors).join(', ')
+        } else if (data && typeof data === 'object' && 'error' in data && typeof (data as Record<string, unknown>).error === 'string') {
+          errorMessage = (data as { error: string }).error
+        } else if (data && typeof data === 'object' && 'message' in data && typeof (data as Record<string, unknown>).message === 'string') {
+          errorMessage = (data as { message: string }).message
         }
         
         return {
           error: errorMessage,
           status: response.status,
-          data: data
+          data
         }
       }
 
       return {
-        data,
+        data: data as T,
         status: response.status
       }
     } catch (error) {
@@ -110,14 +110,14 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'GET' })
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     })
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+  async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
@@ -129,14 +129,14 @@ class ApiClient {
   }
 
   // Convenience methods for common operations
-  async create<T>(resource: string, data: any): Promise<ApiResponse<T>> {
+  async create<T>(resource: string, data: unknown): Promise<ApiResponse<T>> {
     // Rails expects nested data: { campaign: {...} } or { lead: {...} }
     const resourceKey = resource.slice(0, -1) // Remove 's' from 'campaigns' -> 'campaign'
     const wrappedData = { [resourceKey]: data }
     return this.post<T>(`/${resource}`, wrappedData)
   }
 
-  async update<T>(resource: string, id: number | string, data: any): Promise<ApiResponse<T>> {
+  async update<T>(resource: string, id: number | string, data: unknown): Promise<ApiResponse<T>> {
     // Rails expects nested data: { campaign: {...} } or { lead: {...} }
     const resourceKey = resource.slice(0, -1) // Remove 's' from 'campaigns' -> 'campaign'
     const wrappedData = { [resourceKey]: data }

@@ -31,28 +31,26 @@ export interface LeadFormData {
 export interface AgentOutput {
   agentName: string
   status: 'pending' | 'completed' | 'failed'
-  outputData: any
+  outputData: Record<string, unknown> | null
   errorMessage?: string
   createdAt: string
   updatedAt: string
 }
 
+export type AgentConfigName = 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE'
+
 export interface AgentConfig {
   id?: number
-  agentName: 'SEARCH' | 'WRITER' | 'CRITIQUE'
+  agentName: AgentConfigName
   enabled: boolean
-  settings: {
-    product_info?: string
-    sender_company?: string
-    [key: string]: any
-  }
+  settings: Record<string, unknown>
   createdAt?: string
   updatedAt?: string
 }
 
 export interface RunAgentsResponse {
   status: 'completed' | 'partial' | 'failed'
-  outputs: Record<string, any>
+  outputs: Record<string, unknown>
   lead: Lead
   completedAgents: string[]
   failedAgents: string[]

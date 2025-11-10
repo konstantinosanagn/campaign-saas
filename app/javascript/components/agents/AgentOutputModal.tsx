@@ -3,6 +3,18 @@
 import React from 'react'
 import { AgentOutput as AgentOutputType } from '@/types'
 
+type SearchSource = {
+  title?: string
+  url?: string
+  content?: string
+}
+
+type SearchOutputData = {
+  domain?: string
+  sources?: SearchSource[]
+  [key: string]: unknown
+}
+
 interface AgentOutputModalProps {
   isOpen: boolean
   onClose: () => void
@@ -11,7 +23,7 @@ interface AgentOutputModalProps {
   outputs: AgentOutputType[]
   loading: boolean
   onUpdateOutput?: (leadId: number, agentName: string, newContent: string) => Promise<void>
-  onUpdateSearchOutput?: (leadId: number, agentName: string, updatedData: any) => Promise<void>
+  onUpdateSearchOutput?: (leadId: number, agentName: string, updatedData: SearchOutputData) => Promise<void>
 }
 
 const formatTimestamp = (timestamp: string) => {
@@ -34,14 +46,45 @@ const formatTimestamp = (timestamp: string) => {
   }).format(date)
 }
 
-export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, outputs, loading, onUpdateOutput, onUpdateSearchOutput }: AgentOutputModalProps) {
+const isSearchOutputData = (data: unknown): data is SearchOutputData => {
+  if (!data || typeof data !== 'object') return false
+  const candidate = data as Record<string, unknown>
+  if ('sources' in candidate && candidate.sources !== undefined && !Array.isArray(candidate.sources)) {
+    return false
+  }
+  if ('sources' in candidate && Array.isArray(candidate.sources)) {
+    return (candidate.sources as unknown[]).every(
+      (source) => !source || typeof source === 'object'
+    )
+  }
+  return true
+}
+
+const toRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+
+const getStringValue = (record: Record<string, unknown>, key: string): string => {
+  const value = record[key]
+  return typeof value === 'string' ? value : ''
+}
+
+export default function AgentOutputModal({
+  isOpen,
+  onClose,
+  leadName,
+  leadId,
+  outputs,
+  loading,
+  onUpdateOutput,
+  onUpdateSearchOutput
+}: AgentOutputModalProps) {
   const [activeTab, setActiveTab] = React.useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL'>('ALL')
   const [editingWriterOutput, setEditingWriterOutput] = React.useState(false)
   const [editingDesignOutput, setEditingDesignOutput] = React.useState(false)
   const [editedEmail, setEditedEmail] = React.useState('')
   const [editedDesignEmail, setEditedDesignEmail] = React.useState('')
   const [saving, setSaving] = React.useState(false)
-  const [searchOutputData, setSearchOutputData] = React.useState<any>(null)
+  const [searchOutputData, setSearchOutputData] = React.useState<SearchOutputData | null>(null)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   React.useEffect(() => {
@@ -52,9 +95,11 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
       setEditedDesignEmail('')
       // Initialize search output data
       const searchOutput = outputs.find(o => o.agentName === 'SEARCH')
-      if (searchOutput && searchOutput.outputData) {
-        setSearchOutputData(searchOutput.outputData)
-      }
+      setSearchOutputData(
+        searchOutput && isSearchOutputData(searchOutput.outputData)
+          ? searchOutput.outputData
+          : null
+      )
     }
   }, [isOpen, outputs])
 
@@ -67,9 +112,10 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
 
   const handleRemoveSource = async (index: number) => {
     if (!leadId || !searchOutputData || !onUpdateSearchOutput) return
+    const previousData = searchOutputData
     
     // Create updated sources array without the removed item
-    const updatedSources = [...(searchOutputData.sources || [])]
+    const updatedSources = [...(searchOutputData.sources ?? [])]
     updatedSources.splice(index, 1)
     
     // Create updated search output data
@@ -87,18 +133,18 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
     } catch (error) {
       console.error('Failed to remove source:', error)
       // Revert on error
-      setSearchOutputData(searchOutputData)
+      setSearchOutputData(previousData)
       alert('Failed to remove source. Please try again.')
     }
   }
 
-  const formatSearchOutput = (output: any) => {
+  const formatSearchOutput = (output: SearchOutputData | null) => {
     // Use local state if available, otherwise use output prop
     const data = searchOutputData || output
-    if (!data || typeof data !== 'object') return null
+    if (!data) return null
     
-    const sources = data.sources || []
-    const domain = data.domain || 'N/A'
+    const sources = data.sources ?? []
+    const domain = data.domain ?? 'N/A'
     
     return (
       <div className="space-y-4">
@@ -108,28 +154,35 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
         </div>
         {sources.length > 0 && (
           <div className="space-y-3">
-            {sources.map((source: any, idx: number) => (
-              <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50 relative group">
-                {leadId && onUpdateSearchOutput && (
-                  <button
-                    onClick={() => handleRemoveSource(idx)}
-                    className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200 opacity-0 group-hover:opacity-100"
-                    title="Remove this source"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-                <h5 className="font-medium text-gray-900 mb-1 pr-8">{source.title || 'Untitled'}</h5>
-                <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate block">
-                  {source.url}
-                </a>
-                {source.content && (
-                  <p className="text-sm text-gray-600 mt-2 line-clamp-3">{source.content}</p>
-                )}
-              </div>
-            ))}
+            {sources.map((source: SearchSource | undefined, idx: number) => {
+              const safeSource: SearchSource = source ?? {}
+              return (
+                <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50 relative group">
+                  {leadId && onUpdateSearchOutput && (
+                    <button
+                      onClick={() => handleRemoveSource(idx)}
+                      className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                      title="Remove this source"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                  <h5 className="font-medium text-gray-900 mb-1 pr-8">{safeSource.title || 'Untitled'}</h5>
+                  {typeof safeSource.url === 'string' && safeSource.url.length > 0 ? (
+                    <a href={safeSource.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate block">
+                      {safeSource.url}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-gray-500">No link provided</span>
+                  )}
+                  {typeof safeSource.content === 'string' && safeSource.content.length > 0 && (
+                    <p className="text-sm text-gray-600 mt-2 line-clamp-3">{safeSource.content}</p>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
         {sources.length === 0 && (
@@ -260,10 +313,8 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
     }
   }
 
-  const formatWriterOutput = (output: any) => {
-    if (!output || typeof output !== 'object') return null
-    
-    const email = output.email || ''
+  const formatWriterOutput = (output: Record<string, unknown>) => {
+    const email = getStringValue(output, 'email')
     
     if (editingWriterOutput) {
       return (
@@ -414,10 +465,10 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
     return parts.length > 0 ? parts : text
   }
 
-  const formatDesignOutput = (output: any) => {
-    if (!output || typeof output !== 'object') return null
-    
-    const email = output.formatted_email || output.email || ''
+  const formatDesignOutput = (output: Record<string, unknown>) => {
+    const formattedEmail = getStringValue(output, 'formatted_email')
+    const emailFallback = getStringValue(output, 'email')
+    const email = formattedEmail || emailFallback
     
     if (editingDesignOutput) {
       return (
@@ -536,10 +587,8 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
     )
   }
 
-  const formatCritiqueOutput = (output: any) => {
-    if (!output || typeof output !== 'object') return null
-    
-    const critique = output.critique
+  const formatCritiqueOutput = (output: Record<string, unknown>) => {
+    const critique = getStringValue(output, 'critique') || null
     
     if (!critique) {
       return (
@@ -571,7 +620,7 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
 
   const renderOutput = (output: AgentOutputType) => {
     const agentType = output.agentName
-    const data = output.outputData || {}
+    const dataRecord = toRecord(output.outputData)
     
     if (output.status === 'failed') {
       return (
@@ -591,15 +640,15 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
     
     switch (agentType) {
       case 'SEARCH':
-        return formatSearchOutput(data)
+        return formatSearchOutput(isSearchOutputData(output.outputData) ? output.outputData : null)
       case 'WRITER':
-        return formatWriterOutput(data)
+        return formatWriterOutput(dataRecord)
       case 'DESIGN':
-        return formatDesignOutput(data)
+        return formatDesignOutput(dataRecord)
       case 'CRITIQUE':
-        return formatCritiqueOutput(data)
+        return formatCritiqueOutput(dataRecord)
       default:
-        return <pre className="text-sm">{JSON.stringify(data, null, 2)}</pre>
+        return <pre className="text-sm">{JSON.stringify(output.outputData, null, 2)}</pre>
     }
   }
 

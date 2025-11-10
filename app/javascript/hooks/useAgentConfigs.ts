@@ -12,7 +12,7 @@ export function useAgentConfigs(campaignId: number | null) {
   const [error, setError] = React.useState<string | null>(null)
   const [configs, setConfigs] = React.useState<AgentConfig[]>([])
 
-  const loadConfigs = async () => {
+  const loadConfigs = React.useCallback(async () => {
     if (!campaignId) {
       setConfigs([])
       return
@@ -29,7 +29,12 @@ export function useAgentConfigs(campaignId: number | null) {
         console.error('Failed to load agent configs:', response.error)
         setConfigs([])
       } else {
-        setConfigs(response.data?.configs || [])
+        const configsFromResponse = response.data?.configs ?? []
+        const normalisedConfigs = configsFromResponse.map((cfg) => ({
+          ...cfg,
+          settings: cfg.settings ?? {}
+        }))
+        setConfigs(normalisedConfigs)
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load agent configs'
@@ -39,7 +44,7 @@ export function useAgentConfigs(campaignId: number | null) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [campaignId])
 
   const createConfig = async (config: Omit<AgentConfig, 'id' | 'createdAt' | 'updatedAt'>): Promise<AgentConfig | null> => {
     if (!campaignId) {
@@ -110,7 +115,7 @@ export function useAgentConfigs(campaignId: number | null) {
   // Load configs when campaign changes
   React.useEffect(() => {
     loadConfigs()
-  }, [campaignId])
+  }, [loadConfigs])
 
   return {
     loading,

@@ -42,12 +42,24 @@ export default function AgentSettingsModal({
     
     setSaving(true)
     try {
-      const settings: any = {}
+      const settings: Record<string, unknown> = { ...(config?.settings ?? {}) }
       
       // Only include settings for WRITER agent
       if (agentName === 'WRITER') {
-        settings.product_info = productInfo
-        settings.sender_company = senderCompany
+        if (productInfo.trim()) {
+          settings['product_info'] = productInfo
+        } else {
+          delete settings['product_info']
+        }
+
+        if (senderCompany.trim()) {
+          settings['sender_company'] = senderCompany
+        } else {
+          delete settings['sender_company']
+        }
+      } else {
+        delete settings['product_info']
+        delete settings['sender_company']
       }
       
       const configToSave: AgentConfig = {

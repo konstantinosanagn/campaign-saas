@@ -18,6 +18,14 @@ import { useAgentOutputs } from '@/hooks/useAgentOutputs'
 import { useAgentConfigs } from '@/hooks/useAgentConfigs'
 import type { Lead, AgentConfig } from '@/types'
 
+type SendEmailsResponse = {
+  success?: boolean
+  sent?: number
+  failed?: number
+  errors?: Array<{ lead_email?: string; error?: string }>
+  error?: string
+}
+
 export default function CampaignDashboard() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isEditFormOpen, setIsEditFormOpen] = useState(false)
@@ -215,10 +223,15 @@ export default function CampaignDashboard() {
         }
       })
 
-      const data = await response.json()
-
+      const data = await response.json() as SendEmailsResponse
       if (response.ok && data.success) {
-        alert(`Emails sent successfully!\nSent: ${data.sent}\nFailed: ${data.failed}${data.errors.length > 0 ? `\n\nErrors:\n${data.errors.map((e: any) => `- ${e.lead_email}: ${e.error}`).join('\n')}` : ''}`)
+        const sent = data.sent ?? 0
+        const failed = data.failed ?? 0
+        const errors = Array.isArray(data.errors) ? data.errors : []
+        const errorDetails = errors.length > 0
+          ? `\n\nErrors:\n${errors.map((e) => `- ${(e.lead_email ?? 'Unknown lead')}: ${e.error ?? 'Unknown error'}`).join('\n')}`
+          : ''
+        alert(`Emails sent successfully!\nSent: ${sent}\nFailed: ${failed}${errorDetails}`)
         // Refresh leads to get updated status
         await refreshLeads()
       } else {

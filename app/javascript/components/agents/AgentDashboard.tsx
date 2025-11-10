@@ -13,7 +13,9 @@ interface AgentDashboardProps {
 }
 
 export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, onAgentSettingsClick, leads }: AgentDashboardProps) {
-  const agents = baseAgents.map((a) => {
+  type AgentWithOnClick = (typeof baseAgents)[number] & { onClick?: () => void }
+
+  const agents: AgentWithOnClick[] = baseAgents.map((a) => {
     if (a.name === 'LEADS') {
       return { ...a, onClick: onAddLeadClick }
     }
@@ -25,9 +27,7 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
       }}
     }
     return a
-  }) as Array<
-    (typeof baseAgents)[number] & { onClick?: () => void }
-  >
+  })
 
   // Calculate stats from leads based on their current stage
   // Each lead should only count in ONE agent at a time based on its current stage
@@ -70,9 +70,9 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  console.log('Button clicked for agent:', agent.name, 'onClick exists:', !!(agent as any).onClick)
-                  if ((agent as any).onClick) {
-                    ;(agent as any).onClick()
+                  console.log('Button clicked for agent:', agent.name, 'onClick exists:', !!agent.onClick)
+                  if (agent.onClick) {
+                    agent.onClick()
                   } else {
                     console.warn('No onClick handler for agent:', agent.name)
                   }
