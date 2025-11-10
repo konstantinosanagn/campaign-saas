@@ -3,11 +3,10 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Cube from '@/components/shared/Cube'
 import { useApiKeys } from '@/hooks/useApiKeys'
+import tavilyLogo from '@/images/tavily-trans.png'
+import geminiLogo from '@/images/gemini-trans.png'
 
 type DropdownType = 'tavily' | 'gemini'
-
-const tavilyLogo = new URL('../../../../tavily-trans.png', import.meta.url).href
-const geminiLogo = new URL('../../../../gemini-trans.png', import.meta.url).href
 
 export default function Navigation() {
   const { keys: apiKeys, saveKeys } = useApiKeys()
