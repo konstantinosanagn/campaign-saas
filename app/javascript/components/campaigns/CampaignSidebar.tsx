@@ -32,8 +32,17 @@ export default function CampaignSidebar({
             viewBox="0 0 24 24"
             strokeWidth="2.5"
             stroke="#004dff"
-            className="size-6 hover:stroke-white hover:bg-[#004dff] active:stroke-[#004dff] active:bg-transparent active:border active:border-[#004dff] rounded p-1 transition-colors duration-200 cursor-pointer"
+            className="size-6 p-1 rounded-full transition-all duration-200 cursor-pointer hover:bg-[#004dff] hover:stroke-white active:stroke-[#004dff] active:bg-transparent active:border active:border-[#004dff] focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2"
             onClick={onCreateClick}
+            role="button"
+            aria-label="Create campaign"
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onCreateClick()
+              }
+            }}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>

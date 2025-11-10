@@ -148,7 +148,7 @@ export default function ApiKeyModal({ isOpen, onClose, onSave, initialKeys }: Ap
                 ref={llmInputRef}
                 value={keys.llmApiKey}
                 onChange={(e) => handleKeyChange('llmApiKey', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500 transition-all duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500 outline-none ring-1 ring-transparent transition-colors duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
                 placeholder="Enter your LLM API key"
                 autoFocus
               />
@@ -163,7 +163,7 @@ export default function ApiKeyModal({ isOpen, onClose, onSave, initialKeys }: Ap
                 id="tavilyApiKey"
                 value={keys.tavilyApiKey}
                 onChange={(e) => handleKeyChange('tavilyApiKey', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500 transition-all duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500 outline-none ring-1 ring-transparent transition-colors duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
                 placeholder="Enter your Tavily Search API key"
               />
             </div>

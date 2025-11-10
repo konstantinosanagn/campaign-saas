@@ -1,34 +1,17 @@
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Navigation from '@/components/shared/Navigation'
+import { useApiKeys } from '@/hooks/useApiKeys'
 
-// Mock the useApiKeys hook
 jest.mock('@/hooks/useApiKeys', () => ({
   useApiKeys: jest.fn(),
 }))
 
-// Mock ApiKeyModal
-jest.mock('@/components/shared/ApiKeyModal', () => {
-  return function MockApiKeyModal({ isOpen, onClose, onSave, initialKeys }: any) {
-    if (!isOpen) return null
-    return (
-      <div data-testid="api-key-modal">
-        <button onClick={onClose}>Close</button>
-        <button onClick={() => onSave({ llmApiKey: 'sk-test', tavilyApiKey: 'tv-test' })}>Save</button>
-        <div>{JSON.stringify(initialKeys)}</div>
-      </div>
-    )
-  }
-})
-
-// Mock Cube component
 jest.mock('@/components/shared/Cube', () => {
   return function MockCube() {
     return <div data-testid="cube">Cube</div>
   }
 })
-
-import { useApiKeys } from '@/hooks/useApiKeys'
 
 describe('Navigation', () => {
   const mockSaveKeys = jest.fn()
@@ -42,109 +25,70 @@ describe('Navigation', () => {
     })
   })
 
-  it('renders navigation with user info and cube logo', () => {
+  it('renders navigation with user info, cube logo, and partner logos', () => {
     render(<Navigation />)
-    
+
     expect(screen.getByText('John Doe')).toBeInTheDocument()
     expect(screen.getByText('Software Engineer @ TechCorp')).toBeInTheDocument()
     expect(screen.getByTestId('cube')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Manage Tavily API key/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Manage Gemini API key/i })).toBeInTheDocument()
   })
 
-  it('opens API key modal when profile button is clicked', () => {
-    render(<Navigation />)
-    
-    const profileButton = screen.getByRole('button', { name: '' }).closest('button')
-    expect(profileButton).toBeInTheDocument()
-    
-    fireEvent.click(profileButton!)
-    
-    expect(screen.getByTestId('api-key-modal')).toBeInTheDocument()
-  })
-
-  it('closes API key modal when close is clicked', () => {
-    render(<Navigation />)
-    
-    const profileButton = screen.getByRole('button', { name: '' }).closest('button')
-    fireEvent.click(profileButton!)
-    
-    expect(screen.getByTestId('api-key-modal')).toBeInTheDocument()
-    
-    fireEvent.click(screen.getByText('Close'))
-    
-    expect(screen.queryByTestId('api-key-modal')).not.toBeInTheDocument()
-  })
-
-  it('calls saveKeys when API keys are saved successfully', async () => {
+  it('shows Tavily dropdown on hover and hides after successful save', async () => {
     mockSaveKeys.mockResolvedValue(true)
-    
     render(<Navigation />)
-    
-    const profileButton = screen.getByRole('button', { name: '' }).closest('button')
-    fireEvent.click(profileButton!)
-    
-    const saveButton = screen.getByText('Save')
-    fireEvent.click(saveButton)
-    
+
+    const tavilyButton = screen.getByRole('button', { name: /Manage Tavily API key/i })
+    fireEvent.mouseEnter(tavilyButton)
+
+    const input = await screen.findByPlaceholderText('Enter your Tavily API key')
+    expect(input).toBeInTheDocument()
+    fireEvent.change(input, { target: { value: 'tv-new' } })
+
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }))
+
+    await waitFor(() => expect(mockSaveKeys).toHaveBeenCalledWith({
+      llmApiKey: mockKeys.llmApiKey,
+      tavilyApiKey: 'tv-new',
+    }))
+
     await waitFor(() => {
-      expect(mockSaveKeys).toHaveBeenCalledWith({ llmApiKey: 'sk-test', tavilyApiKey: 'tv-test' })
+      expect(screen.queryByPlaceholderText('Enter your Tavily API key')).not.toBeInTheDocument()
     })
   })
 
-  it('logs error when saveKeys fails', async () => {
+  it('keeps dropdown open and shows error when save fails', async () => {
     mockSaveKeys.mockResolvedValue(false)
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    render(<Navigation />)
-    
-    const profileButton = screen.getByRole('button', { name: '' }).closest('button')
-    fireEvent.click(profileButton!)
-    
-    const saveButton = screen.getByText('Save')
-    fireEvent.click(saveButton)
-    
-    await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to save API keys')
-    })
-    
-    consoleErrorSpy.mockRestore()
-  })
-
-  it('successfully saves API keys even when some keys are empty', async () => {
-    mockSaveKeys.mockResolvedValue(true)
-
     render(<Navigation />)
 
-    const profileButton = screen.getByRole('button', { name: '' }).closest('button')
-    fireEvent.click(profileButton!)
+    const geminiButton = screen.getByRole('button', { name: /Manage Gemini API key/i })
+    fireEvent.focus(geminiButton)
 
-    // Create a custom save handler that passes empty keys
-    const modal = screen.getByTestId('api-key-modal')
-    const customSaveButton = document.createElement('button')
-    customSaveButton.textContent = 'Save Empty'
-    customSaveButton.onclick = async () => {
-      await mockSaveKeys({ llmApiKey: '', tavilyApiKey: 'tv-test' })
-    }
-    modal.appendChild(customSaveButton)
-    fireEvent.click(customSaveButton)
+    const input = await screen.findByPlaceholderText('Enter your Gemini API key')
+    fireEvent.change(input, { target: { value: 'sk-new' } })
 
-    await waitFor(() => {
-      expect(mockSaveKeys).toHaveBeenCalledWith({ llmApiKey: '', tavilyApiKey: 'tv-test' })
-    })
+    fireEvent.submit(input.closest('form')!)
+
+    await waitFor(() => expect(mockSaveKeys).toHaveBeenCalledWith({
+      llmApiKey: 'sk-new',
+      tavilyApiKey: mockKeys.tavilyApiKey,
+    }))
+
+    expect(await screen.findByText(/Save failed/i)).toBeInTheDocument()
   })
 
-  it('renders with correct layout classes', () => {
-    const { container } = render(<Navigation />)
-    
-    const nav = container.querySelector('nav')
-    expect(nav).toHaveClass('bg-transparent', 'shadow-sm', 'relative', 'z-10')
-  })
-
-  it('renders cube logo as link', () => {
+  it('retains dropdown while input is focused', async () => {
     render(<Navigation />)
-    
-    const link = screen.getByRole('link')
-    expect(link).toHaveAttribute('href', '/')
-    expect(link).toContainElement(screen.getByTestId('cube'))
+
+    const tavilyButton = screen.getByRole('button', { name: /Manage Tavily API key/i })
+    fireEvent.focus(tavilyButton)
+
+    const input = await screen.findByPlaceholderText('Enter your Tavily API key')
+    expect(input).toHaveFocus()
+
+    fireEvent.blur(tavilyButton)
+    expect(input).toBeInTheDocument()
   })
 })
 

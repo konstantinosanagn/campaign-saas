@@ -77,7 +77,7 @@ export default function CampaignForm({ isOpen, onClose, onSubmit, initialData, i
               ref={titleInputRef}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 transition-all duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 outline-none ring-1 ring-transparent transition-colors duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
               placeholder="Enter campaign title"
               required
             />
@@ -92,7 +92,7 @@ export default function CampaignForm({ isOpen, onClose, onSubmit, initialData, i
               value={basePrompt}
               onChange={(e) => setBasePrompt(e.target.value)}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 transition-all duration-150 resize-none focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 outline-none ring-1 ring-transparent transition-colors duration-150 resize-none focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
               placeholder="Provide information about your product, campaign, and/or company."
               required
             />
