@@ -2,6 +2,7 @@
   "name": "campaign_manager-frontend",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "dependencies": {
     "@rails/webpacker": "5.4.4",
     "autoprefixer": "^10.4.21",
@@ -63,6 +64,7 @@
     "postcss-loader": "4.3.0"
   },
   "scripts": {
+    "lint": "eslint \"app/javascript/**/*.{js,jsx,ts,tsx}\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

@@ -333,14 +333,14 @@ describe('useLeads', () => {
     })
 
     expect(createMock).toHaveBeenCalledWith('leads', {
-      lead: {
-        name: 'Test Lead',
-        email: 'invalid-email',
-        title: 'Manager',
-        company: 'Test Company',
-        website: '',
-        campaignId: 1,
-      },
+      name: 'Test Lead',
+      email: 'invalid-email',
+      title: 'Manager',
+      company: 'Test Company',
+      website: '',
+      stage: 'queued',
+      quality: '-',
+      campaignId: 1,
     })
   })
 
@@ -374,7 +374,8 @@ describe('useLeads', () => {
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       'Failed to create lead:',
-      'Validation failed'
+      'Validation failed',
+      { errors: ['Email is invalid'] }
     )
   })
 
@@ -528,14 +529,12 @@ describe('useLeads', () => {
       },
     })
 
-    expect(updateMock).toHaveBeenCalledWith('leads/1', {
-      lead: {
-        name: 'Updated Lead',
-        email: 'updated@example.com',
-        title: 'Senior VP',
-        company: 'Updated Company',
-        website: 'https://updated.com',
-      },
+    expect(updateMock).toHaveBeenCalledWith('leads', 1, {
+      name: 'Updated Lead',
+      email: 'updated@example.com',
+      title: 'Senior VP',
+      company: 'Updated Company',
+      website: 'https://updated.com',
     })
 
     // state updated
@@ -580,14 +579,12 @@ describe('useLeads', () => {
       })
     })
 
-    expect(updateMock).toHaveBeenCalledWith('leads/1', {
-      lead: {
-        name: 'Updated Lead',
-        email: 'updated@example.com',
-        title: 'Senior VP',
-        company: 'Updated Company',
-        website: 'https://example.com',
-      },
+    expect(updateMock).toHaveBeenCalledWith('leads', 1, {
+      name: 'Updated Lead',
+      email: 'updated@example.com',
+      title: 'Senior VP',
+      company: 'Updated Company',
+      website: 'https://example.com',
     })
   })
 
@@ -775,8 +772,8 @@ describe('useLeads', () => {
       deletedIds: [1, 2],
     })
 
-    expect(destroyMock).toHaveBeenCalledWith('leads/1')
-    expect(destroyMock).toHaveBeenCalledWith('leads/2')
+    expect(destroyMock).toHaveBeenCalledWith('leads', 1)
+    expect(destroyMock).toHaveBeenCalledWith('leads', 2)
 
     // state updated - leads removed
     expect(readState().leads).toHaveLength(0)

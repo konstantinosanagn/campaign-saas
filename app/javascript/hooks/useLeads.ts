@@ -53,41 +53,24 @@ export function useLeads() {
       setError(null)
 
       const campaignId = data.campaignId
+      if (!campaignId) {
+        const missingCampaignError = 'Campaign not found or unauthorized'
+        setError(missingCampaignError)
+        console.error('Failed to create lead:', missingCampaignError)
+        return {
+          success: false,
+          error: missingCampaignError,
+          errors: [],
+        }
+      }
 
       const hasAtSymbol = data.email.includes('@')
       const website =
         data.website && data.website.trim().length > 0
-          ? data.website
+          ? data.website.trim()
           : hasAtSymbol
             ? `https://${data.email.split('@')[1]}`.replace('https://https://', 'https://')
             : ''
-
-      // When email is invalid, fall back to sending raw payload
-      if (!hasAtSymbol) {
-        const response = await apiClient.create<Lead>('leads', {
-          lead: {
-            ...data,
-            website: data.website ?? '',
-          },
-        })
-
-        if (response.error) {
-          setError(response.error)
-          console.error('Failed to create lead:', response.error)
-          return false
-        }
-
-        if (!response.data) {
-          return {
-            success: false,
-            error: 'No data returned from server',
-            errors: [],
-          }
-        }
-
-        setLeads((prev) => [...prev, response.data])
-        return true
-      }
 
       const payload = {
         name: data.name,
@@ -113,11 +96,13 @@ export function useLeads() {
           console.error('Failed to create lead:', response.error)
         }
 
-        return errors.length > 0 ? false : {
-          success: false,
-          error: response.error ?? 'Failed to create lead',
-          errors: [],
-        }
+        return errors.length > 0
+          ? false
+          : {
+            success: false,
+            error: response.error ?? 'Failed to create lead',
+            errors: [],
+          }
       }
 
       const newLead = response.data
@@ -157,11 +142,9 @@ export function useLeads() {
             ? `https://${data.email.split('@')[1]}`.replace('https://https://', 'https://')
             : ''
 
-      const response = await apiClient.update<Lead>(`leads/${leadId}`, {
-        lead: {
-          ...data,
-          website,
-        },
+      const response = await apiClient.update<Lead>('leads', leadId, {
+        ...data,
+        website,
       })
 
       if (response.error) {
@@ -218,7 +201,7 @@ export function useLeads() {
 
       for (const leadId of leadIds) {
         try {
-          const response = await apiClient.destroy(`leads/${leadId}`)
+          const response = await apiClient.destroy('leads', leadId)
           if (response && response.error) {
             console.error(`Failed to delete lead ${leadId}:`, response.error)
             const deletedIds = [...successfulIds]
@@ -268,6 +251,7 @@ export function useLeads() {
   }
 
   const findLeadById = (leadId: number) => leads.find((l) => l.id === leadId)
+  const findLead = findLeadById
 
   return { 
     leads, 
@@ -276,6 +260,7 @@ export function useLeads() {
     createLead, 
     updateLead, 
     deleteLeads, 
+    findLead,
     findLeadById,
     refreshLeads: loadLeads
   }

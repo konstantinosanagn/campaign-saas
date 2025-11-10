@@ -340,10 +340,13 @@ describe('CampaignDashboard', () => {
     fireEvent.click(screen.getByText('Submit'))
 
     await waitFor(() => {
-      expect(mockCreateLead).toHaveBeenCalledWith(
-        { name: 'Test', email: 'test@example.com', title: 'Title', company: 'Company' },
-        1
-      )
+      expect(mockCreateLead).toHaveBeenCalledWith({
+        name: 'Test',
+        email: 'test@example.com',
+        title: 'Title',
+        company: 'Company',
+        campaignId: 1,
+      })
     })
   })
 

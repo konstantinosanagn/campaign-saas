@@ -129,7 +129,10 @@ export default function CampaignDashboard() {
       console.error('No campaign selected')
       return
     }
-    createLead(data, campaignObj.id)
+    createLead({
+      ...data,
+      campaignId: campaignObj.id,
+    })
   }
 
   const handleEditLead = (data: { name: string; email: string; title: string; company: string }) => {

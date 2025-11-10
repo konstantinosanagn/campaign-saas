@@ -28,4 +28,3 @@ class CampaignMailer < ApplicationMailer
     end
   end
 end
-
