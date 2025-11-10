@@ -298,12 +298,12 @@ export default function AgentOutputModal({
               return (
                 <div
                   key={key}
-                  className="border border-gray-200 rounded-lg p-3 bg-gray-50 relative group"
+                  className="border border-gray-200 rounded-lg p-3 bg-gray-50 relative"
                 >
                   {hasRemovableSources && (
                     <button
                       onClick={() => handleRemoveSource(idx)}
-                      className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                      className="absolute top-2 right-2 p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
                       title="Remove this source"
                     >
                       <svg
