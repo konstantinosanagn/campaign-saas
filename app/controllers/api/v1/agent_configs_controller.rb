@@ -164,11 +164,11 @@ module Api
       private
 
       def agent_config_params
-        # Permit all settings keys dynamically since they vary by agent type
-        # Using deep merge to allow nested structures like checks: { check_personalization: true }
+        # Permit all settings keys explicitly for security
+        # Settings vary by agent type, so we permit all known keys
         permitted = params.require(:agent_config).permit(:agent_name, :agentName, :enabled)
         if params[:agent_config][:settings].present?
-          permitted[:settings] = params[:agent_config][:settings].permit!
+          permitted[:settings] = permit_settings(params[:agent_config][:settings])
         else
           permitted[:settings] = {}
         end
@@ -177,11 +177,32 @@ module Api
         # Allow empty params for flexibility
         permitted = params.permit(:agent_name, :agentName, :enabled)
         if params[:settings].present?
-          permitted[:settings] = params[:settings].permit!
+          permitted[:settings] = permit_settings(params[:settings])
         else
           permitted[:settings] = {}
         end
         permitted.with_indifferent_access
+      end
+
+      def permit_settings(settings_params)
+        # Permit all known settings keys used by different agent types
+        # WRITER: tone, sender_persona, email_length, personalization_level, primary_cta_type,
+        #         cta_softness, num_variants_per_lead, product_info, sender_company
+        # SEARCH: search_depth, max_queries_per_lead, extracted_fields, on_low_info_behavior
+        # CRITIQUE: checks (hash), strictness, min_score_for_send, rewrite_policy, variant_selection
+        settings_params.permit(
+          # WRITER agent settings
+          :tone, :sender_persona, :email_length, :personalization_level,
+          :primary_cta_type, :cta_softness, :num_variants_per_lead,
+          :product_info, :sender_company,
+          # SEARCH agent settings
+          :search_depth, :max_queries_per_lead, :on_low_info_behavior,
+          # CRITIQUE agent settings
+          :strictness, :min_score_for_send, :rewrite_policy, :variant_selection,
+          # Nested structures
+          checks: {},
+          extracted_fields: []
+        )
       end
     end
   end
