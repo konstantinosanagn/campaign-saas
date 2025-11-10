@@ -95,12 +95,15 @@ class EmailSenderService
 
       raise "No email content found for lead #{lead.id}" if email_content.blank?
 
+      from_email = lead.campaign.user&.email.presence || ApplicationMailer.default[:from]
+
       # Send email using CampaignMailer
       CampaignMailer.send_email(
         to: lead.email,
         recipient_name: lead.name,
         email_content: email_content,
-        campaign_title: lead.campaign.title
+        campaign_title: lead.campaign.title,
+        from_email: from_email
       ).deliver_now
     end
   end

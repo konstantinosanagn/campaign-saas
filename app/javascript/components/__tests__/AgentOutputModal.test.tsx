@@ -33,7 +33,18 @@ const searchOutput: AgentOutput = {
   status: 'completed',
   createdAt: baseCreatedAt,
   outputData: {
-    domain: 'example.com',
+    domain: {
+      domain: 'example.com',
+      sources: [
+        { title: 'Doc A', url: 'https://a.example.com', content: 'A content' },
+        { title: 'Doc B', url: 'https://b.example.com', content: 'B content' },
+      ],
+    },
+    recipient: {
+      name: 'Jane Recipient',
+      sources: [],
+    },
+    summary: 'Latest headlines and company updates.',
     sources: [
       { title: 'Doc A', url: 'https://a.example.com', content: 'A content' },
       { title: 'Doc B', url: 'https://b.example.com', content: 'B content' },
@@ -88,6 +99,14 @@ const fullOutputs: AgentOutput[] = [
   failedWriter,
   designerDefault,
 ]
+
+const getByTextContent = (pattern: RegExp) => {
+  const matches = screen.getAllByText((_, node) => !!node && pattern.test(node.textContent ?? ''))
+  if (matches.length === 0) {
+    throw new Error(`Unable to find text matching pattern: ${pattern}`)
+  }
+  return matches[0]
+}
 
 describe('AgentOutputModal', () => {
   it('returns null when isOpen=false', () => {
@@ -164,8 +183,10 @@ describe('AgentOutputModal', () => {
     // Date formatting stabilized - check for the actual date format used
     expect(screen.getAllByText(/1\/1\/2024, 10:04:05 PM/).length).toBeGreaterThan(0)
 
-    // SEARCH section (within ALL) shows domain & sources count line
-    expect(screen.getByText(/Domain: example\.com/)).toBeInTheDocument()
+    // SEARCH section (within ALL) shows domain, recipient & sources count line
+    expect(screen.getByText('Search Summary')).toBeInTheDocument()
+    expect(getByTextContent(/Domain:\s*example\.com/)).toBeInTheDocument()
+    expect(getByTextContent(/Recipient:\s*Jane Recipient/)).toBeInTheDocument()
     expect(screen.getByText(/Found 2 sources/i)).toBeInTheDocument()
 
     // WRITER completed (non-editing mode) shows the email content
@@ -208,7 +229,8 @@ describe('AgentOutputModal', () => {
     // Switch to SEARCH tab
     fireEvent.click(screen.getByText('Search (1)'))
     // Only search output content visible
-    expect(screen.getByText(/Domain: example\.com/)).toBeInTheDocument()
+    expect(getByTextContent(/Domain:\s*example\.com/)).toBeInTheDocument()
+    expect(getByTextContent(/Recipient:\s*Jane Recipient/)).toBeInTheDocument()
     // Writer/Designer content not displayed inside this filtered section
     expect(screen.queryByText('Hello from writer')).not.toBeInTheDocument()
     expect(screen.queryByText(/"theme": "blue"/)).not.toBeInTheDocument()
@@ -389,7 +411,7 @@ describe('AgentOutputModal', () => {
 
     // UI updates immediately to show 1 source
     await waitFor(() => {
-      expect(screen.getByText(/Found 1 sources/)).toBeInTheDocument()
+      expect(screen.getByText(/Found 1 source/)).toBeInTheDocument()
     })
 
     // Handler called with updated sources array (length 1, with original second item remaining)
@@ -426,7 +448,7 @@ describe('AgentOutputModal', () => {
 
     // UI optimistically shows 1 source
     await waitFor(() => {
-      expect(screen.getByText(/Found 1 sources/)).toBeInTheDocument()
+      expect(screen.getByText(/Found 1 source/)).toBeInTheDocument()
     })
 
     // Then it fails -> revert + alert
@@ -442,7 +464,7 @@ describe('AgentOutputModal', () => {
     expect(alertSpy).toHaveBeenCalled()
   })
 
-  it('search: shows "All sources have been removed" with empty sources array and default domain', () => {
+  it('search: shows empty-state messaging when no sources are returned', () => {
     const searchNoSources: AgentOutput = {
       agentName: 'SEARCH',
       status: 'completed',
@@ -465,8 +487,9 @@ describe('AgentOutputModal', () => {
       />
     )
 
-    expect(screen.getByText(/Domain: N\/A/)).toBeInTheDocument()
-    expect(screen.getByText('All sources have been removed')).toBeInTheDocument()
+    expect(getByTextContent(/Domain:\s*Not provided/)).toBeInTheDocument()
+    expect(getByTextContent(/Recipient:\s*Not provided/)).toBeInTheDocument()
+    expect(screen.getByText('No sources were returned for this search.')).toBeInTheDocument()
   })
 
   it('writer/search/critique null/invalid outputData is handled gracefully (returns null subtrees)', () => {

@@ -7,11 +7,22 @@ type SearchSource = {
   title?: string
   url?: string
   content?: string
+  snippet?: string
+  publishedAt?: string
+  score?: number
+}
+
+type SearchEntityData = {
+  domain?: string
+  name?: string
+  sources?: Array<Record<string, unknown> | string | null>
+  [key: string]: unknown
 }
 
 type SearchOutputData = {
-  domain?: string
-  sources?: SearchSource[]
+  domain?: string | SearchEntityData | null
+  recipient?: string | SearchEntityData | null
+  sources?: Array<Record<string, unknown> | string | null>
   [key: string]: unknown
 }
 
@@ -46,17 +57,38 @@ const formatTimestamp = (timestamp: string) => {
   }).format(date)
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value)
+
+const isValidSourcesArray = (value: unknown): value is Array<Record<string, unknown> | string | null> => {
+  if (!Array.isArray(value)) return false
+  return value.every((item) => item == null || typeof item === 'string' || isRecord(item))
+}
+
 const isSearchOutputData = (data: unknown): data is SearchOutputData => {
-  if (!data || typeof data !== 'object') return false
+  if (!isRecord(data)) return false
   const candidate = data as Record<string, unknown>
-  if ('sources' in candidate && candidate.sources !== undefined && !Array.isArray(candidate.sources)) {
+
+  if (candidate.sources !== undefined && !isValidSourcesArray(candidate.sources)) {
     return false
   }
-  if ('sources' in candidate && Array.isArray(candidate.sources)) {
-    return (candidate.sources as unknown[]).every(
-      (source) => !source || typeof source === 'object'
-    )
+
+  const domain = candidate.domain
+  if (domain !== undefined && domain !== null && !(typeof domain === 'string' || isRecord(domain))) {
+    return false
   }
+  if (isRecord(domain) && domain.sources !== undefined && !isValidSourcesArray(domain.sources)) {
+    return false
+  }
+
+  const recipient = candidate.recipient
+  if (recipient !== undefined && recipient !== null && !(typeof recipient === 'string' || isRecord(recipient))) {
+    return false
+  }
+  if (isRecord(recipient) && recipient.sources !== undefined && !isValidSourcesArray(recipient.sources)) {
+    return false
+  }
+
   return true
 }
 
@@ -66,6 +98,59 @@ const toRecord = (value: unknown): Record<string, unknown> =>
 const getStringValue = (record: Record<string, unknown>, key: string): string => {
   const value = record[key]
   return typeof value === 'string' ? value : ''
+}
+
+const extractTextValue = (value: unknown, preferredKeys: string[]): string | undefined => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : undefined
+  }
+
+  if (!isRecord(value)) return undefined
+
+  for (const key of preferredKeys) {
+    const candidate = value[key]
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate
+    }
+  }
+
+  return undefined
+}
+
+const toSourcesArray = (value: unknown): Array<Record<string, unknown> | string | null> => {
+  if (!Array.isArray(value)) return []
+  return value
+}
+
+const sanitizeSource = (source: unknown): SearchSource => {
+  if (source == null) {
+    return {}
+  }
+
+  if (typeof source === 'string') {
+    return { title: source }
+  }
+
+  if (!isRecord(source)) {
+    return {}
+  }
+
+  const record = source as Record<string, unknown>
+  const rawTitle = record['title'] ?? record['domain'] ?? record['name']
+  const rawUrl = record['url'] ?? record['link']
+  const rawContent = record['content'] ?? record['snippet'] ?? record['description']
+  const rawPublishedAt = record['published_at'] ?? record['publishedAt'] ?? record['date']
+  const rawScore = record['score']
+
+  return {
+    title: typeof rawTitle === 'string' ? rawTitle : undefined,
+    url: typeof rawUrl === 'string' ? rawUrl : undefined,
+    content: typeof rawContent === 'string' ? rawContent : undefined,
+    snippet: typeof record['snippet'] === 'string' ? record['snippet'] : undefined,
+    publishedAt: typeof rawPublishedAt === 'string' ? rawPublishedAt : undefined,
+    score: typeof rawScore === 'number' ? rawScore : undefined
+  }
 }
 
 export default function AgentOutputModal({
@@ -112,14 +197,18 @@ export default function AgentOutputModal({
 
   const handleRemoveSource = async (index: number) => {
     if (!leadId || !searchOutputData || !onUpdateSearchOutput) return
+    if (!Array.isArray(searchOutputData.sources)) {
+      console.warn('Search output data does not include a removable sources array.')
+      return
+    }
     const previousData = searchOutputData
-    
+
     // Create updated sources array without the removed item
-    const updatedSources = [...(searchOutputData.sources ?? [])]
+    const updatedSources = [...searchOutputData.sources]
     updatedSources.splice(index, 1)
-    
+
     // Create updated search output data
-    const updatedData = {
+    const updatedData: SearchOutputData = {
       ...searchOutputData,
       sources: updatedSources
     }
@@ -139,55 +228,136 @@ export default function AgentOutputModal({
   }
 
   const formatSearchOutput = (output: SearchOutputData | null) => {
-    // Use local state if available, otherwise use output prop
     const data = searchOutputData || output
     if (!data) return null
-    
-    const sources = data.sources ?? []
-    const domain = data.domain ?? 'N/A'
-    
+
+    const domainLabel =
+      extractTextValue(data.domain, ['domain', 'name', 'company']) ??
+      extractTextValue(data, ['domain']) ??
+      'Not provided'
+
+    const recipientLabel =
+      extractTextValue(data.recipient, ['name', 'full_name', 'recipient']) ??
+      'Not provided'
+
+    const summary = extractTextValue(data, ['summary', 'notes', 'description'])
+
+    const primarySources = Array.isArray(data.sources) ? data.sources : null
+    const domainRecord = typeof data.domain === 'string' || data.domain == null ? null : toRecord(data.domain)
+    const recipientRecord = typeof data.recipient === 'string' || data.recipient == null ? null : toRecord(data.recipient)
+
+    const fallbackSources = [
+      ...(domainRecord ? toSourcesArray(domainRecord['sources']) : []),
+      ...(recipientRecord ? toSourcesArray(recipientRecord['sources']) : [])
+    ]
+
+    const rawSources = primarySources ?? fallbackSources
+    const sources = rawSources.map(sanitizeSource)
+    const sourcesCount = sources.length
+    const hasRemovableSources = Boolean(primarySources && leadId && onUpdateSearchOutput)
+
     return (
       <div className="space-y-4">
-        <div>
-          <h4 className="font-semibold text-gray-900 mb-2">Domain: {domain}</h4>
-          <p className="text-sm text-gray-600">Found {sources.length} sources {sources.length > 0 && '(click X to remove)'}</p>
+        <div className="space-y-1">
+          <h4 className="font-semibold text-gray-900">Search Summary</h4>
+          <p className="text-sm text-gray-600">
+            <span className="font-medium text-gray-700">Domain:</span>{' '}
+            {domainLabel}
+          </p>
+          <p className="text-sm text-gray-600">
+            <span className="font-medium text-gray-700">Recipient:</span>{' '}
+            {recipientLabel}
+          </p>
+          <p className="text-sm text-gray-600">
+            Found {sourcesCount} source{sourcesCount === 1 ? '' : 's'}
+            {hasRemovableSources && sourcesCount > 0 ? ' (click X to remove)' : ''}
+          </p>
+          {summary && (
+            <p className="text-sm text-gray-600 whitespace-pre-wrap">
+              {summary}
+            </p>
+          )}
         </div>
-        {sources.length > 0 && (
+
+        {sourcesCount > 0 ? (
           <div className="space-y-3">
-            {sources.map((source: SearchSource | undefined, idx: number) => {
-              const safeSource: SearchSource = source ?? {}
+            {sources.map((source, idx) => {
+              const title = source.title && source.title.trim().length > 0 ? source.title : undefined
+              const url = source.url && source.url.trim().length > 0 ? source.url : undefined
+              const description = source.content && source.content.trim().length > 0
+                ? source.content
+                : source.snippet && source.snippet.trim().length > 0
+                  ? source.snippet
+                  : undefined
+              const publishedAt = source.publishedAt && source.publishedAt.trim().length > 0
+                ? source.publishedAt
+                : undefined
+              const scoreDisplay = typeof source.score === 'number' ? source.score.toFixed(2) : undefined
+              const key = url ?? `${title ?? 'source'}-${idx}`
+
               return (
-                <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50 relative group">
-                  {leadId && onUpdateSearchOutput && (
+                <div
+                  key={key}
+                  className="border border-gray-200 rounded-lg p-3 bg-gray-50 relative group"
+                >
+                  {hasRemovableSources && (
                     <button
                       onClick={() => handleRemoveSource(idx)}
                       className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200 opacity-0 group-hover:opacity-100"
                       title="Remove this source"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="1.5"
+                        stroke="currentColor"
+                        className="w-5 h-5"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                   )}
-                  <h5 className="font-medium text-gray-900 mb-1 pr-8">{safeSource.title || 'Untitled'}</h5>
-                  {typeof safeSource.url === 'string' && safeSource.url.length > 0 ? (
-                    <a href={safeSource.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline truncate block">
-                      {safeSource.url}
+                  <h5 className="font-medium text-gray-900 mb-1 pr-8">{title ?? `Source ${idx + 1}`}</h5>
+                  {url ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline truncate block"
+                    >
+                      {url}
                     </a>
                   ) : (
                     <span className="text-sm text-gray-500">No link provided</span>
                   )}
-                  {typeof safeSource.content === 'string' && safeSource.content.length > 0 && (
-                    <p className="text-sm text-gray-600 mt-2 line-clamp-3">{safeSource.content}</p>
+                  {description && (
+                    <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap line-clamp-4">
+                      {description}
+                    </p>
+                  )}
+                  {(publishedAt || scoreDisplay) && (
+                    <div className="mt-2 text-xs text-gray-500 flex flex-wrap gap-3">
+                      {publishedAt && <span>Published: {publishedAt}</span>}
+                      {scoreDisplay && <span>Score: {scoreDisplay}</span>}
+                    </div>
                   )}
                 </div>
               )
             })}
           </div>
-        )}
-        {sources.length === 0 && (
+        ) : (
           <div className="text-center py-4 text-gray-500">
-            <p>All sources have been removed</p>
+            <p>No sources were returned for this search.</p>
+            {!hasRemovableSources && fallbackSources.length > 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                Displaying combined sources from domain and recipient context.
+              </p>
+            )}
           </div>
         )}
       </div>
