@@ -78,7 +78,10 @@ RSpec.describe 'User Dashboard Integration', type: :request do
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'New Dashboard Campaign',
-            basePrompt: 'Created from dashboard'
+            sharedSettings: {
+              brand_voice: { tone: 'professional', persona: 'founder' },
+              primary_goal: 'book_call'
+            }
           }
         }, headers: { "ACCEPT" => "application/json" }
         expect(response).to have_http_status(:created)

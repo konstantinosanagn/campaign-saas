@@ -24,7 +24,13 @@ export { customRender as render }
 export const mockCampaign = (overrides = {}) => ({
   id: 1,
   title: 'Test Campaign',
-  basePrompt: 'Test base prompt',
+  sharedSettings: {
+    brand_voice: {
+      tone: 'professional',
+      persona: 'founder',
+    },
+    primary_goal: 'book_call',
+  },
   user_id: 1,
   created_at: '2024-01-01T00:00:00.000Z',
   updated_at: '2024-01-01T00:00:00.000Z',

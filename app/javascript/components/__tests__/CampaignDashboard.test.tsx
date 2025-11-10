@@ -39,7 +39,7 @@ jest.mock('@/components/campaigns/CampaignForm', () => {
     return (
       <div data-testid={`campaign-form-${isEdit ? 'edit' : 'create'}`}>
         <button onClick={onClose}>Close</button>
-        <button onClick={() => onSubmit({ title: 'Test', basePrompt: 'Prompt' })}>Submit</button>
+        <button onClick={() => onSubmit({ title: 'Test', tone: 'professional', persona: 'founder', primaryGoal: 'book_call' })}>Submit</button>
         {initialData && <div>Editing: {initialData.title}</div>}
       </div>
     )
@@ -115,8 +115,8 @@ import { useTypewriter } from '@/hooks/useTypewriter'
 
 describe('CampaignDashboard', () => {
   const mockCampaigns: Campaign[] = [
-    { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-    { id: 2, title: 'Campaign 2', basePrompt: 'Prompt 2' },
+    { id: 1, title: 'Campaign 1', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
+    { id: 2, title: 'Campaign 2', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
   ]
 
   const mockLeads: Lead[] = [
@@ -210,7 +210,7 @@ describe('CampaignDashboard', () => {
   })
 
   it('creates campaign and auto-selects it', async () => {
-    const newCampaign = { id: 3, title: 'New Campaign', basePrompt: 'New Prompt' }
+    const newCampaign = { id: 3, title: 'New Campaign', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } }
     mockCreateCampaign.mockResolvedValue(newCampaign)
 
     ;(useCampaigns as jest.Mock).mockReturnValue({
@@ -228,7 +228,7 @@ describe('CampaignDashboard', () => {
     fireEvent.click(screen.getByText('Submit'))
 
     await waitFor(() => {
-      expect(mockCreateCampaign).toHaveBeenCalledWith({ title: 'Test', basePrompt: 'Prompt' })
+      expect(mockCreateCampaign).toHaveBeenCalledWith({ title: 'Test', tone: 'professional', persona: 'founder', primaryGoal: 'book_call' })
     })
   })
 
@@ -248,7 +248,7 @@ describe('CampaignDashboard', () => {
     fireEvent.click(screen.getByText('Submit'))
 
     await waitFor(() => {
-      expect(mockUpdateCampaign).toHaveBeenCalledWith(0, { title: 'Test', basePrompt: 'Prompt' })
+      expect(mockUpdateCampaign).toHaveBeenCalledWith(0, { title: 'Test', tone: 'professional', persona: 'founder', primaryGoal: 'book_call' })
     })
   })
 
@@ -473,8 +473,8 @@ describe('CampaignDashboard', () => {
     mockDeleteCampaign.mockResolvedValue(true)
 
     const campaigns: Campaign[] = [
-      { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-      { id: 2, title: 'Campaign 2', basePrompt: 'Prompt 2' },
+      { id: 1, title: 'Campaign 1', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
+      { id: 2, title: 'Campaign 2', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
     ]
 
     ;(useCampaigns as jest.Mock).mockReturnValue({
@@ -506,7 +506,7 @@ describe('CampaignDashboard', () => {
     mockDeleteCampaign.mockResolvedValue(true)
 
     const campaigns: Campaign[] = [
-      { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
+      { id: 1, title: 'Campaign 1', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
     ]
 
     ;(useCampaigns as jest.Mock).mockReturnValue({
@@ -639,7 +639,7 @@ describe('CampaignDashboard', () => {
 
   it('handles campaign with no ID gracefully', async () => {
     const campaignWithoutId: Campaign[] = [
-      { title: 'Campaign No ID', basePrompt: 'Prompt' },
+      { title: 'Campaign No ID', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
     ]
 
     ;(useCampaigns as jest.Mock).mockReturnValue({
@@ -662,9 +662,9 @@ describe('CampaignDashboard', () => {
     mockDeleteCampaign.mockResolvedValue(true)
 
     const campaigns: Campaign[] = [
-      { id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' },
-      { id: 2, title: 'Campaign 2', basePrompt: 'Prompt 2' },
-      { id: 3, title: 'Campaign 3', basePrompt: 'Prompt 3' },
+      { id: 1, title: 'Campaign 1', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
+      { id: 2, title: 'Campaign 2', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
+      { id: 3, title: 'Campaign 3', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
     ]
 
     ;(useCampaigns as jest.Mock).mockReturnValue({

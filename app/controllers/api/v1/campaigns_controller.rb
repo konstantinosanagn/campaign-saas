@@ -69,8 +69,27 @@ module Api
 
       def campaign_params
         # Convert camelCase to snake_case for database
-        params_hash = params.require(:campaign).permit(:title, :basePrompt).to_h.with_indifferent_access
-        params_hash[:base_prompt] = params_hash.delete(:basePrompt) if params_hash[:basePrompt]
+        params_hash = params.require(:campaign).permit(:title, sharedSettings: {}).to_h.with_indifferent_access
+
+        # Handle sharedSettings - merge with existing if updating
+        if params_hash[:sharedSettings]
+          shared_settings = params_hash.delete(:sharedSettings)
+          if params[:id]
+            campaign = current_user.campaigns.find_by(id: params[:id])
+            if campaign
+              # Merge with existing shared_settings when updating
+              # Use read_attribute to get actual DB value, not the getter with defaults
+              existing = campaign.read_attribute(:shared_settings) || {}
+              params_hash[:shared_settings] = existing.deep_merge(shared_settings)
+            else
+              params_hash[:shared_settings] = shared_settings
+            end
+          else
+            # Use as-is when creating
+            params_hash[:shared_settings] = shared_settings
+          end
+        end
+
         params_hash
       end
     end

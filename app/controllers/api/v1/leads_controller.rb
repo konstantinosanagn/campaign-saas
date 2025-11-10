@@ -60,7 +60,7 @@ module Api
 
         begin
           # Run agents using LeadAgentService
-          result = LeadAgentService.run_agents_for_lead(lead, campaign, session)
+          result = LeadAgentService.run_agents_for_lead(lead, campaign, current_user)
 
           # Check for service-level errors
           if result[:status] == "failed" && result[:error]

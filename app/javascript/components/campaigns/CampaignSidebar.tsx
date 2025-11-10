@@ -121,7 +121,11 @@ export default function CampaignSidebar({
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-1 break-words overflow-hidden">
-                  {campaign.basePrompt && campaign.basePrompt.substring(0, 50)}...
+                  {campaign.sharedSettings?.product_info 
+                    ? (campaign.sharedSettings.product_info.length > 50 
+                        ? `${campaign.sharedSettings.product_info.substring(0, 50)}...` 
+                        : campaign.sharedSettings.product_info)
+                    : null}
                 </p>
               </div>
             ))}

@@ -92,22 +92,15 @@ RSpec.describe 'Error Handling Integration', type: :request do
         # Missing title
         post '/api/v1/campaigns', params: {
           campaign: {
-            basePrompt: 'Prompt without title'
+            sharedSettings: {
+              brand_voice: { tone: 'professional', persona: 'founder' },
+              primary_goal: 'book_call'
+            }
           }
         }
         expect(response).to have_http_status(:unprocessable_entity)
         errors = JSON.parse(response.body)['errors']
         expect(errors).to include("Title can't be blank")
-
-        # Missing basePrompt
-        post '/api/v1/campaigns', params: {
-          campaign: {
-            title: 'Title without prompt'
-          }
-        }
-        expect(response).to have_http_status(:unprocessable_entity)
-        errors = JSON.parse(response.body)['errors']
-        expect(errors).to include("Base prompt can't be blank")
       end
 
       it 'returns proper error messages for invalid lead data' do

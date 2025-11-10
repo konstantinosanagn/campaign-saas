@@ -9,7 +9,6 @@ RSpec.describe Campaign, type: :model do
 
   describe 'validations' do
     it { should validate_presence_of(:title) }
-    it { should validate_presence_of(:base_prompt) }
   end
 
   describe 'creation' do
@@ -27,11 +26,6 @@ RSpec.describe Campaign, type: :model do
       expect(campaign.errors[:title]).to be_present
     end
 
-    it 'requires a base_prompt' do
-      campaign = build(:campaign, user: user, base_prompt: nil)
-      expect(campaign).not_to be_valid
-      expect(campaign.errors[:base_prompt]).to be_present
-    end
 
     it 'requires a user' do
       campaign = build(:campaign, user: nil)
@@ -40,24 +34,20 @@ RSpec.describe Campaign, type: :model do
     end
   end
 
-  describe 'camelCase API compatibility' do
+  describe 'shared_settings' do
     let(:user) { create(:user) }
-    let(:campaign) { create(:campaign, user: user, base_prompt: 'Test prompt') }
+    let(:campaign) { create(:campaign, user: user) }
 
-    it 'provides basePrompt getter' do
-      expect(campaign.basePrompt).to eq('Test prompt')
-    end
-
-    it 'provides basePrompt setter' do
-      campaign.basePrompt = 'New prompt'
-      expect(campaign.base_prompt).to eq('New prompt')
+    it 'returns default shared_settings when not set' do
+      expect(campaign.shared_settings).to be_a(Hash)
+      expect(campaign.shared_settings['brand_voice']).to be_a(Hash)
+      expect(campaign.shared_settings['primary_goal']).to eq('book_call')
     end
 
     it 'returns camelCase in as_json' do
       json = campaign.as_json
-      expect(json).to have_key('basePrompt')
-      expect(json).not_to have_key('base_prompt')
-      expect(json['basePrompt']).to eq('Test prompt')
+      expect(json).to have_key('sharedSettings')
+      expect(json['sharedSettings']).to be_a(Hash)
     end
   end
 

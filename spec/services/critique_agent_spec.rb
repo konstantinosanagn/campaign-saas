@@ -74,7 +74,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
     it 'returns critique when provided' do
       result = critique_agent.critique(article)
 
-      expect(result).to eq({ 'critique' => 'This email needs improvement.' })
+      expect(result).to include('critique' => 'This email needs improvement.')
+      expect(result).to have_key('score')
+      expect(result).to have_key('meets_min_score')
     end
 
     it 'makes POST request with correct parameters' do
@@ -170,7 +172,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique' do
         result = critique_agent.critique(article)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to include('critique' => nil)
+        expect(result).to include('score' => 10)
+        expect(result).to include('meets_min_score' => true)
       end
     end
 
@@ -196,7 +200,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique' do
         result = critique_agent.critique(article)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to include('critique' => nil)
+        expect(result).to include('score' => 10)
+        expect(result).to include('meets_min_score' => true)
       end
     end
 
@@ -211,7 +217,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'processes critique normally (revision limit is >= 3)' do
         result = critique_agent.critique(article_with_revisions)
 
-        expect(result).to eq({ 'critique' => 'This email needs improvement.' })
+        expect(result).to include('critique' => 'This email needs improvement.')
+        expect(result).to have_key('score')
+        expect(result).to have_key('meets_min_score')
       end
     end
 
@@ -226,7 +234,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'processes critique normally (revision limit is >= 3)' do
         result = critique_agent.critique(article_with_revisions)
 
-        expect(result).to eq({ 'critique' => 'This email needs improvement.' })
+        expect(result).to include('critique' => 'This email needs improvement.')
+        expect(result).to have_key('score')
+        expect(result).to have_key('meets_min_score')
       end
     end
 
@@ -241,7 +251,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'processes critique normally (revision limit is >= 3)' do
         result = critique_agent.critique(article_with_revisions)
 
-        expect(result).to eq({ 'critique' => 'This email needs improvement.' })
+        expect(result).to include('critique' => 'This email needs improvement.')
+        expect(result).to have_key('score')
+        expect(result).to have_key('meets_min_score')
       end
     end
 
@@ -256,7 +268,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'processes critique normally (revision limit is >= 3)' do
         result = critique_agent.critique(article_with_revisions)
 
-        expect(result).to eq({ 'critique' => 'This email needs improvement.' })
+        expect(result).to include('critique' => 'This email needs improvement.')
+        expect(result).to have_key('score')
+        expect(result).to have_key('meets_min_score')
       end
     end
 
@@ -271,7 +285,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique to avoid infinite loop' do
         result = critique_agent.critique(article_with_revisions)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to include('critique' => nil)
+        expect(result).to include('score' => 10)
+        expect(result).to include('meets_min_score' => true)
       end
     end
 
@@ -286,7 +302,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique to avoid infinite loop' do
         result = critique_agent.critique(article_with_revisions)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to include('critique' => nil)
+        expect(result).to include('score' => 10)
+        expect(result).to include('meets_min_score' => true)
       end
     end
 
@@ -301,7 +319,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique to avoid infinite loop' do
         result = critique_agent.critique(article_with_revisions)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to include('critique' => nil)
+        expect(result).to include('score' => 10)
+        expect(result).to include('meets_min_score' => true)
       end
     end
 
@@ -315,7 +335,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'processes critique normally' do
         result = critique_agent.critique(article_without_revisions)
 
-        expect(result).to eq({ 'critique' => 'This email needs improvement.' })
+        expect(result).to include('critique' => 'This email needs improvement.')
+        expect(result).to have_key('score')
+        expect(result).to have_key('meets_min_score')
       end
     end
 
@@ -400,7 +422,11 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique' do
         result = critique_agent.critique(article)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to have_key('critique')
+        expect(result['critique']).to be_nil
+        expect(result).to have_key('score')
+        expect(result['score']).to be_a(Integer)
+        expect(result).to have_key('meets_min_score')
       end
     end
 
@@ -438,7 +464,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique' do
         result = critique_agent.critique(article)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to have_key('critique')
+        expect(result['critique']).to be_nil
+        expect(result).to have_key('score')
+        expect(result).to have_key('meets_min_score')
       end
     end
 
@@ -464,7 +493,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique' do
         result = critique_agent.critique(article)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to include('critique' => nil)
+        # When text is nil/empty, score is min_score (default 6)
+        expect(result['score']).to eq(6)
+        expect(result['meets_min_score']).to eq(true)
       end
     end
 
@@ -482,7 +514,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique' do
         result = critique_agent.critique(article)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to have_key('critique')
+        expect(result['critique']).to be_nil
+        expect(result).to have_key('score')
+        expect(result).to have_key('meets_min_score')
       end
     end
 
@@ -502,7 +537,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique' do
         result = critique_agent.critique(article)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to have_key('critique')
+        expect(result['critique']).to be_nil
+        expect(result).to have_key('score')
+        expect(result).to have_key('meets_min_score')
       end
     end
 
@@ -526,7 +564,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'returns nil critique' do
         result = critique_agent.critique(article)
 
-        expect(result).to eq({ 'critique' => nil })
+        expect(result).to have_key('critique')
+        expect(result['critique']).to be_nil
+        expect(result).to have_key('score')
+        expect(result).to have_key('meets_min_score')
       end
     end
 
@@ -552,7 +593,9 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'strips whitespace and returns critique' do
         result = critique_agent.critique(article)
 
-        expect(result).to eq({ 'critique' => 'Valid critique with spaces' })
+        expect(result).to include('critique' => 'Valid critique with spaces')
+        expect(result).to have_key('score')
+        expect(result).to have_key('meets_min_score')
       end
     end
   end
@@ -591,10 +634,12 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         'number_of_revisions' => 0,
         'critique' => 'This email needs improvement.'
       )
+      expect(result).to have_key('score')
+      expect(result).to have_key('meets_min_score')
     end
 
     it 'calls critique method' do
-      expect(critique_agent).to receive(:critique).with(article).and_return({ 'critique' => 'Test critique' })
+      expect(critique_agent).to receive(:critique).with(article, config: nil).and_return({ 'critique' => 'Test critique', 'score' => 8, 'meets_min_score' => true })
 
       result = critique_agent.run(article)
 

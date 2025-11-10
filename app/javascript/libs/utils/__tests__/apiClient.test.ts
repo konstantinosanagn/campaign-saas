@@ -166,13 +166,13 @@ describe('apiClient', () => {
         json: async () => ({ id: 1 }),
       })
 
-      await apiClient.create('campaigns', { title: 'Test', basePrompt: 'Prompt' })
+      await apiClient.create('campaigns', { title: 'Test', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } })
 
       expect(fetch).toHaveBeenCalledWith(
         '/api/v1/campaigns',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ campaign: { title: 'Test', basePrompt: 'Prompt' } }),
+          body: JSON.stringify({ campaign: { title: 'Test', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } } }),
         })
       )
     })

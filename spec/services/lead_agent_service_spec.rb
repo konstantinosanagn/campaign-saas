@@ -5,11 +5,8 @@ RSpec.describe LeadAgentService, type: :service do
     let(:user) { create(:user) }
     let(:campaign) { create(:campaign, user: user) }
     let(:lead) { create(:lead, campaign: campaign, stage: 'queued', quality: '-') }
-    let(:session) do
-      {
-        llm_api_key: 'test-gemini-key',
-        tavily_api_key: 'test-tavily-key'
-      }
+    before do
+      user.update!(llm_api_key: 'test-gemini-key', tavily_api_key: 'test-tavily-key')
     end
 
     context 'with valid API keys and successful agent execution' do
@@ -36,7 +33,7 @@ RSpec.describe LeadAgentService, type: :service do
         # Create enabled config so agent actually runs
         create(:agent_config_search, campaign: campaign)
 
-        result = described_class.run_agents_for_lead(lead, campaign, session)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
 
         expect(result[:status]).to eq('completed')
         expect(result[:completed_agents]).to contain_exactly('SEARCH')
@@ -48,7 +45,7 @@ RSpec.describe LeadAgentService, type: :service do
         create(:agent_config_search, campaign: campaign)
 
         expect {
-          described_class.run_agents_for_lead(lead, campaign, session)
+          described_class.run_agents_for_lead(lead, campaign, user)
         }.to change(AgentOutput, :count).by(1)
 
         search_output = lead.agent_outputs.find_by(agent_name: 'SEARCH')
@@ -59,7 +56,7 @@ RSpec.describe LeadAgentService, type: :service do
       it 'updates lead stage from queued to searched after running SEARCH' do
         create(:agent_config_search, campaign: campaign)
 
-        described_class.run_agents_for_lead(lead, campaign, session)
+        described_class.run_agents_for_lead(lead, campaign, user)
 
         lead.reload
         expect(lead.stage).to eq('searched')
@@ -68,7 +65,7 @@ RSpec.describe LeadAgentService, type: :service do
       it 'does not update quality for SEARCH agent' do
         create(:agent_config_search, campaign: campaign)
 
-        described_class.run_agents_for_lead(lead, campaign, session)
+        described_class.run_agents_for_lead(lead, campaign, user)
 
         lead.reload
         expect(lead.quality).to eq('-')
@@ -79,7 +76,7 @@ RSpec.describe LeadAgentService, type: :service do
         create(:agent_output, lead: lead, agent_name: 'SEARCH', status: 'completed')
         create(:agent_config, campaign: campaign, agent_name: 'WRITER', enabled: true)
 
-        result = described_class.run_agents_for_lead(lead, campaign, session)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
 
         expect(result[:completed_agents]).to contain_exactly('WRITER')
       end
@@ -89,7 +86,7 @@ RSpec.describe LeadAgentService, type: :service do
         create(:agent_output_writer, lead: lead, agent_name: 'WRITER', status: 'completed')
         create(:agent_config, campaign: campaign, agent_name: 'CRITIQUE', enabled: true)
 
-        result = described_class.run_agents_for_lead(lead, campaign, session)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
 
         lead.reload
         expect(lead.quality).to eq('high')
@@ -109,7 +106,7 @@ RSpec.describe LeadAgentService, type: :service do
           { company: 'Test Corp', email: 'Test', recipient: lead.name }
         end
 
-        described_class.run_agents_for_lead(lead, campaign, session)
+        described_class.run_agents_for_lead(lead, campaign, user)
 
         # Writer should receive search results as first argument
         expect(writer_expectation.first).to include(sources: search_result[:sources])
@@ -130,7 +127,7 @@ RSpec.describe LeadAgentService, type: :service do
           { 'critique' => nil }
         end
 
-        described_class.run_agents_for_lead(lead, campaign, session)
+        described_class.run_agents_for_lead(lead, campaign, user)
 
         # Critique should receive formatted writer output with email_content
         expect(critique_expectation.first).to include('email_content')
@@ -139,10 +136,12 @@ RSpec.describe LeadAgentService, type: :service do
     end
 
     context 'when API keys are missing' do
-      let(:empty_session) { {} }
+      before do
+        user.update!(llm_api_key: nil, tavily_api_key: nil)
+      end
 
       it 'returns failed status with error message' do
-        result = described_class.run_agents_for_lead(lead, campaign, empty_session)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
 
         expect(result[:status]).to eq('failed')
         expect(result[:error]).to match(/Missing API keys/)
@@ -151,13 +150,13 @@ RSpec.describe LeadAgentService, type: :service do
 
       it 'does not create any agent outputs' do
         expect {
-          described_class.run_agents_for_lead(lead, campaign, empty_session)
+          described_class.run_agents_for_lead(lead, campaign, user)
         }.not_to change(AgentOutput, :count)
       end
 
       it 'does not update lead stage' do
         original_stage = lead.stage
-        described_class.run_agents_for_lead(lead, campaign, empty_session)
+        described_class.run_agents_for_lead(lead, campaign, user)
 
         lead.reload
         expect(lead.stage).to eq(original_stage)
@@ -173,7 +172,7 @@ RSpec.describe LeadAgentService, type: :service do
         # Create enabled config to allow agent to fail
         create(:agent_config_search, campaign: campaign)
 
-        result = described_class.run_agents_for_lead(lead, campaign, session)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
 
         expect(result[:failed_agents]).to include('SEARCH')
         expect(result[:completed_agents]).to be_empty
@@ -182,7 +181,7 @@ RSpec.describe LeadAgentService, type: :service do
       it 'stores error in agent output' do
         create(:agent_config_search, campaign: campaign)
 
-        described_class.run_agents_for_lead(lead, campaign, session)
+        described_class.run_agents_for_lead(lead, campaign, user)
 
         search_output = lead.agent_outputs.find_by(agent_name: 'SEARCH')
         expect(search_output.status).to eq('failed')
@@ -192,7 +191,7 @@ RSpec.describe LeadAgentService, type: :service do
       it 'does not advance stage when SEARCH fails' do
         create(:agent_config_search, campaign: campaign)
 
-        described_class.run_agents_for_lead(lead, campaign, session)
+        described_class.run_agents_for_lead(lead, campaign, user)
 
         lead.reload
         # Stage should remain at queued
@@ -206,21 +205,21 @@ RSpec.describe LeadAgentService, type: :service do
       end
 
       it 'skips disabled agents and advances stage' do
-        result = described_class.run_agents_for_lead(lead, campaign, session)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
 
         expect(result[:completed_agents]).to be_empty
         expect(result[:failed_agents]).to be_empty
       end
 
       it 'advances stage even when agent is disabled' do
-        described_class.run_agents_for_lead(lead, campaign, session)
+        described_class.run_agents_for_lead(lead, campaign, user)
 
         lead.reload
         expect(lead.stage).to eq('searched')
       end
 
       it 'does not create output for disabled agent' do
-        described_class.run_agents_for_lead(lead, campaign, session)
+        described_class.run_agents_for_lead(lead, campaign, user)
 
         search_output = lead.agent_outputs.find_by(agent_name: 'SEARCH')
         expect(search_output).to be_nil
@@ -230,7 +229,7 @@ RSpec.describe LeadAgentService, type: :service do
     context 'agent config retrieval' do
       it 'creates default config for SEARCH agent when not exists' do
         expect {
-          described_class.run_agents_for_lead(lead, campaign, session)
+          described_class.run_agents_for_lead(lead, campaign, user)
         }.to change(AgentConfig, :count).by(1)
 
         expect(campaign.agent_configs.pluck(:agent_name)).to contain_exactly('SEARCH')
@@ -239,7 +238,7 @@ RSpec.describe LeadAgentService, type: :service do
       it 'uses existing configs when available' do
         create(:agent_config, campaign: campaign, agent_name: 'SEARCH', settings: {})
 
-        described_class.run_agents_for_lead(lead, campaign, session)
+        described_class.run_agents_for_lead(lead, campaign, user)
 
         # Should not create duplicate
         expect(campaign.agent_configs.where(agent_name: 'SEARCH').count).to eq(1)
@@ -256,7 +255,7 @@ RSpec.describe LeadAgentService, type: :service do
       end
 
       it 'returns status, outputs, lead, and agent lists' do
-        result = described_class.run_agents_for_lead(lead, campaign, session)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
 
         expect(result).to have_key(:status)
         expect(result).to have_key(:outputs)
@@ -269,7 +268,7 @@ RSpec.describe LeadAgentService, type: :service do
         # Create enabled config so agent actually runs
         create(:agent_config_search, campaign: campaign)
 
-        result = described_class.run_agents_for_lead(lead, campaign, session)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
 
         expect(result[:outputs]).to have_key('SEARCH')
         expect(result[:outputs]).not_to have_key('WRITER')
@@ -277,7 +276,7 @@ RSpec.describe LeadAgentService, type: :service do
       end
 
       it 'returns updated lead with current attributes' do
-        result = described_class.run_agents_for_lead(lead, campaign, session)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
 
         expect(result[:lead].stage).to eq('searched')
         expect(result[:lead].quality).to eq('-')
@@ -286,7 +285,7 @@ RSpec.describe LeadAgentService, type: :service do
       it 'returns completed status when lead is already at final stage' do
         lead.update!(stage: 'completed')
 
-        result = described_class.run_agents_for_lead(lead, campaign, session)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
 
         expect(result[:status]).to eq('completed')
         expect(result[:error]).to match(/already reached the final stage/)

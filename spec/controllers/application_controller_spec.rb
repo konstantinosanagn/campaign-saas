@@ -23,131 +23,49 @@ RSpec.describe ApplicationController, type: :controller do
     end
   end
 
-  describe '#set_default_api_keys_for_admin' do
+  describe '#ensure_default_api_keys_for_admin' do
+    let(:user) { create(:user, llm_api_key: nil, tavily_api_key: nil) }
+
     before do
+      allow(controller).to receive(:current_user).and_return(user)
+    end
+
+    it 'sets default API keys for the user in development when keys are blank' do
       allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
-    end
-
-    context 'in development environment' do
-      it 'sets default API keys when session is empty' do
-        get :index
-
-        expect(session[:llm_api_key]).to eq('AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE')
-        expect(session[:tavily_api_key]).to eq('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')
-      end
-
-      it 'does not overwrite existing API keys' do
-        session[:llm_api_key] = 'existing-llm-key'
-        session[:tavily_api_key] = 'existing-tavily-key'
-
-        get :index
-
-        expect(session[:llm_api_key]).to eq('existing-llm-key')
-        expect(session[:tavily_api_key]).to eq('existing-tavily-key')
-      end
-
-      it 'sets keys when only one is missing' do
-        session[:llm_api_key] = 'existing-llm-key'
-
-        get :index
-
-        # The controller overwrites both keys if either is missing
-        expect(session[:llm_api_key]).to eq('AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE')
-        expect(session[:tavily_api_key]).to eq('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')
-      end
-
-      it 'logs API key status' do
-        allow(Rails.logger).to receive(:info)
-
-        get :index
-
-        expect(Rails.logger).to have_received(:info).with(
-          'Auto-set API keys for development: llm=true, tavily=true'
-        )
-      end
-    end
-
-    context 'in production environment' do
-      before do
-        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production'))
-      end
-
-      it 'does not set default API keys' do
-        get :index
-
-        expect(session[:llm_api_key]).to be_nil
-        expect(session[:tavily_api_key]).to be_nil
-      end
-    end
-
-    context 'in test environment' do
-      before do
-        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('test'))
-      end
-
-      it 'does not set default API keys' do
-        get :index
-
-        expect(session[:llm_api_key]).to be_nil
-        expect(session[:tavily_api_key]).to be_nil
-      end
-    end
-  end
-
-  describe 'before_action callback' do
-    it 'calls set_default_api_keys_for_admin in development' do
-      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
-      expect(controller).to receive(:set_default_api_keys_for_admin)
 
       get :index
+
+      user.reload
+      expect(user.llm_api_key).to eq(ApplicationController::DEFAULT_DEV_LLM_KEY)
+      expect(user.tavily_api_key).to eq(ApplicationController::DEFAULT_DEV_TAVILY_KEY)
     end
 
-    it 'does not call set_default_api_keys_for_admin in production' do
+    it 'does not overwrite existing API keys in development' do
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+      user.update!(llm_api_key: 'custom-llm-key', tavily_api_key: 'custom-tavily-key')
+
+      get :index
+
+      user.reload
+      expect(user.llm_api_key).to eq('custom-llm-key')
+      expect(user.tavily_api_key).to eq('custom-tavily-key')
+    end
+
+    it 'does nothing outside development' do
       allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production'))
-      expect(controller).not_to receive(:set_default_api_keys_for_admin)
 
       get :index
+
+      user.reload
+      expect(user.llm_api_key).to be_nil
+      expect(user.tavily_api_key).to be_nil
     end
-  end
 
-  describe 'private methods' do
-    describe '#set_default_api_keys_for_admin' do
-      before do
-        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
-      end
+    it 'does nothing when there is no current user' do
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+      allow(controller).to receive(:current_user).and_return(nil)
 
-      it 'is a private method' do
-        expect(controller.private_methods).to include(:set_default_api_keys_for_admin)
-      end
-
-      it 'returns early if both keys are present' do
-        session[:llm_api_key] = 'existing-key'
-        session[:tavily_api_key] = 'existing-key'
-
-        # The method will check session but return early
-        controller.send(:set_default_api_keys_for_admin)
-
-        # Keys should remain unchanged
-        expect(session[:llm_api_key]).to eq('existing-key')
-        expect(session[:tavily_api_key]).to eq('existing-key')
-      end
-
-      it 'sets keys when both are missing' do
-        controller.send(:set_default_api_keys_for_admin)
-
-        expect(session[:llm_api_key]).to eq('AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE')
-        expect(session[:tavily_api_key]).to eq('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')
-      end
-
-      it 'sets keys when both are blank' do
-        session[:llm_api_key] = ''
-        session[:tavily_api_key] = ''
-
-        controller.send(:set_default_api_keys_for_admin)
-
-        expect(session[:llm_api_key]).to eq('AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE')
-        expect(session[:tavily_api_key]).to eq('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')
-      end
+      expect { get :index }.not_to raise_error
     end
   end
 end

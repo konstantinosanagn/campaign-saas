@@ -56,4 +56,24 @@
   }
 }
 
+/* Black variant */
+.cube-spinner-black > div {
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 2px solid #000000;
+}
+
+/* Small size variant */
+.cube-spinner-small {
+  width: 16px;
+  height: 16px;
+}
+
+.cube-spinner-small div:nth-of-type(1) {
+  transform: translateZ(-8px) rotateY(180deg);
+}
+
+.cube-spinner-small div:nth-of-type(6) {
+  transform: translateZ(8px);
+}
+
 

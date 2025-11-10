@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_09_061201) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_10_111357) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -24,7 +24,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_061201) do
     t.index ["agent_name"], name: "index_agent_configs_on_agent_name"
     t.index ["campaign_id", "agent_name"], name: "index_agent_configs_on_campaign_id_and_agent_name", unique: true
     t.index ["campaign_id"], name: "index_agent_configs_on_campaign_id"
-    t.check_constraint "agent_name::text = ANY (ARRAY['SEARCH'::character varying, 'WRITER'::character varying, 'DESIGN'::character varying, 'CRITIQUE'::character varying, 'DESIGNER'::character varying, 'SENDER'::character varying]::text[])", name: "check_agent_configs_agent_name"
+    t.check_constraint "agent_name::text = ANY (ARRAY['SEARCH'::character varying::text, 'WRITER'::character varying::text, 'DESIGN'::character varying::text, 'CRITIQUE'::character varying::text, 'DESIGNER'::character varying::text, 'SENDER'::character varying::text])", name: "check_agent_configs_agent_name"
     t.check_constraint "enabled = ANY (ARRAY[true, false])", name: "check_agent_configs_enabled"
   end
 
@@ -39,13 +39,13 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_061201) do
     t.index ["agent_name"], name: "index_agent_outputs_on_agent_name"
     t.index ["lead_id", "agent_name"], name: "index_agent_outputs_on_lead_id_and_agent_name", unique: true
     t.index ["lead_id"], name: "index_agent_outputs_on_lead_id"
-    t.check_constraint "agent_name::text = ANY (ARRAY['SEARCH'::character varying, 'WRITER'::character varying, 'DESIGN'::character varying, 'CRITIQUE'::character varying, 'DESIGNER'::character varying, 'SENDER'::character varying]::text[])", name: "check_agent_outputs_agent_name"
+    t.check_constraint "agent_name::text = ANY (ARRAY['SEARCH'::character varying::text, 'WRITER'::character varying::text, 'DESIGN'::character varying::text, 'CRITIQUE'::character varying::text, 'DESIGNER'::character varying::text, 'SENDER'::character varying::text])", name: "check_agent_outputs_agent_name"
     t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'completed'::character varying::text, 'failed'::character varying::text])", name: "check_agent_outputs_status"
   end
 
   create_table "campaigns", force: :cascade do |t|
-    t.text "base_prompt", null: false
     t.datetime "created_at", null: false
+    t.jsonb "shared_settings", default: {}, null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
@@ -71,13 +71,17 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_09_061201) do
     t.datetime "created_at", null: false
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
+    t.string "llm_api_key"
     t.string "name"
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
+    t.string "tavily_api_key"
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["llm_api_key"], name: "index_users_on_llm_api_key"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.index ["tavily_api_key"], name: "index_users_on_tavily_api_key"
   end
 
   add_foreign_key "agent_configs", "campaigns"

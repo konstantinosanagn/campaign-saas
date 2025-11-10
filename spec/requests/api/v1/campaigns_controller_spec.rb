@@ -7,7 +7,13 @@ RSpec.describe Api::V1::CampaignsController, type: :request do
     {
       campaign: {
         title: 'Test Campaign',
-        basePrompt: 'This is a test campaign prompt'
+        sharedSettings: {
+          brand_voice: {
+            tone: 'professional',
+            persona: 'founder'
+          },
+          primary_goal: 'book_call'
+        }
       }
     }
   end
@@ -71,7 +77,8 @@ RSpec.describe Api::V1::CampaignsController, type: :request do
           expect(response).to have_http_status(:created)
           json_response = JSON.parse(response.body)
           expect(json_response['title']).to eq('Test Campaign')
-          expect(json_response['basePrompt']).to eq('This is a test campaign prompt')
+          expect(json_response['sharedSettings']).to be_a(Hash)
+          expect(json_response['sharedSettings']['brand_voice']).to be_a(Hash)
         end
 
         it 'converts camelCase to snake_case' do
@@ -79,7 +86,8 @@ RSpec.describe Api::V1::CampaignsController, type: :request do
 
           campaign = Campaign.last
           expect(campaign.title).to eq('Test Campaign')
-          expect(campaign.base_prompt).to eq('This is a test campaign prompt')
+          expect(campaign.shared_settings).to be_a(Hash)
+          expect(campaign.shared_settings['brand_voice']).to be_a(Hash)
         end
       end
 
@@ -87,21 +95,10 @@ RSpec.describe Api::V1::CampaignsController, type: :request do
         it 'returns 422 with errors when title is missing' do
           invalid_attributes = {
             campaign: {
-              basePrompt: 'Prompt without title'
-            }
-          }
-
-          post '/api/v1/campaigns', params: invalid_attributes, headers: { 'Accept' => 'application/json' }
-
-          expect(response).to have_http_status(:unprocessable_entity)
-          json_response = JSON.parse(response.body)
-          expect(json_response['errors']).to be_present
-        end
-
-        it 'returns 422 with errors when basePrompt is missing' do
-          invalid_attributes = {
-            campaign: {
-              title: 'Title without prompt'
+              sharedSettings: {
+                brand_voice: { tone: 'professional', persona: 'founder' },
+                primary_goal: 'book_call'
+              }
             }
           }
 
@@ -128,7 +125,13 @@ RSpec.describe Api::V1::CampaignsController, type: :request do
       {
         campaign: {
           title: 'Updated Campaign',
-          basePrompt: 'Updated prompt'
+          sharedSettings: {
+            brand_voice: {
+              tone: 'friendly',
+              persona: 'sales'
+            },
+            primary_goal: 'demo_request'
+          }
         }
       }
     end
@@ -143,7 +146,7 @@ RSpec.describe Api::V1::CampaignsController, type: :request do
           expect(response).to have_http_status(:success)
           campaign.reload
           expect(campaign.title).to eq('Updated Campaign')
-          expect(campaign.base_prompt).to eq('Updated prompt')
+          expect(campaign.shared_settings['brand_voice']['tone']).to eq('friendly')
         end
 
         it 'returns the updated campaign' do
@@ -151,7 +154,8 @@ RSpec.describe Api::V1::CampaignsController, type: :request do
 
           json_response = JSON.parse(response.body)
           expect(json_response['title']).to eq('Updated Campaign')
-          expect(json_response['basePrompt']).to eq('Updated prompt')
+          expect(json_response['sharedSettings']).to be_a(Hash)
+          expect(json_response['sharedSettings']['brand_voice']['tone']).to eq('friendly')
         end
       end
 
@@ -159,8 +163,7 @@ RSpec.describe Api::V1::CampaignsController, type: :request do
         it 'returns 422 with errors' do
           invalid_attributes = {
             campaign: {
-              title: '',
-              basePrompt: 'Prompt'
+              title: ''
             }
           }
 

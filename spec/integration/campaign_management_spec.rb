@@ -19,14 +19,17 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'Test Campaign',
-            basePrompt: 'This is a test prompt'
+            sharedSettings: {
+              brand_voice: { tone: 'professional', persona: 'founder' },
+              primary_goal: 'book_call'
+            }
           }
         }, headers: { "ACCEPT" => "application/json" }
         expect(response).to have_http_status(:created)
         campaign_data = JSON.parse(response.body)
         campaign_id = campaign_data['id']
         expect(campaign_data['title']).to eq('Test Campaign')
-        expect(campaign_data['basePrompt']).to eq('This is a test prompt')
+        expect(campaign_data['sharedSettings']).to be_a(Hash)
 
         # Verify campaign appears in index
         sign_in user, scope: :user
@@ -45,13 +48,16 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         put "/api/v1/campaigns/#{campaign_id}", params: {
           campaign: {
             title: 'Updated Campaign',
-            basePrompt: 'Updated prompt'
+            sharedSettings: {
+              brand_voice: { tone: 'friendly', persona: 'sales' },
+              primary_goal: 'demo_request'
+            }
           }
         }, headers: { "ACCEPT" => "application/json" }
         expect(response).to have_http_status(:ok)
         updated_data = JSON.parse(response.body)
         expect(updated_data['title']).to eq('Updated Campaign')
-        expect(updated_data['basePrompt']).to eq('Updated prompt')
+        expect(updated_data['sharedSettings']).to be_a(Hash)
 
         # Delete campaign
         sign_in user, scope: :user
@@ -68,7 +74,10 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'User Campaign',
-            basePrompt: 'User prompt'
+            sharedSettings: {
+              brand_voice: { tone: 'professional', persona: 'founder' },
+              primary_goal: 'book_call'
+            }
           }
         }
         user_campaign_id = JSON.parse(response.body)['id']
@@ -79,7 +88,10 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'Other User Campaign',
-            basePrompt: 'Other prompt'
+            sharedSettings: {
+              brand_voice: { tone: 'professional', persona: 'founder' },
+              primary_goal: 'book_call'
+            }
           }
         }
         other_campaign_id = JSON.parse(response.body)['id']
@@ -118,7 +130,13 @@ RSpec.describe 'Campaign Management Integration', type: :request do
 
         # Create
         post '/api/v1/campaigns', params: {
-          campaign: { title: 'Test', basePrompt: 'Test' }
+          campaign: {
+            title: 'Test',
+            sharedSettings: {
+              brand_voice: { tone: 'professional', persona: 'founder' },
+              primary_goal: 'book_call'
+            }
+          }
         }, headers: { "ACCEPT" => "application/json" }
         expect(response).to have_http_status(:unauthorized)
 
@@ -146,7 +164,10 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'Lead Generation Campaign',
-            basePrompt: 'Generate leads for tech companies'
+            sharedSettings: {
+              brand_voice: { tone: 'professional', persona: 'founder' },
+              primary_goal: 'book_call'
+            }
           }
         }, headers: { "ACCEPT" => "application/json" }
         campaign_id = JSON.parse(response.body)['id']
@@ -213,7 +234,10 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'My Campaign',
-            basePrompt: 'Prompt'
+            sharedSettings: {
+              brand_voice: { tone: 'professional', persona: 'founder' },
+              primary_goal: 'book_call'
+            }
           }
         }
         my_campaign_id = JSON.parse(response.body)['id']
@@ -236,7 +260,10 @@ RSpec.describe 'Campaign Management Integration', type: :request do
         post '/api/v1/campaigns', params: {
           campaign: {
             title: 'Other Campaign',
-            basePrompt: 'Other Prompt'
+            sharedSettings: {
+              brand_voice: { tone: 'professional', persona: 'founder' },
+              primary_goal: 'book_call'
+            }
           }
         }
         other_campaign_id = JSON.parse(response.body)['id']

@@ -290,7 +290,11 @@ RSpec.describe Api::V1::LeadsController, type: :request do
     context 'when authenticated' do
       before { sign_in user }
 
-      context 'with valid API keys in session' do
+      context 'with valid API keys' do
+        before do
+          user.update!(llm_api_key: 'test-gemini-key', tavily_api_key: 'test-tavily-key')
+        end
+
         it 'returns success status' do
           # Mock the agent services to avoid actual API calls
           allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return({
@@ -306,12 +310,6 @@ RSpec.describe Api::V1::LeadsController, type: :request do
 
           allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
             'critique' => nil
-          })
-
-          # Mock session to return API keys
-          allow_any_instance_of(described_class).to receive(:session).and_return({
-            llm_api_key: 'test-gemini-key',
-            tavily_api_key: 'test-tavily-key'
           })
 
           post "/api/v1/leads/#{lead.id}/run_agents", headers: { 'Accept' => 'application/json' }
@@ -337,12 +335,6 @@ RSpec.describe Api::V1::LeadsController, type: :request do
             'critique' => nil
           })
 
-          # Mock session to return API keys
-          allow_any_instance_of(described_class).to receive(:session).and_return({
-            llm_api_key: 'test-gemini-key',
-            tavily_api_key: 'test-tavily-key'
-          })
-
           expect {
             post "/api/v1/leads/#{lead.id}/run_agents", headers: { 'Accept' => 'application/json' }
           }.to change(AgentOutput, :count).by(1)  # Only SEARCH agent runs for a queued lead
@@ -364,12 +356,6 @@ RSpec.describe Api::V1::LeadsController, type: :request do
             'critique' => nil
           })
 
-          # Mock session to return API keys
-          allow_any_instance_of(described_class).to receive(:session).and_return({
-            llm_api_key: 'test-gemini-key',
-            tavily_api_key: 'test-tavily-key'
-          })
-
           post "/api/v1/leads/#{lead.id}/run_agents", headers: { 'Accept' => 'application/json' }
 
           lead.reload
@@ -378,6 +364,10 @@ RSpec.describe Api::V1::LeadsController, type: :request do
       end
 
       context 'when API keys are missing' do
+        before do
+          user.update!(llm_api_key: nil, tavily_api_key: nil)
+        end
+
         it 'returns 422 with error message' do
           post "/api/v1/leads/#{lead.id}/run_agents", headers: { 'Accept' => 'application/json' }
 

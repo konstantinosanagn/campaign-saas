@@ -248,6 +248,21 @@ describe('AgentOutputModal', () => {
     expect(screen.getByText('Email approved - no feedback provided')).toBeInTheDocument()
   })
 
+  it('shows agent-specific empty state when selected tab has no outputs', () => {
+    render(
+      <AgentOutputModal
+        isOpen
+        onClose={() => {}}
+        leadName="Lead Empty Tab"
+        outputs={[searchOutput] as any}
+        loading={false}
+      />
+    )
+
+    fireEvent.click(screen.getByText('Writer'))
+    expect(screen.getByText('No Writer agent output for this lead')).toBeInTheDocument()
+  })
+
   it('writer: edit -> cancel keeps original; edit -> save calls onUpdateOutput and exits editing', async () => {
     const onUpdateOutput = jest.fn().mockResolvedValue(undefined)
 

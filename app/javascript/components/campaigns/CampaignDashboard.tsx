@@ -32,7 +32,7 @@ export default function CampaignDashboard() {
   const [isLeadFormOpen, setIsLeadFormOpen] = useState(false)
   const [isEditLeadFormOpen, setIsEditLeadFormOpen] = useState(false)
 
-  const [editingCampaign, setEditingCampaign] = useState<{ index: number; title: string; basePrompt: string } | null>(null)
+  const [editingCampaign, setEditingCampaign] = useState<{ index: number; title: string; productInfo?: string; senderCompany?: string; tone?: string; persona?: string; primaryGoal?: string } | null>(null)
   const [editingLead, setEditingLead] = useState<{ id: number; name: string; email: string; title: string; company: string } | null>(null)
 
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null)
@@ -65,8 +65,9 @@ export default function CampaignDashboard() {
       : null;
 
   const { loading: agentExecLoading, runAgentsForLead, runAgentsForMultipleLeads } = useAgentExecution()
+  const [runningLeadIds, setRunningLeadIds] = React.useState<Set<number>>(new Set())
   const { loading: outputsLoading, outputs, loadAgentOutputs } = useAgentOutputs()
-  const { configs, loading: configsLoading, updateConfig } = useAgentConfigs(campaignObj?.id || null)
+  const { configs, loading: configsLoading, updateConfig, createConfig, loadConfigs } = useAgentConfigs(campaignObj?.id || null)
   
   const [sendingEmails, setSendingEmails] = useState(false)
 
@@ -89,7 +90,7 @@ export default function CampaignDashboard() {
     }
   }
 
-  const handleCreateCampaign = async (data: { title: string; basePrompt: string }) => {
+  const handleCreateCampaign = async (data: { title: string; productInfo?: string; senderCompany?: string; tone?: string; persona?: string; primaryGoal?: string }) => {
     const newCampaign = await createCampaign(data)
     if (newCampaign && newCampaign.id) {
       // Set pending campaign ID, useEffect will select it when campaigns array updates
@@ -97,7 +98,7 @@ export default function CampaignDashboard() {
     }
   }
 
-  const handleEditCampaign = (data: { title: string; basePrompt: string }) => {
+  const handleEditCampaign = (data: { title: string; productInfo?: string; senderCompany?: string; tone?: string; persona?: string; primaryGoal?: string }) => {
     if (editingCampaign) {
       updateCampaign(editingCampaign.index, data)
       setEditingCampaign(null)
@@ -106,7 +107,15 @@ export default function CampaignDashboard() {
 
   const handleEditClick = (index: number) => {
     const campaign = campaigns[index]
-    setEditingCampaign({ index, title: campaign.title, basePrompt: campaign.basePrompt })
+    setEditingCampaign({ 
+      index, 
+      title: campaign.title, 
+      productInfo: campaign.sharedSettings?.product_info,
+      senderCompany: campaign.sharedSettings?.sender_company,
+      tone: campaign.sharedSettings?.brand_voice?.tone,
+      persona: campaign.sharedSettings?.brand_voice?.persona,
+      primaryGoal: campaign.sharedSettings?.primary_goal
+    })
     setIsEditFormOpen(true)
   }
 
@@ -141,6 +150,41 @@ export default function CampaignDashboard() {
     }
   }
 
+  const handleImportLeads = React.useCallback(async (rows: Array<{ firstName: string; lastName: string; email: string; title: string; company: string }>) => {
+    if (selectedCampaign === null || !campaignObj?.id) {
+      return { success: false as const, error: 'Please select a campaign before importing leads.' }
+    }
+
+    try {
+      for (const row of rows) {
+        const trimmedFirst = row.firstName.trim()
+        const trimmedLast = row.lastName.trim()
+        const fullName = [trimmedFirst, trimmedLast].filter(Boolean).join(' ')
+        const result = await createLead({
+          name: fullName,
+          email: row.email.trim(),
+          title: row.title.trim(),
+          company: row.company.trim(),
+          campaignId: campaignObj.id,
+        })
+
+        if (result !== true) {
+          const errorMessage =
+            typeof result === 'object' && result !== null && 'error' in result
+              ? result.error ?? 'Failed to create lead.'
+              : 'Failed to create lead.'
+          return { success: false as const, error: errorMessage }
+        }
+      }
+
+      await refreshLeads()
+      return { success: true as const }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to import leads.'
+      return { success: false as const, error: message }
+    }
+  }, [campaignObj, createLead, refreshLeads, selectedCampaign])
+
   const handleLeadClick = useCallback((lead: { id: number }) => {
     toggleSelection(lead.id)
   }, [toggleSelection])
@@ -165,10 +209,19 @@ export default function CampaignDashboard() {
   }
 
   const handleRunLead = useCallback(async (leadId: number) => {
-    const result = await runAgentsForLead(leadId)
-    if (result) {
-      // Refresh leads to get updated stage/quality
-      await refreshLeads()
+    setRunningLeadIds(prev => new Set(prev).add(leadId))
+    try {
+      const result = await runAgentsForLead(leadId)
+      if (result) {
+        // Refresh leads to get updated stage/quality
+        await refreshLeads()
+      }
+    } finally {
+      setRunningLeadIds(prev => {
+        const next = new Set(prev)
+        next.delete(leadId)
+        return next
+      })
     }
   }, [runAgentsForLead, refreshLeads])
 
@@ -185,14 +238,29 @@ export default function CampaignDashboard() {
     const leadsToRun = filteredLeads.filter(l => l.stage !== 'completed').map(l => l.id)
     
     if (leadsToRun.length > 0) {
-      await runAgentsForMultipleLeads(leadsToRun)
-      await refreshLeads()
+      setRunningLeadIds(prev => {
+        const next = new Set(prev)
+        leadsToRun.forEach(id => next.add(id))
+        return next
+      })
+      try {
+        await runAgentsForMultipleLeads(leadsToRun)
+        await refreshLeads()
+      } finally {
+        setRunningLeadIds(prev => {
+          const next = new Set(prev)
+          leadsToRun.forEach(id => next.delete(id))
+          return next
+        })
+      }
     }
   }, [filteredLeads, runAgentsForMultipleLeads, refreshLeads])
 
-  const handleAgentSettingsClick = useCallback((agentName: 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE') => {
+  const handleAgentSettingsClick = useCallback((agentName: 'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE') => {
     console.log('handleAgentSettingsClick called with:', agentName)
-    setSettingsModalAgent(agentName)
+    // Map 'DESIGNER' to 'DESIGN' for the modal
+    const modalAgentName = agentName === 'DESIGNER' ? 'DESIGN' : agentName
+    setSettingsModalAgent(modalAgentName as 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE')
     setIsSettingsModalOpen(true)
   }, [])
 
@@ -249,11 +317,29 @@ export default function CampaignDashboard() {
   }, [campaignObj, readyLeadsCount, refreshLeads])
 
   const handleSaveAgentConfig = async (config: AgentConfig) => {
-    if (config.id) {
-      // Update existing config
-      await updateConfig(config.id, config)
+    try {
+      if (config.id) {
+        // Update existing config
+        const success = await updateConfig(config.id, config)
+        if (success) {
+          // Reload configs to get the latest data
+          await loadConfigs()
+        } else {
+          console.error('Failed to update agent config')
+        }
+      } else {
+        // Create new config if it doesn't exist
+        const newConfig = await createConfig(config)
+        if (newConfig) {
+          // Reload configs to get the latest data
+          await loadConfigs()
+        } else {
+          console.error('Failed to create agent config')
+        }
+      }
+    } catch (error) {
+      console.error('Error saving agent config:', error)
     }
-    // Note: createConfig would be handled here if we need to support creating new configs
   }
 
   return (
@@ -344,7 +430,8 @@ export default function CampaignDashboard() {
                           onRunLead={handleRunLead} 
                           onLeadClick={handleLeadClick} 
                           onStageClick={handleStageClick}
-                          selectedLeads={selectedLeads} 
+                          selectedLeads={selectedLeads}
+                          runningLeadIds={Array.from(runningLeadIds)}
                         />
                       )}
                     </div>
@@ -373,7 +460,12 @@ export default function CampaignDashboard() {
         isEdit={true}
       />
 
-      <LeadForm isOpen={isLeadFormOpen} onClose={() => setIsLeadFormOpen(false)} onSubmit={handleCreateLead} />
+      <LeadForm
+        isOpen={isLeadFormOpen}
+        onClose={() => setIsLeadFormOpen(false)}
+        onSubmit={handleCreateLead}
+        onBulkSubmit={handleImportLeads}
+      />
 
       <LeadForm
         isOpen={isEditLeadFormOpen}
@@ -434,8 +526,9 @@ export default function CampaignDashboard() {
           })
           
           if (response.ok) {
-            // Reload outputs to show the updated version
-            await loadAgentOutputs(leadId)
+            // Don't reload outputs - the local state in AgentOutputModal is already updated
+            // Reloading would cause the modal to flicker. The local state is the source of truth.
+            // Only reload if there's an error or when the modal is closed/reopened
           } else {
             throw new Error('Failed to update agent output')
           }
@@ -451,6 +544,7 @@ export default function CampaignDashboard() {
           }}
           agentName={settingsModalAgent}
           config={configs.find(c => c.agentName === settingsModalAgent) || null}
+          sharedSettings={campaignObj?.sharedSettings}
           onSave={handleSaveAgentConfig}
           loading={configsLoading}
         />

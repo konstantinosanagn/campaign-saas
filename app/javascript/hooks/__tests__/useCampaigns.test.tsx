@@ -47,7 +47,9 @@ function renderHookUI(
             onClick={() =>
               api.createCampaign({
                 title: 'Test Campaign',
-                basePrompt: 'Test prompt',
+                tone: 'professional',
+                persona: 'founder',
+                primaryGoal: 'book_call',
               })
             }
           >
@@ -57,7 +59,9 @@ function renderHookUI(
             onClick={() =>
               api.updateCampaign(0, {
                 title: 'Updated Campaign',
-                basePrompt: 'Updated prompt',
+                tone: 'professional',
+                persona: 'founder',
+                primaryGoal: 'book_call',
               })
             }
           >
@@ -73,6 +77,15 @@ function renderHookUI(
 
 describe('useCampaigns', () => {
   const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+  
+  // Helper for default sharedSettings
+  const defaultSharedSettings = {
+    brand_voice: {
+      tone: 'professional',
+      persona: 'founder',
+    },
+    primary_goal: 'book_call',
+  }
 
   beforeEach(() => {
     jest.clearAllMocks()
@@ -93,7 +106,7 @@ describe('useCampaigns', () => {
   // ---------- LOAD / MOUNT ----------
   it('loads campaigns on mount: success with data', async () => {
     indexMock.mockResolvedValueOnce({
-      data: [{ id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' }],
+      data: [{ id: 1, title: 'Campaign 1', sharedSettings: defaultSharedSettings }],
     })
 
     renderHookUI()
@@ -170,7 +183,7 @@ describe('useCampaigns', () => {
   it('refreshCampaigns: re-fetches and updates state', async () => {
     indexMock.mockResolvedValueOnce({ data: [] })
     indexMock.mockResolvedValueOnce({
-      data: [{ id: 1, title: 'Campaign 1', basePrompt: 'Prompt 1' }],
+      data: [{ id: 1, title: 'Campaign 1', sharedSettings: defaultSharedSettings }],
     })
 
     renderHookUI()
@@ -194,7 +207,7 @@ describe('useCampaigns', () => {
   it('createCampaign: success with returned data → updates state, returns campaign', async () => {
     indexMock.mockResolvedValueOnce({ data: [] })
     createMock.mockResolvedValueOnce({
-      data: { id: 1, title: 'New Campaign', basePrompt: 'New prompt' },
+      data: { id: 1, title: 'New Campaign', sharedSettings: defaultSharedSettings },
     })
 
     let apiRef: any
@@ -208,14 +221,22 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.createCampaign({
         title: 'New Campaign',
-        basePrompt: 'New prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
-    expect(result).toEqual({ id: 1, title: 'New Campaign', basePrompt: 'New prompt' })
+    expect(result).toEqual({ id: 1, title: 'New Campaign', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } })
     expect(createMock).toHaveBeenCalledWith('campaigns', {
       title: 'New Campaign',
-      basePrompt: 'New prompt',
+      sharedSettings: {
+        brand_voice: {
+          tone: 'professional',
+          persona: 'founder',
+        },
+        primary_goal: 'book_call',
+      },
     })
     expect(readState().campaigns).toHaveLength(1)
     expect(readState().error).toBe('')
@@ -236,7 +257,9 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.createCampaign({
         title: 'New Campaign',
-        basePrompt: 'New prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
@@ -262,7 +285,9 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.createCampaign({
         title: '',
-        basePrompt: 'New prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
@@ -292,7 +317,9 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.createCampaign({
         title: 'New Campaign',
-        basePrompt: 'New prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
@@ -315,7 +342,9 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.createCampaign({
         title: 'New Campaign',
-        basePrompt: 'New prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
@@ -342,7 +371,9 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.createCampaign({
         title: 'New Campaign',
-        basePrompt: 'New prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
@@ -356,12 +387,12 @@ describe('useCampaigns', () => {
     const existingCampaign: Campaign = {
       id: 1,
       title: 'Original Campaign',
-      basePrompt: 'Original prompt',
+      sharedSettings: defaultSharedSettings,
     }
 
     indexMock.mockResolvedValueOnce({ data: [existingCampaign] })
     updateMock.mockResolvedValueOnce({
-      data: { ...existingCampaign, title: 'Updated Campaign', basePrompt: 'Updated prompt' },
+      data: { ...existingCampaign, title: 'Updated Campaign', sharedSettings: { brand_voice: { tone: 'friendly', persona: 'sales' }, primary_goal: 'demo_request' } },
     })
 
     let apiRef: any
@@ -375,14 +406,22 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.updateCampaign(0, {
         title: 'Updated Campaign',
-        basePrompt: 'Updated prompt',
+        tone: 'friendly',
+        persona: 'sales',
+        primaryGoal: 'demo_request',
       })
     })
 
     expect(result).toBe(true)
     expect(updateMock).toHaveBeenCalledWith('campaigns', 1, {
       title: 'Updated Campaign',
-      basePrompt: 'Updated prompt',
+      sharedSettings: expect.objectContaining({
+        brand_voice: expect.objectContaining({
+          tone: 'friendly',
+          persona: 'sales',
+        }),
+        primary_goal: 'demo_request',
+      }),
     })
     expect(readState().campaigns[0].title).toBe('Updated Campaign')
     expect(readState().error).toBe('')
@@ -402,7 +441,9 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.updateCampaign(0, {
         title: 'Updated Campaign',
-        basePrompt: 'Updated prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
@@ -412,7 +453,7 @@ describe('useCampaigns', () => {
   })
 
   it('updateCampaign: campaign without ID → sets error, returns false', async () => {
-    const campaignWithoutId = { title: 'No ID Campaign', basePrompt: 'Prompt' } as Campaign
+    const campaignWithoutId = { title: 'No ID Campaign', sharedSettings: defaultSharedSettings } as Campaign
 
     indexMock.mockResolvedValueOnce({ data: [campaignWithoutId] })
 
@@ -427,7 +468,9 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.updateCampaign(0, {
         title: 'Updated Campaign',
-        basePrompt: 'Updated prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
@@ -440,7 +483,7 @@ describe('useCampaigns', () => {
     const existingCampaign: Campaign = {
       id: 1,
       title: 'Original Campaign',
-      basePrompt: 'Original prompt',
+      sharedSettings: defaultSharedSettings,
     }
 
     indexMock.mockResolvedValueOnce({ data: [existingCampaign] })
@@ -457,7 +500,9 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.updateCampaign(0, {
         title: 'Updated Campaign',
-        basePrompt: 'Updated prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
@@ -470,7 +515,7 @@ describe('useCampaigns', () => {
     const existingCampaign: Campaign = {
       id: 1,
       title: 'Original Campaign',
-      basePrompt: 'Original prompt',
+      sharedSettings: defaultSharedSettings,
     }
 
     indexMock.mockResolvedValueOnce({ data: [existingCampaign] })
@@ -487,7 +532,9 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.updateCampaign(0, {
         title: 'Updated Campaign',
-        basePrompt: 'Updated prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
@@ -503,7 +550,7 @@ describe('useCampaigns', () => {
     const existingCampaign: Campaign = {
       id: 1,
       title: 'Original Campaign',
-      basePrompt: 'Original prompt',
+      sharedSettings: defaultSharedSettings,
     }
 
     indexMock.mockResolvedValueOnce({ data: [existingCampaign] })
@@ -520,7 +567,9 @@ describe('useCampaigns', () => {
     const result = await act(async () => {
       return await apiRef.updateCampaign(0, {
         title: 'Updated Campaign',
-        basePrompt: 'Updated prompt',
+        tone: 'professional',
+        persona: 'founder',
+        primaryGoal: 'book_call',
       })
     })
 
@@ -534,7 +583,7 @@ describe('useCampaigns', () => {
     const existingCampaign: Campaign = {
       id: 1,
       title: 'Test Campaign',
-      basePrompt: 'Test prompt',
+      sharedSettings: defaultSharedSettings,
     }
 
     indexMock.mockResolvedValueOnce({ data: [existingCampaign] })
@@ -562,7 +611,7 @@ describe('useCampaigns', () => {
     const existingCampaign: Campaign = {
       id: 1,
       title: 'Test Campaign',
-      basePrompt: 'Test prompt',
+      sharedSettings: defaultSharedSettings,
     }
 
     indexMock.mockResolvedValueOnce({ data: [existingCampaign] })
@@ -609,7 +658,7 @@ describe('useCampaigns', () => {
     const existingCampaign: Campaign = {
       id: 1,
       title: 'Test Campaign',
-      basePrompt: 'Test prompt',
+      sharedSettings: defaultSharedSettings,
     }
 
     indexMock.mockResolvedValueOnce({ data: [existingCampaign] })
@@ -637,7 +686,7 @@ describe('useCampaigns', () => {
     const existingCampaign: Campaign = {
       id: 1,
       title: 'Test Campaign',
-      basePrompt: 'Test prompt',
+      sharedSettings: defaultSharedSettings,
     }
 
     indexMock.mockResolvedValueOnce({ data: [existingCampaign] })
@@ -668,7 +717,7 @@ describe('useCampaigns', () => {
     const existingCampaign: Campaign = {
       id: 1,
       title: 'Test Campaign',
-      basePrompt: 'Test prompt',
+      sharedSettings: defaultSharedSettings,
     }
 
     indexMock.mockResolvedValueOnce({ data: [existingCampaign] })

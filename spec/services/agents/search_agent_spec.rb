@@ -61,12 +61,13 @@ RSpec.describe Agents::SearchAgent, type: :service do
     end
 
     before do
-      allow(search_agent).to receive(:tavily_search).with(anything, topic: 'general').and_return(recipient_response)
-      allow(search_agent).to receive(:tavily_search).with(anything, topic: 'news').and_return(mock_response)
+      allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'general')).and_return(recipient_response)
+      allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'news')).and_return(mock_response)
     end
 
     it 'returns domain, recipient, and combined sources' do
-      allow(search_agent).to receive(:tavily_search).with("latest news about #{domain}", topic: 'news').and_return(mock_response)
+      allow(search_agent).to receive(:tavily_search).with("latest news about #{domain}", hash_including(topic: 'news')).and_return(mock_response)
+      allow(search_agent).to receive(:tavily_search).with("#{recipient} LinkedIn", hash_including(topic: 'general')).and_return(recipient_response)
 
       result = search_agent.run(domain, recipient: recipient)
 
@@ -85,13 +86,14 @@ RSpec.describe Agents::SearchAgent, type: :service do
     end
 
     it 'calls search with correct parameters' do
-      expect(search_agent).to receive(:tavily_search).with("latest news about #{domain}", topic: 'news').and_return(mock_response)
+      expect(search_agent).to receive(:tavily_search).with("latest news about #{domain}", hash_including(topic: 'news')).and_return(mock_response)
+      allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'general')).and_return(recipient_response)
       search_agent.run(domain, recipient: recipient)
     end
 
     it 'queries recipient-focused searches when recipient provided' do
-      allow(search_agent).to receive(:tavily_search).with("latest news about #{domain}", topic: 'news').and_return(mock_response)
-      expect(search_agent).to receive(:tavily_search).with("#{recipient} LinkedIn", topic: 'general').and_return(recipient_response)
+      allow(search_agent).to receive(:tavily_search).with("latest news about #{domain}", hash_including(topic: 'news')).and_return(mock_response)
+      expect(search_agent).to receive(:tavily_search).with("#{recipient} LinkedIn", hash_including(topic: 'general')).and_return(recipient_response)
       search_agent.run(domain, recipient: recipient)
     end
 
@@ -99,8 +101,8 @@ RSpec.describe Agents::SearchAgent, type: :service do
       let(:empty_response) { {} }
 
       before do
-        allow(search_agent).to receive(:tavily_search).with(anything, topic: 'news').and_return(empty_response)
-        allow(search_agent).to receive(:tavily_search).with(anything, topic: 'general').and_return(empty_response)
+        allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'news')).and_return(empty_response)
+        allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'general')).and_return(empty_response)
       end
 
       it 'returns empty sources array' do
@@ -116,8 +118,8 @@ RSpec.describe Agents::SearchAgent, type: :service do
       let(:nil_response) { { 'results' => nil } }
 
       before do
-        allow(search_agent).to receive(:tavily_search).with(anything, topic: 'news').and_return(nil_response)
-        allow(search_agent).to receive(:tavily_search).with(anything, topic: 'general').and_return(nil_response)
+        allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'news')).and_return(nil_response)
+        allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'general')).and_return(nil_response)
       end
 
       it 'returns empty sources array' do

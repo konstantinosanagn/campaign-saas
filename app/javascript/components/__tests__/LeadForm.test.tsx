@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import LeadForm from '@/components/leads/LeadForm'
 
@@ -11,19 +11,68 @@ describe('LeadForm', () => {
     jest.clearAllMocks()
   })
 
+  it('processes CSV upload and triggers bulk submit', async () => {
+    const user = userEvent.setup()
+    const mockOnBulkSubmit = jest.fn().mockResolvedValue({ success: true as const })
+    const alertSpy = jest.spyOn(window, 'alert').mockImplementation(() => {})
+
+    try {
+      render(
+        <LeadForm
+          isOpen={true}
+          onClose={mockOnClose}
+          onSubmit={mockOnSubmit}
+          onBulkSubmit={mockOnBulkSubmit}
+        />
+      )
+
+      const fileInput = screen.getByTestId('lead-import-input') as HTMLInputElement
+      const csvContent = [
+        'First Name,Last Name,Company Email,Position/Title,Company Name',
+        'Jane,Doe,jane@example.com,Manager,Acme Corp',
+      ].join('\n')
+      
+      // Create a File with the CSV content
+      // File.text() is polyfilled in setup.ts
+      const file = new File([csvContent], 'leads.csv', { type: 'text/csv' })
+
+      // Upload the file - user.upload handles the file input change event
+      await user.upload(fileInput, file)
+
+      await waitFor(() => {
+        expect(mockOnBulkSubmit).toHaveBeenCalledWith([
+          {
+            firstName: 'Jane',
+            lastName: 'Doe',
+            email: 'jane@example.com',
+            title: 'Manager',
+            company: 'Acme Corp',
+          },
+        ])
+      }, { timeout: 3000 })
+
+      expect(mockOnSubmit).not.toHaveBeenCalled()
+      expect(mockOnClose).toHaveBeenCalled()
+      expect(alertSpy).not.toHaveBeenCalled()
+    } finally {
+      alertSpy.mockRestore()
+    }
+  })
+
   it('does not render when isOpen is false', () => {
     render(
       <LeadForm isOpen={false} onClose={mockOnClose} onSubmit={mockOnSubmit} />
     )
-    expect(screen.queryByText('Add New Lead')).not.toBeInTheDocument()
+    expect(screen.queryByText('Add Lead')).not.toBeInTheDocument()
   })
 
   it('renders create form when isOpen is true', () => {
     render(
       <LeadForm isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
     )
-    expect(screen.getByText('Add New Lead')).toBeInTheDocument()
-    expect(screen.getByLabelText('Full Name')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Add Lead' })).toBeInTheDocument()
+    expect(screen.getByLabelText('First Name')).toBeInTheDocument()
+    expect(screen.getByLabelText('Last Name')).toBeInTheDocument()
     expect(screen.getByLabelText('Company Email')).toBeInTheDocument()
     expect(screen.getByLabelText('Position/Title')).toBeInTheDocument()
     expect(screen.getByLabelText('Company Name')).toBeInTheDocument()
@@ -48,7 +97,8 @@ describe('LeadForm', () => {
     )
 
     expect(screen.getByText('Edit Lead')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('John Doe')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('John')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Doe')).toBeInTheDocument()
     expect(screen.getByDisplayValue('john@example.com')).toBeInTheDocument()
     expect(screen.getByDisplayValue('VP Marketing')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Example Corp')).toBeInTheDocument()
@@ -61,7 +111,8 @@ describe('LeadForm', () => {
       <LeadForm isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
     )
 
-    await user.type(screen.getByLabelText('Full Name'), 'Jane Smith')
+    await user.type(screen.getByLabelText('First Name'), 'Jane')
+    await user.type(screen.getByLabelText('Last Name'), 'Smith')
     await user.type(screen.getByLabelText('Company Email'), 'jane@example.com')
     await user.type(screen.getByLabelText('Position/Title'), 'Head of Sales')
     await user.type(screen.getByLabelText('Company Name'), 'Example Inc')
@@ -97,7 +148,8 @@ describe('LeadForm', () => {
       <LeadForm isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
     )
 
-    await user.type(screen.getByLabelText('Full Name'), 'Test Lead')
+    await user.type(screen.getByLabelText('First Name'), 'Test')
+    await user.type(screen.getByLabelText('Last Name'), 'Lead')
     await user.type(screen.getByLabelText('Company Email'), 'test@example.com')
 
     rerender(
@@ -108,7 +160,8 @@ describe('LeadForm', () => {
       <LeadForm isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
     )
 
-    expect(screen.getByLabelText('Full Name')).toHaveValue('')
+    expect(screen.getByLabelText('First Name')).toHaveValue('')
+    expect(screen.getByLabelText('Last Name')).toHaveValue('')
     expect(screen.getByLabelText('Company Email')).toHaveValue('')
   })
 
@@ -123,8 +176,8 @@ describe('LeadForm', () => {
     await user.click(submitButton)
 
     // HTML5 validation should prevent submission
-    const nameInput = screen.getByLabelText('Full Name') as HTMLInputElement
-    expect(nameInput.validity.valid).toBe(false)
+    const firstNameInput = screen.getByLabelText('First Name') as HTMLInputElement
+    expect(firstNameInput.validity.valid).toBe(false)
   })
 
   it('validates email format', async () => {
@@ -145,8 +198,8 @@ describe('LeadForm', () => {
       <LeadForm isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
     )
 
-    const nameInput = screen.getByLabelText('Full Name')
-    expect(nameInput).toHaveFocus()
+    const firstNameInput = screen.getByLabelText('First Name')
+    expect(firstNameInput).toHaveFocus()
   })
 })
 

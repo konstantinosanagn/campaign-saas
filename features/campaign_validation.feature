@@ -7,7 +7,7 @@ Feature: Campaign input validation
     Given I am logged in
     When I send a POST request to "/api/v1/campaigns" with JSON:
       """
-      {"campaign": {"title": "", "basePrompt": "X"}}
+      {"campaign": {"title": "", "sharedSettings": {"brand_voice": {"tone": "professional", "persona": "founder"}, "primary_goal": "book_call"}}}
       """
     Then the response status should be 422
 

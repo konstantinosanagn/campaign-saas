@@ -5,8 +5,8 @@ import type { Campaign } from '@/types'
 
 describe('CampaignSidebar', () => {
   const mockCampaigns: Campaign[] = [
-    { id: 1, title: 'Campaign 1', basePrompt: 'This is a test prompt for campaign 1' },
-    { id: 2, title: 'Campaign 2', basePrompt: 'This is a test prompt for campaign 2 with a very long description that should be truncated' },
+    { id: 1, title: 'Campaign 1', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
+    { id: 2, title: 'Campaign 2', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
   ]
 
   const mockOnCampaignClick = jest.fn()
@@ -70,21 +70,6 @@ describe('CampaignSidebar', () => {
     expect(screen.getByText('Campaign 2')).toBeInTheDocument()
   })
 
-  it('truncates long base prompts', () => {
-    render(
-      <CampaignSidebar
-        campaigns={mockCampaigns}
-        selectedCampaign={null}
-        onCampaignClick={mockOnCampaignClick}
-        onCreateClick={mockOnCreateClick}
-        onEditClick={mockOnEditClick}
-        onDeleteClick={mockOnDeleteClick}
-      />
-    )
-
-    const promptText = screen.getByText(/This is a test prompt for campaign 2/)
-    expect(promptText.textContent).toContain('...')
-  })
 
   it('calls onCampaignClick when campaign is clicked', () => {
     render(
@@ -261,14 +246,14 @@ describe('CampaignSidebar', () => {
     expect(campaign1).toHaveClass('bg-gray-50', 'border-gray-200')
   })
 
-  it('handles campaign with empty basePrompt', () => {
-    const campaignsWithEmptyPrompt: Campaign[] = [
-      { id: 1, title: 'Campaign 1', basePrompt: '' },
+  it('handles campaign with minimal sharedSettings', () => {
+    const campaignsWithMinimalSettings: Campaign[] = [
+      { id: 1, title: 'Campaign 1', sharedSettings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' } },
     ]
 
     render(
       <CampaignSidebar
-        campaigns={campaignsWithEmptyPrompt}
+        campaigns={campaignsWithMinimalSettings}
         selectedCampaign={null}
         onCampaignClick={mockOnCampaignClick}
         onCreateClick={mockOnCreateClick}

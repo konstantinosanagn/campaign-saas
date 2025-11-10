@@ -13,9 +13,61 @@ admin_user = User.find_by(email: 'admin@example.com') || User.create!(
 if admin_user.campaigns.count == 0
   campaign = admin_user.campaigns.create!(
     title: 'Tech Startup Outreach Campaign',
-    base_prompt: 'Generate personalized outreach emails for tech startup leads focusing on growth marketing, demand generation, and VP marketing roles. Target companies like NovaCorp, Orbit AI, and Stackly with personalized messaging based on their company size and industry focus.'
+    shared_settings: {
+      "brand_voice" => {
+        "tone" => "professional",
+        "persona" => "founder"
+      },
+      "primary_goal" => "book_call"
+    }
   )
   puts "Created campaign: #{campaign.title}"
+
+  # Create default agent configs for the campaign
+  [ 'SEARCH', 'WRITER', 'CRITIQUE' ].each do |agent_name|
+    default_settings = case agent_name
+    when 'SEARCH'
+      {
+        "search_depth" => "basic",
+        "max_queries_per_lead" => 2,
+        "extracted_fields" => [
+          "company_industry",
+          "company_size_range",
+          "recent_announcement_or_news",
+          "flagship_product_or_service"
+        ],
+        "on_low_info_behavior" => "generic_industry"
+      }
+    when 'WRITER'
+      {
+        "email_length" => "short",
+        "personalization_level" => "medium",
+        "cta_softness" => "balanced",
+        "num_variants_per_lead" => 2
+      }
+    when 'CRITIQUE'
+      {
+        "checks" => {
+          "check_personalization" => true,
+          "check_brand_voice" => true,
+          "check_spamminess" => true
+        },
+        "strictness" => "moderate",
+        "rewrite_policy" => "rewrite_if_bad",
+        "min_score_for_send" => 6,
+        "variant_selection" => "highest_overall_score"
+      }
+    else
+      {}
+    end
+
+    campaign.agent_configs.create!(
+      agent_name: agent_name,
+      enabled: true,
+      settings: default_settings
+    )
+    puts "Created agent config: #{agent_name}"
+  end
 
   # Create sample leads for the campaign
   leads_data = [
@@ -30,6 +82,72 @@ if admin_user.campaigns.count == 0
   end
 else
   puts "Admin user already has #{admin_user.campaigns.count} campaign(s)"
+
+  # Update existing campaigns to have shared_settings and agent_configs if missing
+  admin_user.campaigns.each do |campaign|
+    # Update shared_settings if missing or empty (use read_attribute to check actual DB value)
+    db_value = campaign.read_attribute(:shared_settings)
+    if db_value.nil? || (db_value.is_a?(Hash) && db_value.empty?)
+      campaign.update!(
+        shared_settings: {
+          "brand_voice" => {
+            "tone" => "professional",
+            "persona" => "founder"
+          },
+          "primary_goal" => "book_call"
+        }
+      )
+      puts "Updated shared_settings for campaign: #{campaign.title}"
+    end
+
+    # Create missing agent configs
+    [ 'SEARCH', 'WRITER', 'CRITIQUE' ].each do |agent_name|
+      unless campaign.agent_configs.exists?(agent_name: agent_name)
+        default_settings = case agent_name
+        when 'SEARCH'
+          {
+            "search_depth" => "basic",
+            "max_queries_per_lead" => 2,
+            "extracted_fields" => [
+              "company_industry",
+              "company_size_range",
+              "recent_announcement_or_news",
+              "flagship_product_or_service"
+            ],
+            "on_low_info_behavior" => "generic_industry"
+          }
+        when 'WRITER'
+          {
+            "email_length" => "short",
+            "personalization_level" => "medium",
+            "cta_softness" => "balanced",
+            "num_variants_per_lead" => 2
+          }
+        when 'CRITIQUE'
+          {
+            "checks" => {
+              "check_personalization" => true,
+              "check_brand_voice" => true,
+              "check_spamminess" => true
+            },
+            "strictness" => "moderate",
+            "rewrite_policy" => "rewrite_if_bad",
+            "min_score_for_send" => 6,
+            "variant_selection" => "highest_overall_score"
+          }
+        else
+          {}
+        end
+
+        campaign.agent_configs.create!(
+          agent_name: agent_name,
+          enabled: true,
+          settings: default_settings
+        )
+        puts "Created agent config: #{agent_name} for campaign: #{campaign.title}"
+      end
+    end
+  end
 end
 
 puts "Seeding completed!"

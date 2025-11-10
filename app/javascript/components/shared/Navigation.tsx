@@ -27,7 +27,17 @@ export default function Navigation() {
     tavily: useRef<HTMLInputElement>(null),
     gemini: useRef<HTMLInputElement>(null)
   }
-  const closeDelay = 3000
+  const closeDelay = 400
+
+  const getStoredValue = (type: DropdownType) =>
+    type === 'tavily' ? apiKeys.tavilyApiKey || '' : apiKeys.llmApiKey || ''
+
+  const resetInputValue = (type: DropdownType) => {
+    setInputValues(prev => ({
+      ...prev,
+      [type]: getStoredValue(type)
+    }))
+  }
 
   const clearCloseTimer = () => {
     if (closeTimerRef.current) {
@@ -41,16 +51,29 @@ export default function Navigation() {
     closeTimerRef.current = setTimeout(() => {
       const dropdownEl = dropdownRefs[type].current
       const activeEl = document.activeElement as HTMLElement | null
-      if (dropdownEl && activeEl && dropdownEl.contains(activeEl)) {
+      const isFocusInside = dropdownEl && activeEl ? dropdownEl.contains(activeEl) : false
+      const isHovering = dropdownEl ? dropdownEl.matches(':hover') : false
+      if (isFocusInside || isHovering) {
         return
       }
-      setActiveDropdown(current => (current === type ? null : current))
+      setActiveDropdown(current => {
+        if (current === type) {
+          resetInputValue(type)
+          return null
+        }
+        return current
+      })
     }, delay)
   }
 
   const openDropdown = (type: DropdownType) => {
     clearCloseTimer()
-    setActiveDropdown(type)
+    setActiveDropdown(current => {
+      if (current && current !== type) {
+        resetInputValue(current)
+      }
+      return type
+    })
   }
 
   useEffect(() => {
@@ -59,7 +82,9 @@ export default function Navigation() {
     }
   }, [])
 
+  // Sync input values from API keys prop
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing state from props is intentional
     setInputValues({
       tavily: apiKeys.tavilyApiKey || '',
       gemini: apiKeys.llmApiKey || ''
@@ -96,6 +121,7 @@ export default function Navigation() {
     if (success) {
       setStatus(prev => ({ ...prev, [type]: 'saved' }))
       clearCloseTimer()
+      resetInputValue(type)
       setActiveDropdown(null)
     } else {
       setStatus(prev => ({ ...prev, [type]: 'error' }))
@@ -145,7 +171,7 @@ export default function Navigation() {
     return (
       <div
         ref={dropdownRefs[type]}
-        className="absolute left-1/2 top-full z-50 mt-3 w-72 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
+        className="absolute left-1/2 top-full z-[9999] mt-3 w-72 -translate-x-1/2 rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
         onMouseEnter={() => openDropdown(type)}
         onMouseLeave={() => scheduleClose(type)}
       >
@@ -163,26 +189,16 @@ export default function Navigation() {
               onBlur={() => scheduleClose(type)}
               onChange={(event) => handleInputChange(type, event.target.value)}
               placeholder={placeholder}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-500 outline-none ring-1 ring-transparent transition-colors duration-150 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
+              className={`w-full rounded-md border px-3 py-2 text-sm text-gray-900 placeholder-gray-500 outline-none transition-colors duration-150 ${
+                showError
+                  ? 'border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 focus:ring-offset-1 focus:ring-offset-white'
+                  : showSaved && !isDirty
+                    ? 'border-emerald-300 ring-1 ring-emerald-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white'
+                    : 'border-gray-300 ring-1 ring-transparent focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white'
+              }`}
             />
             <div className="flex items-center justify-between">
-              {showSaved ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className="h-3.5 w-3.5"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Saved
-                </span>
-              ) : showError ? (
+              {showError ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -217,7 +233,7 @@ export default function Navigation() {
 
   return (
     <>
-      <nav className="bg-transparent shadow-sm relative z-10">
+      <nav className="bg-transparent shadow-sm relative z-[10000]">
         <div className="w-full px-2 sm:px-4 lg:px-12 xl:px-16">
           <div className="flex justify-between">
             <div className="flex items-center">
@@ -225,7 +241,7 @@ export default function Navigation() {
                 <Cube />
               </a>
             </div>
-            <div className="flex items-center px-6 py-4 sm:px-8 sm:py-4 md:px-10 md:py-5 border-l border-r border-gray-200 relative">
+            <div className="flex items-center gap-6">
               <div className="flex items-center gap-6">
                 <div
                   className="relative"
@@ -237,7 +253,7 @@ export default function Navigation() {
                     onFocus={() => openDropdown('tavily')}
                     onBlur={() => handleLogoBlur('tavily')}
                     onKeyDown={(event) => handleLogoKeyDown('tavily', event)}
-                    className="rounded-full p-1 transition-transform duration-150 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 focus:ring-offset-white hover:scale-105"
+                  className="rounded-full p-0.5 transition-transform duration-150 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 focus:ring-offset-white hover:scale-105"
                     aria-haspopup="true"
                     aria-expanded={activeDropdown === 'tavily'}
                     aria-label="Manage Tavily API key"
@@ -245,9 +261,14 @@ export default function Navigation() {
                     <img
                       src={TAVILY_LOGO_SRC}
                       alt="Tavily logo"
-                      className="h-8 w-auto object-contain drop-shadow-sm"
+                      className="h-6 w-auto object-contain drop-shadow-sm"
                     />
                   </button>
+                  <div
+                    className={`mx-auto mt-1 h-1.5 w-1.5 rounded-full ${
+                      apiKeys.tavilyApiKey ? 'bg-emerald-500' : 'bg-red-500'
+                    }`}
+                  />
                   {renderDropdown(
                     'tavily',
                     'Tavily Search API Key',
@@ -266,7 +287,7 @@ export default function Navigation() {
                     onFocus={() => openDropdown('gemini')}
                     onBlur={() => handleLogoBlur('gemini')}
                     onKeyDown={(event) => handleLogoKeyDown('gemini', event)}
-                    className="rounded-full p-1 transition-transform duration-150 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 focus:ring-offset-white hover:scale-105"
+                  className="rounded-full p-0.5 transition-transform duration-150 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 focus:ring-offset-white hover:scale-105"
                     aria-haspopup="true"
                     aria-expanded={activeDropdown === 'gemini'}
                     aria-label="Manage Gemini API key"
@@ -274,9 +295,14 @@ export default function Navigation() {
                     <img
                       src={GEMINI_LOGO_SRC}
                       alt="Gemini logo"
-                      className="h-8 w-auto object-contain drop-shadow-sm"
+                      className="h-6 w-auto object-contain drop-shadow-sm"
                     />
                   </button>
+                  <div
+                    className={`mx-auto mt-1 h-1.5 w-1.5 rounded-full ${
+                      apiKeys.llmApiKey ? 'bg-emerald-500' : 'bg-red-500'
+                    }`}
+                  />
                   {renderDropdown(
                     'gemini',
                     'Gemini LLM API Key',
@@ -284,7 +310,9 @@ export default function Navigation() {
                     'Used for AI writing and critiques.'
                   )}
                 </div>
+              </div>
 
+              <div className="flex items-center px-6 py-4 sm:px-8 sm:py-4 md:px-10 md:py-5 border-l border-r border-gray-200 relative">
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
                     <div className="text-sm font-medium text-gray-900">John Doe</div>

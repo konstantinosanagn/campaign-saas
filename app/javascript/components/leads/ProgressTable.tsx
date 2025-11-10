@@ -2,6 +2,7 @@
 
 import React from 'react'
 import type { Lead } from '@/types'
+import Cube from '@/components/shared/Cube'
 
 interface ProgressTableProps {
   leads: Lead[]
@@ -9,9 +10,10 @@ interface ProgressTableProps {
   onLeadClick: (lead: Lead) => void
   onStageClick: (lead: Lead) => void
   selectedLeads: number[]
+  runningLeadIds?: number[]
 }
 
-function ProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLeads }: ProgressTableProps) {
+function ProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLeads, runningLeadIds = [] }: ProgressTableProps) {
   return (
     <div 
       className="rounded-2xl overflow-hidden"
@@ -66,14 +68,20 @@ function ProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLe
                 </td>
                 <td className="px-4 py-3 text-gray-500">{lead.quality || '-'}</td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => onRunLead(lead.id)}
-                    className="inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-600 hover:text-black hover:bg-transparent transition-colors duration-200 group"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 group-hover:fill-black transition-all duration-300 ease-in-out">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-                    </svg>
-                  </button>
+                  {runningLeadIds.includes(lead.id) ? (
+                    <div className="inline-flex items-center justify-center w-8 h-8">
+                      <Cube variant="black" size="small" />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => onRunLead(lead.id)}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-600 hover:text-black hover:bg-transparent transition-colors duration-200 group"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 group-hover:fill-black transition-all duration-300 ease-in-out">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
+                      </svg>
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

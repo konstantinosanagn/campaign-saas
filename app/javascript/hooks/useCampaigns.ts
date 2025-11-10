@@ -37,7 +37,28 @@ export function useCampaigns() {
   const createCampaign = async (data: CampaignFormData): Promise<Campaign | null> => {
     try {
       setError(null)
-      const response = await apiClient.create<Campaign>('campaigns', data)
+      // Transform data to include all sharedSettings
+      const payload: {
+        title: string
+        sharedSettings: {
+          brand_voice: { tone: string; persona: string }
+          primary_goal: string
+          product_info?: string
+          sender_company?: string
+        }
+      } = {
+        title: data.title,
+        sharedSettings: {
+          brand_voice: {
+            tone: data.tone || 'professional',
+            persona: data.persona || 'founder'
+          },
+          primary_goal: data.primaryGoal || 'book_call'
+        }
+      }
+      if (data.productInfo) payload.sharedSettings.product_info = data.productInfo
+      if (data.senderCompany) payload.sharedSettings.sender_company = data.senderCompany
+      const response = await apiClient.create<Campaign>('campaigns', payload)
       
       if (response.error) {
         const errors = response.data?.errors ?? []
@@ -77,7 +98,36 @@ export function useCampaigns() {
       }
 
       setError(null)
-      const response = await apiClient.update<Campaign>('campaigns', campaign.id, data)
+      // Transform data to include all sharedSettings
+      const payload: {
+        title: string
+        sharedSettings: {
+          brand_voice: { tone: string; persona: string }
+          primary_goal: string
+          product_info?: string
+          sender_company?: string
+        }
+      } = {
+        title: data.title,
+        sharedSettings: campaign.sharedSettings ? { ...campaign.sharedSettings } : {
+          brand_voice: {
+            tone: 'professional',
+            persona: 'founder'
+          },
+          primary_goal: 'book_call'
+        }
+      }
+      // Update brand_voice
+      if (data.tone !== undefined || data.persona !== undefined) {
+        payload.sharedSettings.brand_voice = {
+          tone: data.tone || payload.sharedSettings.brand_voice?.tone || 'professional',
+          persona: data.persona || payload.sharedSettings.brand_voice?.persona || 'founder'
+        }
+      }
+      if (data.primaryGoal !== undefined) payload.sharedSettings.primary_goal = data.primaryGoal
+      if (data.productInfo !== undefined) payload.sharedSettings.product_info = data.productInfo
+      if (data.senderCompany !== undefined) payload.sharedSettings.sender_company = data.senderCompany
+      const response = await apiClient.update<Campaign>('campaigns', campaign.id, payload)
       
       if (response.error) {
         setError(response.error)

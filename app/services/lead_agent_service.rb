@@ -10,7 +10,7 @@ require_relative "agents/critique_agent"
 # Manages agent configuration retrieval, sequential execution, output storage, and stage updates.
 #
 # Usage:
-#   result = LeadAgentService.run_agents_for_lead(lead, campaign, session)
+#   result = LeadAgentService.run_agents_for_lead(lead, campaign, user)
 #   # Returns: { status: 'completed'|'partial'|'failed', outputs: {...}, lead: {...} }
 #
 class LeadAgentService
@@ -25,12 +25,12 @@ class LeadAgentService
     # Only runs ONE agent at a time to allow for human review between stages
     # @param lead [Lead] The lead to process
     # @param campaign [Campaign] The campaign containing agent configs
-    # @param session [Hash] Rails session containing API keys
+    # @param user [User] Current user containing API keys
     # @return [Hash] Result with status, outputs, and updated lead
-    def run_agents_for_lead(lead, campaign, session)
+    def run_agents_for_lead(lead, campaign, user)
       # Validate API keys before starting
-      unless ApiKeyService.keys_available?(session)
-        missing_keys = ApiKeyService.missing_keys(session)
+      unless ApiKeyService.keys_available?(user)
+        missing_keys = ApiKeyService.missing_keys(user)
         return {
           status: "failed",
           error: "Missing API keys: #{missing_keys.join(', ')}. Please add them in the API Keys section.",
@@ -40,8 +40,8 @@ class LeadAgentService
       end
 
       # Get API keys
-      gemini_key = ApiKeyService.get_gemini_api_key(session)
-      tavily_key = ApiKeyService.get_tavily_api_key(session)
+      gemini_key = ApiKeyService.get_gemini_api_key(user)
+      tavily_key = ApiKeyService.get_tavily_api_key(user)
 
       # Initialize agents
       search_agent = Agents::SearchAgent.new(api_key: tavily_key)
@@ -210,7 +210,9 @@ class LeadAgentService
     def execute_search_agent(search_agent, lead, agent_config)
       # Extract domain from lead email or use company name
       domain = extract_domain_from_lead(lead)
-      search_agent.run(domain, recipient: lead.name)
+      # Pass agent_config to search_agent so it can use settings
+      config_hash = agent_config ? { settings: agent_config.settings } : nil
+      search_agent.run(domain, recipient: lead.name, config: config_hash)
     end
 
     ##
@@ -234,15 +236,22 @@ class LeadAgentService
 
       # Get writer settings from config
       settings = agent_config&.settings || {}
-      product_info = settings["product_info"]
-      sender_company = settings["sender_company"]
 
+      # Get shared_settings from campaign (product_info and sender_company are now in shared_settings)
+      shared_settings = lead.campaign.shared_settings || {}
+      product_info = shared_settings["product_info"] || shared_settings[:product_info] || settings["product_info"]
+      sender_company = shared_settings["sender_company"] || shared_settings[:sender_company] || settings["sender_company"]
+
+      # Pass config and shared_settings to writer_agent
+      config_hash = agent_config ? { settings: agent_config.settings } : nil
       writer_agent.run(
         search_results,
         recipient: lead.name,
         company: lead.company,
         product_info: product_info,
-        sender_company: sender_company
+        sender_company: sender_company,
+        config: config_hash,
+        shared_settings: shared_settings
       )
     end
 
@@ -257,12 +266,26 @@ class LeadAgentService
                       writer_output&.dig(:formatted_email) ||
                       ""
 
+      # Get variants if they exist
+      variants = writer_output&.dig("variants") || writer_output&.dig(:variants) || []
+
       article = {
         "email_content" => email_content,
+        "variants" => variants,
         "number_of_revisions" => 0
       }
 
-      critique_agent.run(article)
+      # Pass config to critique_agent
+      config_hash = agent_config ? { settings: agent_config.settings } : nil
+      result = critique_agent.run(article, config: config_hash)
+
+      # If a variant was selected, update the email content
+      if result["selected_variant"]
+        result["email"] = result["selected_variant"]
+        result["email_content"] = result["selected_variant"]
+      end
+
+      result
     end
 
     ##

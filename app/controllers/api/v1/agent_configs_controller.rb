@@ -68,21 +68,24 @@ module Api
           return
         end
 
+        # Normalize agent_name (handle both camelCase and snake_case)
+        agent_name = agent_config_params[:agent_name] || agent_config_params[:agentName]
+
         # Validate agent name
-        unless AgentConfig::VALID_AGENT_NAMES.include?(agent_config_params[:agent_name])
+        unless AgentConfig::VALID_AGENT_NAMES.include?(agent_name)
           render json: { errors: [ "Invalid agent name. Must be one of: SEARCH, WRITER, CRITIQUE" ] }, status: :unprocessable_entity
           return
         end
 
         # Check if config already exists
-        existing_config = campaign.agent_configs.find_by(agent_name: agent_config_params[:agent_name])
+        existing_config = campaign.agent_configs.find_by(agent_name: agent_name)
         if existing_config
           render json: { errors: [ "Agent config already exists for this campaign" ] }, status: :unprocessable_entity
           return
         end
 
         config = campaign.agent_configs.build(
-          agent_name: agent_config_params[:agent_name],
+          agent_name: agent_name,
           enabled: agent_config_params[:enabled] != false, # Default to true
           settings: agent_config_params[:settings] || {}
         )
@@ -121,7 +124,7 @@ module Api
 
         # Only allow updating enabled status and settings
         # Agent name cannot be changed
-        update_params = agent_config_params.except(:agent_name)
+        update_params = agent_config_params.except(:agent_name, :agentName)
 
         if config.update(update_params)
           render json: {
@@ -161,10 +164,24 @@ module Api
       private
 
       def agent_config_params
-        params.require(:agent_config).permit(:agent_name, :enabled, settings: {})
+        # Permit all settings keys dynamically since they vary by agent type
+        # Using deep merge to allow nested structures like checks: { check_personalization: true }
+        permitted = params.require(:agent_config).permit(:agent_name, :agentName, :enabled)
+        if params[:agent_config][:settings].present?
+          permitted[:settings] = params[:agent_config][:settings].permit!
+        else
+          permitted[:settings] = {}
+        end
+        permitted
       rescue ActionController::ParameterMissing
         # Allow empty params for flexibility
-        params.permit(:agent_name, :enabled, settings: {}).with_indifferent_access
+        permitted = params.permit(:agent_name, :agentName, :enabled)
+        if params[:settings].present?
+          permitted[:settings] = params[:settings].permit!
+        else
+          permitted[:settings] = {}
+        end
+        permitted.with_indifferent_access
       end
     end
   end

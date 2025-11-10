@@ -1,13 +1,13 @@
 Given('a campaign titled {string} exists for me') do |title|
   step 'a user exists'
   owner = @user || User.find_by(email: 'admin@example.com')
-  @campaign = Campaign.create!(title: title, base_prompt: 'Base prompt', user: owner)
+  @campaign = Campaign.create!(title: title, shared_settings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' }, user: owner)
 end
 
 Given('a lead exists for my campaign') do
   step 'a user exists'
   owner = @user || User.find_by(email: 'admin@example.com')
-  @campaign ||= Campaign.create!(title: 'My Campaign', base_prompt: 'Base', user: owner)
+  @campaign ||= Campaign.create!(title: 'My Campaign', shared_settings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' }, user: owner)
   @lead = @campaign.leads.create!(name: 'Alice', email: 'alice@example.com', title: 'CTO', company: 'Acme', website: 'https://acme.test')
 end
 
@@ -21,5 +21,5 @@ end
 
 Given('there is another user with a separate campaign') do
   other = User.create!(email: 'other@example.com', password: 'password123', password_confirmation: 'password123', name: 'Other User')
-  @other_campaign = Campaign.create!(title: 'Other Campaign', base_prompt: 'Other', user: other)
+  @other_campaign = Campaign.create!(title: 'Other Campaign', shared_settings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' }, user: other)
 end

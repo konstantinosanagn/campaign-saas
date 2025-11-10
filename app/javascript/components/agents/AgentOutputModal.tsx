@@ -170,23 +170,55 @@ export default function AgentOutputModal({
   const [editedDesignEmail, setEditedDesignEmail] = React.useState('')
   const [saving, setSaving] = React.useState(false)
   const [searchOutputData, setSearchOutputData] = React.useState<SearchOutputData | null>(null)
+  const [removingSourceIndex, setRemovingSourceIndex] = React.useState<number | null>(null)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
+  const removeSourceTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasLocalChangesRef = React.useRef(false) // Track if we have local changes that shouldn't be overwritten
+  const isInitialLoadRef = React.useRef(true) // Track if this is the initial load when modal opens
 
   React.useEffect(() => {
     if (isOpen) {
+      // Reset flags when modal opens for the first time
+      if (isInitialLoadRef.current) {
+        hasLocalChangesRef.current = false
+        isInitialLoadRef.current = false
+      }
+      
       setEditingWriterOutput(false)
       setEditingDesignOutput(false)
       setEditedEmail('')
       setEditedDesignEmail('')
-      // Initialize search output data
-      const searchOutput = outputs.find(o => o.agentName === 'SEARCH')
-      setSearchOutputData(
-        searchOutput && isSearchOutputData(searchOutput.outputData)
-          ? searchOutput.outputData
-          : null
-      )
+      
+      // Only update search output data if:
+      // 1. We don't have local changes (hasLocalChangesRef is false)
+      // 2. We're not currently removing a source
+      // 3. We don't already have searchOutputData (initial load only)
+      // This prevents overwriting user's local edits when outputs changes
+      if (!hasLocalChangesRef.current && removingSourceIndex === null && searchOutputData === null) {
+        const searchOutput = outputs.find(o => o.agentName === 'SEARCH')
+        setSearchOutputData(
+          searchOutput && isSearchOutputData(searchOutput.outputData)
+            ? searchOutput.outputData
+            : null
+        )
+      }
+    } else {
+      // Reset flags when modal closes
+      hasLocalChangesRef.current = false
+      isInitialLoadRef.current = true
+      setSearchOutputData(null) // Clear data when modal closes
     }
-  }, [isOpen, outputs])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, outputs, removingSourceIndex]) // Removed searchOutputData from deps to prevent loops
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (removeSourceTimeoutRef.current) {
+        clearTimeout(removeSourceTimeoutRef.current)
+      }
+    }
+  }, [])
 
   if (!isOpen) return null
 
@@ -197,10 +229,19 @@ export default function AgentOutputModal({
 
   const handleRemoveSource = async (index: number) => {
     if (!leadId || !searchOutputData || !onUpdateSearchOutput) return
+    if (removingSourceIndex !== null) return // Prevent concurrent removals
     if (!Array.isArray(searchOutputData.sources)) {
       console.warn('Search output data does not include a removable sources array.')
       return
     }
+    
+    // Clear any pending timeout
+    if (removeSourceTimeoutRef.current) {
+      clearTimeout(removeSourceTimeoutRef.current)
+      removeSourceTimeoutRef.current = null
+    }
+    
+    setRemovingSourceIndex(index)
     const previousData = searchOutputData
 
     // Create updated sources array without the removed item
@@ -213,18 +254,37 @@ export default function AgentOutputModal({
       sources: updatedSources
     }
     
+    // Mark that we have local changes to prevent useEffect from overwriting
+    hasLocalChangesRef.current = true
+    
     // Update local state immediately for better UX
     setSearchOutputData(updatedData)
     
-    try {
-      // Save to backend
-      await onUpdateSearchOutput(leadId, 'SEARCH', updatedData)
-    } catch (error) {
-      console.error('Failed to remove source:', error)
-      // Revert on error
-      setSearchOutputData(previousData)
-      alert('Failed to remove source. Please try again.')
-    }
+    // Save to backend with debouncing to prevent rate limiting
+    removeSourceTimeoutRef.current = setTimeout(async () => {
+      try {
+        await onUpdateSearchOutput(leadId, 'SEARCH', updatedData)
+        // Keep the flag set - we have local changes that are now saved
+        // The flag will be reset when the modal closes or when we explicitly want to sync
+        // This prevents the useEffect from overwriting our local state if outputs changes
+      } catch (error) {
+        console.error('Failed to remove source:', error)
+        // Revert on error
+        setSearchOutputData(previousData)
+        hasLocalChangesRef.current = false
+        
+        // Check if it's a rate limit error
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        if (errorMessage.includes('429') || errorMessage.includes('Too Many Requests')) {
+          alert('Too many requests. Please wait a moment before removing more sources.')
+        } else {
+          alert('Failed to remove source. Please try again.')
+        }
+      } finally {
+        setRemovingSourceIndex(null)
+        removeSourceTimeoutRef.current = null
+      }
+    }, 500) // 500ms debounce to prevent rate limiting
   }
 
   const formatSearchOutput = (output: SearchOutputData | null) => {
@@ -252,7 +312,9 @@ export default function AgentOutputModal({
     ]
 
     const rawSources = primarySources ?? fallbackSources
-    const sources = rawSources.map(sanitizeSource)
+    // Cap sources at 10 to prevent displaying more than the limit
+    const cappedRawSources = rawSources.slice(0, 10)
+    const sources = cappedRawSources.map(sanitizeSource)
     const sourcesCount = sources.length
     const hasRemovableSources = Boolean(primarySources && leadId && onUpdateSearchOutput)
 
@@ -303,8 +365,13 @@ export default function AgentOutputModal({
                   {hasRemovableSources && (
                     <button
                       onClick={() => handleRemoveSource(idx)}
-                      className="absolute top-2 right-2 p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                      title="Remove this source"
+                      disabled={removingSourceIndex !== null}
+                      className={`absolute top-2 right-2 p-1 rounded transition-colors duration-200 ${
+                        removingSourceIndex === idx
+                          ? 'text-gray-400 cursor-wait'
+                          : 'text-gray-500 hover:text-red-600 hover:bg-red-50 cursor-pointer'
+                      }`}
+                      title={removingSourceIndex === idx ? 'Removing...' : 'Remove this source'}
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -830,6 +897,17 @@ export default function AgentOutputModal({
     { id: 'CRITIQUE' as const, label: 'Critique', count: outputs.filter(o => o.agentName === 'CRITIQUE').length },
   ]
 
+  const tabOutputs = getTabOutputs()
+  const fallbackTabLabel =
+    activeTab === 'ALL'
+      ? 'All Outputs'
+      : `${activeTab.slice(0, 1)}${activeTab.slice(1).toLowerCase()}`
+  const activeTabLabel = tabs.find(tab => tab.id === activeTab)?.label ?? fallbackTabLabel
+  const emptyStateMessage =
+    activeTab === 'ALL'
+      ? 'No agent outputs available for this lead'
+      : `No ${activeTabLabel} agent output for this lead`
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
@@ -869,16 +947,16 @@ export default function AgentOutputModal({
             <div className="flex items-center justify-center py-12">
               <div className="text-gray-600">Loading outputs...</div>
             </div>
-          ) : outputs.length === 0 ? (
+          ) : tabOutputs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-500">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-12 h-12 mb-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h11.25c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
               </svg>
-              <p>No agent outputs available for this lead</p>
+              <p>{emptyStateMessage}</p>
             </div>
           ) : (
             <div className="space-y-6">
-              {getTabOutputs().map((output, idx) => (
+              {tabOutputs.map((output, idx) => (
                 <div key={idx} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">

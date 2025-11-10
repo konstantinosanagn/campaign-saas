@@ -38,6 +38,48 @@ Object.defineProperty(window, 'location', {
 // Mock fetch globally
 global.fetch = jest.fn()
 
+// Polyfill File.text() for jsdom (if not available)
+// Store file content in a WeakMap so we can retrieve it
+const fileContentMap = new WeakMap<Blob, string>()
+
+// Patch Blob/File to store text content
+const OriginalBlob = global.Blob
+global.Blob = class Blob extends OriginalBlob {
+  constructor(blobParts?: BlobPart[], options?: BlobPropertyBag) {
+    super(blobParts, options)
+    if (blobParts) {
+      const textParts = blobParts
+        .filter(part => typeof part === 'string')
+        .map(part => part as string)
+      if (textParts.length > 0) {
+        fileContentMap.set(this, textParts.join(''))
+      }
+    }
+  }
+} as any
+
+if (typeof File !== 'undefined') {
+  const OriginalFile = global.File
+  global.File = class File extends OriginalFile {
+    constructor(fileBits: BlobPart[], fileName: string, options?: FilePropertyBag) {
+      super(fileBits, fileName, options)
+      const textParts = fileBits
+        .filter(part => typeof part === 'string')
+        .map(part => part as string)
+      if (textParts.length > 0) {
+        fileContentMap.set(this, textParts.join(''))
+      }
+    }
+  } as any
+  
+  if (!File.prototype.text) {
+    File.prototype.text = function(this: File) {
+      const content = fileContentMap.get(this) || ''
+      return Promise.resolve(content)
+    }
+  }
+}
+
 // Mock hooks that make API calls
 jest.mock('@/hooks/useAgentConfigs', () => ({
   useAgentConfigs: () => ({

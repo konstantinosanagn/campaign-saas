@@ -1,215 +1,95 @@
 require 'rails_helper'
 
 RSpec.describe ApiKeyService, type: :service do
+  let(:user) { build_stubbed(:user, llm_api_key: 'test-gemini-key', tavily_api_key: 'test-tavily-key') }
+
   describe '.get_gemini_api_key' do
-    context 'when API key is present' do
-      let(:session) { { llm_api_key: 'test-gemini-key' } }
-
-      it 'returns the API key' do
-        expect(described_class.get_gemini_api_key(session)).to eq('test-gemini-key')
-      end
+    it 'returns the API key when present' do
+      expect(described_class.get_gemini_api_key(user)).to eq('test-gemini-key')
     end
 
-    context 'when API key is missing' do
-      let(:session) { {} }
+    it 'raises when the key is blank' do
+      user.llm_api_key = ''
 
-      it 'raises ArgumentError with descriptive message' do
-        expect {
-          described_class.get_gemini_api_key(session)
-        }.to raise_error(ArgumentError, 'Gemini API key is required. Please add your Gemini API key in the API Keys section.')
-      end
+      expect {
+        described_class.get_gemini_api_key(user)
+      }.to raise_error(ArgumentError, 'Gemini API key is required. Please add your Gemini API key in the API Keys section.')
     end
 
-    context 'when API key is blank' do
-      let(:session) { { llm_api_key: '' } }
+    it 'raises when the key is nil' do
+      user.llm_api_key = nil
 
-      it 'raises ArgumentError with descriptive message' do
-        expect {
-          described_class.get_gemini_api_key(session)
-        }.to raise_error(ArgumentError, 'Gemini API key is required. Please add your Gemini API key in the API Keys section.')
-      end
-    end
-
-    context 'when API key is nil' do
-      let(:session) { { llm_api_key: nil } }
-
-      it 'raises ArgumentError with descriptive message' do
-        expect {
-          described_class.get_gemini_api_key(session)
-        }.to raise_error(ArgumentError, 'Gemini API key is required. Please add your Gemini API key in the API Keys section.')
-      end
+      expect {
+        described_class.get_gemini_api_key(user)
+      }.to raise_error(ArgumentError, 'Gemini API key is required. Please add your Gemini API key in the API Keys section.')
     end
   end
 
   describe '.get_tavily_api_key' do
-    context 'when API key is present' do
-      let(:session) { { tavily_api_key: 'test-tavily-key' } }
-
-      it 'returns the API key' do
-        expect(described_class.get_tavily_api_key(session)).to eq('test-tavily-key')
-      end
+    it 'returns the API key when present' do
+      expect(described_class.get_tavily_api_key(user)).to eq('test-tavily-key')
     end
 
-    context 'when API key is missing' do
-      let(:session) { {} }
+    it 'raises when the key is blank' do
+      user.tavily_api_key = ''
 
-      it 'raises ArgumentError with descriptive message' do
-        expect {
-          described_class.get_tavily_api_key(session)
-        }.to raise_error(ArgumentError, 'Tavily API key is required. Please add your Tavily API key in the API Keys section.')
-      end
+      expect {
+        described_class.get_tavily_api_key(user)
+      }.to raise_error(ArgumentError, 'Tavily API key is required. Please add your Tavily API key in the API Keys section.')
     end
 
-    context 'when API key is blank' do
-      let(:session) { { tavily_api_key: '' } }
+    it 'raises when the key is nil' do
+      user.tavily_api_key = nil
 
-      it 'raises ArgumentError with descriptive message' do
-        expect {
-          described_class.get_tavily_api_key(session)
-        }.to raise_error(ArgumentError, 'Tavily API key is required. Please add your Tavily API key in the API Keys section.')
-      end
-    end
-
-    context 'when API key is nil' do
-      let(:session) { { tavily_api_key: nil } }
-
-      it 'raises ArgumentError with descriptive message' do
-        expect {
-          described_class.get_tavily_api_key(session)
-        }.to raise_error(ArgumentError, 'Tavily API key is required. Please add your Tavily API key in the API Keys section.')
-      end
+      expect {
+        described_class.get_tavily_api_key(user)
+      }.to raise_error(ArgumentError, 'Tavily API key is required. Please add your Tavily API key in the API Keys section.')
     end
   end
 
   describe '.keys_available?' do
-    context 'when both keys are present' do
-      let(:session) do
-        {
-          llm_api_key: 'test-gemini-key',
-          tavily_api_key: 'test-tavily-key'
-        }
-      end
-
-      it 'returns true' do
-        expect(described_class.keys_available?(session)).to be true
-      end
+    it 'returns true when both keys are present' do
+      expect(described_class.keys_available?(user)).to be true
     end
 
-    context 'when only one key is present' do
-      let(:session) { { llm_api_key: 'test-gemini-key' } }
+    it 'returns false when any key is blank' do
+      user.llm_api_key = ''
 
-      it 'returns false' do
-        expect(described_class.keys_available?(session)).to be false
-      end
+      expect(described_class.keys_available?(user)).to be false
     end
 
-    context 'when no keys are present' do
-      let(:session) { {} }
-
-      it 'returns false' do
-        expect(described_class.keys_available?(session)).to be false
-      end
-    end
-
-    context 'when keys are blank' do
-      let(:session) do
-        {
-          llm_api_key: '',
-          tavily_api_key: ''
-        }
-      end
-
-      it 'returns false' do
-        expect(described_class.keys_available?(session)).to be false
-      end
-    end
-
-    context 'when keys are nil' do
-      let(:session) do
-        {
-          llm_api_key: nil,
-          tavily_api_key: nil
-        }
-      end
-
-      it 'returns false' do
-        expect(described_class.keys_available?(session)).to be false
-      end
+    it 'returns false when user is nil' do
+      expect(described_class.keys_available?(nil)).to be false
     end
   end
 
   describe '.missing_keys' do
-    context 'when both keys are present' do
-      let(:session) do
-        {
-          llm_api_key: 'test-gemini-key',
-          tavily_api_key: 'test-tavily-key'
-        }
-      end
-
-      it 'returns empty array' do
-        expect(described_class.missing_keys(session)).to eq([])
-      end
+    it 'returns empty array when no keys are missing' do
+      expect(described_class.missing_keys(user)).to eq([])
     end
 
-    context 'when only Gemini key is missing' do
-      let(:session) { { tavily_api_key: 'test-tavily-key' } }
+    it 'returns Gemini when Gemini key missing' do
+      user.llm_api_key = ''
 
-      it 'returns array with Gemini' do
-        expect(described_class.missing_keys(session)).to eq([ 'Gemini' ])
-      end
+      expect(described_class.missing_keys(user)).to eq([ 'Gemini' ])
     end
 
-    context 'when only Tavily key is missing' do
-      let(:session) { { llm_api_key: 'test-gemini-key' } }
+    it 'returns Tavily when Tavily key missing' do
+      user.llm_api_key = 'value'
+      user.tavily_api_key = ''
 
-      it 'returns array with Tavily' do
-        expect(described_class.missing_keys(session)).to eq([ 'Tavily' ])
-      end
+      expect(described_class.missing_keys(user)).to eq([ 'Tavily' ])
     end
 
-    context 'when both keys are missing' do
-      let(:session) { {} }
+    it 'returns both when both missing' do
+      user.llm_api_key = nil
+      user.tavily_api_key = nil
 
-      it 'returns array with both keys' do
-        expect(described_class.missing_keys(session)).to eq([ 'Gemini', 'Tavily' ])
-      end
+      expect(described_class.missing_keys(user)).to match_array([ 'Gemini', 'Tavily' ])
     end
 
-    context 'when keys are blank' do
-      let(:session) do
-        {
-          llm_api_key: '',
-          tavily_api_key: ''
-        }
-      end
-
-      it 'returns array with both keys' do
-        expect(described_class.missing_keys(session)).to eq([ 'Gemini', 'Tavily' ])
-      end
-    end
-
-    context 'when keys are nil' do
-      let(:session) do
-        {
-          llm_api_key: nil,
-          tavily_api_key: nil
-        }
-      end
-
-      it 'returns array with both keys' do
-        expect(described_class.missing_keys(session)).to eq([ 'Gemini', 'Tavily' ])
-      end
-    end
-  end
-
-  describe 'constants' do
-    it 'defines LLM_KEY_NAME as symbol' do
-      expect(described_class::LLM_KEY_NAME).to eq(:llm_api_key)
-    end
-
-    it 'defines TAVILY_KEY_NAME as symbol' do
-      expect(described_class::TAVILY_KEY_NAME).to eq(:tavily_api_key)
+    it 'handles nil user' do
+      expect(described_class.missing_keys(nil)).to match_array([ 'Gemini', 'Tavily' ])
     end
   end
 end

@@ -24,14 +24,18 @@ describe('CampaignForm', () => {
     )
     expect(screen.getByText('Create New Campaign')).toBeInTheDocument()
     expect(screen.getByLabelText('Title')).toBeInTheDocument()
-    expect(screen.getByLabelText('Base Prompt')).toBeInTheDocument()
+    expect(screen.getByLabelText('Product Information')).toBeInTheDocument()
   })
 
   it('renders edit form when isEdit is true', () => {
     const initialData = {
       index: 0,
       title: 'Existing Campaign',
-      basePrompt: 'Existing prompt',
+      productInfo: 'Existing product info',
+      senderCompany: 'Existing company',
+      tone: 'professional' as const,
+      persona: 'founder' as const,
+      primaryGoal: 'book_call' as const,
     }
 
     render(
@@ -46,7 +50,7 @@ describe('CampaignForm', () => {
 
     expect(screen.getByText('Edit Campaign')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Existing Campaign')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Existing prompt')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Existing product info')).toBeInTheDocument()
   })
 
   it('submits form with valid data', async () => {
@@ -57,13 +61,17 @@ describe('CampaignForm', () => {
     )
 
     await user.type(screen.getByLabelText('Title'), 'My Campaign')
-    await user.type(screen.getByLabelText('Base Prompt'), 'My base prompt')
+    await user.type(screen.getByLabelText('Product Information'), 'My product info')
 
     await user.click(screen.getByRole('button', { name: /create/i }))
 
     expect(mockOnSubmit).toHaveBeenCalledWith({
       title: 'My Campaign',
-      basePrompt: 'My base prompt',
+      productInfo: 'My product info',
+      senderCompany: '',
+      tone: 'professional',
+      persona: 'founder',
+      primaryGoal: 'book_call',
     })
     expect(mockOnClose).toHaveBeenCalled()
   })
@@ -89,7 +97,7 @@ describe('CampaignForm', () => {
     )
 
     await user.type(screen.getByLabelText('Title'), 'Test Campaign')
-    await user.type(screen.getByLabelText('Base Prompt'), 'Test prompt')
+    await user.type(screen.getByLabelText('Product Information'), 'Test product info')
 
     rerender(
       <CampaignForm isOpen={false} onClose={mockOnClose} onSubmit={mockOnSubmit} />
@@ -100,10 +108,10 @@ describe('CampaignForm', () => {
     )
 
     expect(screen.getByLabelText('Title')).toHaveValue('')
-    expect(screen.getByLabelText('Base Prompt')).toHaveValue('')
+    expect(screen.getByLabelText('Product Information')).toHaveValue('')
   })
 
-  it('requires title and basePrompt fields', async () => {
+  it('requires title field', async () => {
     const user = userEvent.setup()
 
     render(
