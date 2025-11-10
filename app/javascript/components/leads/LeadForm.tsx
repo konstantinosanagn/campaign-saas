@@ -76,7 +76,7 @@ export default function LeadForm({ isOpen, onClose, onSubmit, initialData, isEdi
               id="name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-gray-900"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 transition-all duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
               placeholder="Enter full name"
               required
             />
@@ -91,7 +91,7 @@ export default function LeadForm({ isOpen, onClose, onSubmit, initialData, isEdi
               id="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-gray-900"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 transition-all duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
               placeholder="Enter company email"
               required
             />
@@ -106,7 +106,7 @@ export default function LeadForm({ isOpen, onClose, onSubmit, initialData, isEdi
               id="title"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-gray-900"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 transition-all duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
               placeholder="Enter position or title"
               required
             />
@@ -121,7 +121,7 @@ export default function LeadForm({ isOpen, onClose, onSubmit, initialData, isEdi
               id="company"
               value={formData.company}
               onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-gray-900"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 transition-all duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
               placeholder="Enter company name"
               required
             />

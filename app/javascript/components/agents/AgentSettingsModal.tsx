@@ -164,7 +164,7 @@ export default function AgentSettingsModal({
                   value={productInfo}
                   onChange={(e) => setProductInfo(e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-gray-900 resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 resize-none transition-all duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
                   placeholder="Describe your product or service..."
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -181,7 +181,7 @@ export default function AgentSettingsModal({
                   id="senderCompany"
                   value={senderCompany}
                   onChange={(e) => setSenderCompany(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 transition-all duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
                   placeholder="Enter your company name"
                 />
               </div>
