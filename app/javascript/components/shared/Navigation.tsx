@@ -3,10 +3,11 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Cube from '@/components/shared/Cube'
 import { useApiKeys } from '@/hooks/useApiKeys'
-import tavilyLogo from '@/images/tavily-trans.png'
-import geminiLogo from '@/images/gemini-trans.png'
 
 type DropdownType = 'tavily' | 'gemini'
+
+const TAVILY_LOGO_SRC = '/images/tavily-trans.png'
+const GEMINI_LOGO_SRC = '/images/gemini-trans.png'
 
 export default function Navigation() {
   const { keys: apiKeys, saveKeys } = useApiKeys()
@@ -242,7 +243,7 @@ export default function Navigation() {
                     aria-label="Manage Tavily API key"
                   >
                     <img
-                      src={tavilyLogo}
+                      src={TAVILY_LOGO_SRC}
                       alt="Tavily logo"
                       className="h-8 w-auto object-contain drop-shadow-sm"
                     />
@@ -271,7 +272,7 @@ export default function Navigation() {
                     aria-label="Manage Gemini API key"
                   >
                     <img
-                      src={geminiLogo}
+                      src={GEMINI_LOGO_SRC}
                       alt="Gemini logo"
                       className="h-8 w-auto object-contain drop-shadow-sm"
                     />
