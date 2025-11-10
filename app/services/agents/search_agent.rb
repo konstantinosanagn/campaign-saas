@@ -1,5 +1,9 @@
 require "httparty"
-require "dotenv/load"
+begin
+  require "dotenv/load"
+rescue LoadError
+  # Dotenv is optional in production environments (e.g. Heroku)
+end
 require "json"
 require "logger"
 
