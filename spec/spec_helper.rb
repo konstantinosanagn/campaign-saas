@@ -1,3 +1,6 @@
+# Silence libvips optional-module warnings before anything loads ruby-vips.
+ENV['VIPS_WARNING'] = '0'
+
 # Coverage tool - must be required before any other code
 require 'simplecov'
 SimpleCov.start 'rails' do
