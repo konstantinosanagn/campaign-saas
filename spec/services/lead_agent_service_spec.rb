@@ -15,19 +15,19 @@ RSpec.describe LeadAgentService, type: :service do
     context 'with valid API keys and successful agent execution' do
       before do
         # Mock agent services to return expected outputs
-        allow_any_instance_of(SearchAgent).to receive(:run).and_return({
+        allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return({
           domain: { domain: lead.company, sources: [ { title: 'News Article', url: 'https://example.com' } ] },
           recipient: { name: lead.name, sources: [] },
           sources: [ { title: 'News Article', url: 'https://example.com' } ]
         })
 
-        allow_any_instance_of(WriterAgent).to receive(:run).and_return({
+        allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return({
           company: lead.company,
           email: 'Subject: Test Email\n\nBody content',
           recipient: lead.name
         })
 
-        allow_any_instance_of(CritiqueAgent).to receive(:run).and_return({
+        allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
           'critique' => nil
         })
       end
@@ -104,7 +104,7 @@ RSpec.describe LeadAgentService, type: :service do
         create(:agent_config, campaign: campaign, agent_name: 'WRITER', enabled: true)
 
         writer_expectation = nil
-        allow_any_instance_of(WriterAgent).to receive(:run) do |instance, *args|
+        allow_any_instance_of(Agents::WriterAgent).to receive(:run) do |instance, *args|
           writer_expectation = args
           { company: 'Test Corp', email: 'Test', recipient: lead.name }
         end
@@ -125,7 +125,7 @@ RSpec.describe LeadAgentService, type: :service do
         create(:agent_config, campaign: campaign, agent_name: 'CRITIQUE', enabled: true)
 
         critique_expectation = nil
-        allow_any_instance_of(CritiqueAgent).to receive(:run) do |instance, *args|
+        allow_any_instance_of(Agents::CritiqueAgent).to receive(:run) do |instance, *args|
           critique_expectation = args
           { 'critique' => nil }
         end
@@ -166,7 +166,7 @@ RSpec.describe LeadAgentService, type: :service do
 
     context 'when an agent fails' do
       before do
-        allow_any_instance_of(SearchAgent).to receive(:run).and_raise(StandardError, 'Search failed')
+        allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_raise(StandardError, 'Search failed')
       end
 
       it 'does not advance stage when an agent fails' do
@@ -248,7 +248,7 @@ RSpec.describe LeadAgentService, type: :service do
 
     context 'return format' do
       before do
-        allow_any_instance_of(SearchAgent).to receive(:run).and_return({
+        allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return({
           domain: { domain: 'Test', sources: [] },
           recipient: { name: lead.name, sources: [] },
           sources: []

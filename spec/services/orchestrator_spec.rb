@@ -46,9 +46,9 @@ RSpec.describe Orchestrator, type: :service do
 
   before do
     # Mock the agent services
-    allow_any_instance_of(SearchAgent).to receive(:run).and_return(mock_search_results)
-    allow_any_instance_of(WriterAgent).to receive(:run).and_return(mock_writer_output)
-    allow_any_instance_of(CritiqueAgent).to receive(:run).and_return(mock_critique_result)
+    allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return(mock_search_results)
+    allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return(mock_writer_output)
+    allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return(mock_critique_result)
   end
 
   describe '#initialize' do
@@ -57,15 +57,15 @@ RSpec.describe Orchestrator, type: :service do
     end
 
     it 'creates SearchAgent instance' do
-      expect(orchestrator.instance_variable_get(:@search_agent)).to be_a(SearchAgent)
+      expect(orchestrator.instance_variable_get(:@search_agent)).to be_a(Agents::SearchAgent)
     end
 
     it 'creates WriterAgent instance' do
-      expect(orchestrator.instance_variable_get(:@writer_agent)).to be_a(WriterAgent)
+      expect(orchestrator.instance_variable_get(:@writer_agent)).to be_a(Agents::WriterAgent)
     end
 
     it 'creates CritiqueAgent instance' do
-      expect(orchestrator.instance_variable_get(:@critique_agent)).to be_a(CritiqueAgent)
+      expect(orchestrator.instance_variable_get(:@critique_agent)).to be_a(Agents::CritiqueAgent)
     end
   end
 
@@ -95,13 +95,13 @@ RSpec.describe Orchestrator, type: :service do
     end
 
     it 'calls SearchAgent with company name' do
-      expect_any_instance_of(SearchAgent).to receive(:run).with(company_name, recipient: nil)
+      expect_any_instance_of(Agents::SearchAgent).to receive(:run).with(company_name, recipient: nil)
 
       orchestrator.run(company_name)
     end
 
     it 'calls WriterAgent with search results and parameters' do
-      expect_any_instance_of(WriterAgent).to receive(:run).with(
+      expect_any_instance_of(Agents::WriterAgent).to receive(:run).with(
         mock_search_results,
         recipient: recipient,
         company: company_name,
@@ -118,7 +118,7 @@ RSpec.describe Orchestrator, type: :service do
     end
 
     it 'calls CritiqueAgent with formatted input' do
-      expect_any_instance_of(CritiqueAgent).to receive(:run).with(
+      expect_any_instance_of(Agents::CritiqueAgent).to receive(:run).with(
         hash_including(
           'email_content' => 'Subject: Test Subject\n\nTest email body',
           'number_of_revisions' => 1
@@ -155,7 +155,7 @@ RSpec.describe Orchestrator, type: :service do
       let(:mock_critique_with_feedback) { { 'critique' => critique_feedback } }
 
       before do
-        allow_any_instance_of(CritiqueAgent).to receive(:run).and_return(mock_critique_with_feedback)
+        allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return(mock_critique_with_feedback)
       end
 
       it 'shows critique feedback and breaks loop' do
@@ -200,7 +200,7 @@ RSpec.describe Orchestrator, type: :service do
       let(:empty_search_results) { { domain: { domain: 'Test Corp', sources: [] }, recipient: { name: nil, sources: [] }, sources: [] } }
 
       before do
-        allow_any_instance_of(SearchAgent).to receive(:run).and_return(empty_search_results)
+        allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return(empty_search_results)
       end
 
       it 'handles empty sources gracefully' do
@@ -214,7 +214,7 @@ RSpec.describe Orchestrator, type: :service do
       let(:malformed_writer_output) { { company: 'Test Corp', email: nil } }
 
       before do
-        allow_any_instance_of(WriterAgent).to receive(:run).and_return(malformed_writer_output)
+        allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return(malformed_writer_output)
       end
 
       it 'handles malformed output gracefully' do
@@ -271,19 +271,19 @@ RSpec.describe Orchestrator, type: :service do
 
   describe 'agent initialization' do
     it 'initializes SearchAgent with tavily API key' do
-      expect(SearchAgent).to receive(:new).with(api_key: tavily_api_key)
+      expect(Agents::SearchAgent).to receive(:new).with(api_key: tavily_api_key)
 
       described_class.new(gemini_api_key: gemini_api_key, tavily_api_key: tavily_api_key)
     end
 
     it 'initializes WriterAgent with gemini API key' do
-      expect(WriterAgent).to receive(:new).with(api_key: gemini_api_key)
+      expect(Agents::WriterAgent).to receive(:new).with(api_key: gemini_api_key)
 
       described_class.new(gemini_api_key: gemini_api_key, tavily_api_key: tavily_api_key)
     end
 
     it 'initializes CritiqueAgent with gemini API key' do
-      expect(CritiqueAgent).to receive(:new).with(api_key: gemini_api_key)
+      expect(Agents::CritiqueAgent).to receive(:new).with(api_key: gemini_api_key)
 
       described_class.new(gemini_api_key: gemini_api_key, tavily_api_key: tavily_api_key)
     end

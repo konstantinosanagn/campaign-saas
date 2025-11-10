@@ -293,18 +293,18 @@ RSpec.describe Api::V1::LeadsController, type: :request do
       context 'with valid API keys in session' do
         it 'returns success status' do
           # Mock the agent services to avoid actual API calls
-          allow_any_instance_of(SearchAgent).to receive(:run).and_return({
+          allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return({
             company: 'Example Corp',
             sources: [ { title: 'Test Source', url: 'http://example.com' } ],
             image: 'http://example.com/image.jpg'
           })
 
-          allow_any_instance_of(WriterAgent).to receive(:run).and_return({
+          allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return({
             company: 'Example Corp',
             email: 'Subject: Test Email\n\nBody content'
           })
 
-          allow_any_instance_of(CritiqueAgent).to receive(:run).and_return({
+          allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
             'critique' => nil
           })
 
@@ -323,17 +323,17 @@ RSpec.describe Api::V1::LeadsController, type: :request do
 
         it 'creates agent output for the next agent' do
           # Mock the agent services
-          allow_any_instance_of(SearchAgent).to receive(:run).and_return({
+          allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return({
             company: 'Example Corp',
             sources: []
           })
 
-          allow_any_instance_of(WriterAgent).to receive(:run).and_return({
+          allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return({
             company: 'Example Corp',
             email: 'Test email content'
           })
 
-          allow_any_instance_of(CritiqueAgent).to receive(:run).and_return({
+          allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
             'critique' => nil
           })
 
@@ -350,17 +350,17 @@ RSpec.describe Api::V1::LeadsController, type: :request do
 
         it 'updates lead stage to next stage' do
           # Mock the agent services
-          allow_any_instance_of(SearchAgent).to receive(:run).and_return({
+          allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return({
             company: 'Example Corp',
             sources: []
           })
 
-          allow_any_instance_of(WriterAgent).to receive(:run).and_return({
+          allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return({
             company: 'Example Corp',
             email: 'Test email'
           })
 
-          allow_any_instance_of(CritiqueAgent).to receive(:run).and_return({
+          allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
             'critique' => nil
           })
 

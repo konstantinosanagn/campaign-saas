@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import Cube from '@/components/Cube'
-import ApiKeyModal from '@/components/ApiKeyModal'
+import Cube from '@/components/shared/Cube'
+import ApiKeyModal from '@/components/shared/ApiKeyModal'
 import { useApiKeys } from '@/hooks/useApiKeys'
 
 export default function Navigation() {

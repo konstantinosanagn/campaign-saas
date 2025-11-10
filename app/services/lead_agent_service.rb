@@ -1,7 +1,7 @@
 require_relative "api_key_service"
-require_relative "search_agent"
-require_relative "writer_agent"
-require_relative "critique_agent"
+require_relative "agents/search_agent"
+require_relative "agents/writer_agent"
+require_relative "agents/critique_agent"
 
 ##
 # LeadAgentService
@@ -44,9 +44,9 @@ class LeadAgentService
       tavily_key = ApiKeyService.get_tavily_api_key(session)
 
       # Initialize agents
-      search_agent = SearchAgent.new(api_key: tavily_key)
-      writer_agent = WriterAgent.new(api_key: gemini_key)
-      critique_agent = CritiqueAgent.new(api_key: gemini_key)
+      search_agent = Agents::SearchAgent.new(api_key: tavily_key)
+      writer_agent = Agents::WriterAgent.new(api_key: gemini_key)
+      critique_agent = Agents::CritiqueAgent.new(api_key: gemini_key)
 
       # Determine which agent to run based on current stage
       next_agent = determine_next_agent(lead.stage)

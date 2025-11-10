@@ -20,7 +20,7 @@ jest.mock('@/libs/constants/agents', () => ({
 }))
 
 // Import *after* mock so the component uses the mocked agents
-import AgentDashboard from '../AgentDashboard'
+import AgentDashboard from '@/components/agents/AgentDashboard'
 
 type Lead = {
   stage?: string | null
@@ -172,7 +172,7 @@ describe('AgentDashboard', () => {
 
     // Clear module cache and re-import to use the new mock
     jest.resetModules()
-    const AgentDashboardWithUnknown = require('../AgentDashboard').default
+    const AgentDashboardWithUnknown = require('@/components/agents/AgentDashboard').default
 
     const { container } = render(
       React.createElement(AgentDashboardWithUnknown, {

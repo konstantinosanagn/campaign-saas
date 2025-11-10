@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
-import Background from '../Background'
+import Background from '@/components/shared/Background'
 
 describe('Background', () => {
   beforeEach(() => {

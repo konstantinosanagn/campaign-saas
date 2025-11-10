@@ -323,7 +323,7 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
   // Helper to render markdown formatted text
   const renderMarkdown = (text: string) => {
     // Enhanced markdown rendering: **bold**, *italic*, ~~strikethrough~~, `code`, [links](url), >quotes
-    const parts: (string | JSX.Element)[] = []
+    const parts: Array<string | React.ReactNode> = []
     let lastIndex = 0
     let key = 0
     
@@ -473,7 +473,7 @@ export default function AgentOutputModal({ isOpen, onClose, leadName, leadId, ou
                 className="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
                 title="Quote: > text"
               >
-                "
+                &quot;
               </button>
             </div>
             <div className="text-xs text-gray-500">

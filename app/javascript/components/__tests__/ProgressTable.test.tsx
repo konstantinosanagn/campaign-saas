@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
-import ProgressTable from '../ProgressTable'
+import ProgressTable from '@/components/leads/ProgressTable'
 import type { Lead } from '@/types'
 
 describe('ProgressTable', () => {

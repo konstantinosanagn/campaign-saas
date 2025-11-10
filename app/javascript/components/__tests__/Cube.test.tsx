@@ -4,7 +4,7 @@ import { render } from '@testing-library/react'
 // Mock the CSS import
 jest.mock('@/styles/cube.css', () => ({}))
 
-import Cube from '../Cube'
+import Cube from '@/components/shared/Cube'
 
 describe('Cube', () => {
   it('renders cube spinner with 6 div elements', () => {

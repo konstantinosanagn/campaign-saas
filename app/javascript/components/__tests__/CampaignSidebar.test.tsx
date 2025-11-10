@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
-import CampaignSidebar from '../CampaignSidebar'
+import CampaignSidebar from '@/components/campaigns/CampaignSidebar'
 import type { Campaign } from '@/types'
 
 describe('CampaignSidebar', () => {

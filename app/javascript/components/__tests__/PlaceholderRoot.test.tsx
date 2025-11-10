@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
-import PlaceholderRoot from '../PlaceholderRoot'
+import PlaceholderRoot from '@/components/shared/PlaceholderRoot'
 
 describe('PlaceholderRoot', () => {
   it('renders default message when no message prop provided', () => {

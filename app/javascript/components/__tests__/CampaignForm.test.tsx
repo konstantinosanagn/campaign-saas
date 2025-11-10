@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import CampaignForm from '@/components/CampaignForm'
+import CampaignForm from '@/components/campaigns/CampaignForm'
 
 describe('CampaignForm', () => {
   const mockOnSubmit = jest.fn()

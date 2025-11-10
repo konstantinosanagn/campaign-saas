@@ -1,5 +1,3 @@
-/* eslint-env browser */
-/* global console, window */
 import React from 'react'
 import { Lead, LeadFormData } from '@/types'
 import apiClient from '@/libs/utils/apiClient'

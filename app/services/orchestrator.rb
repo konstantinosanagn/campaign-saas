@@ -1,6 +1,6 @@
-require_relative "search_agent"
-require_relative "writer_agent"
-require_relative "critique_agent"
+require_relative "agents/search_agent"
+require_relative "agents/writer_agent"
+require_relative "agents/critique_agent"
 
 =begin
 ORCHESTRATOR
@@ -44,9 +44,9 @@ class Orchestrator
     writer_agent: nil,
     critique_agent: nil
   )
-    @search_agent = search_agent || SearchAgent.new(api_key: tavily_api_key)
-    @writer_agent = writer_agent || WriterAgent.new(api_key: gemini_api_key)
-    @critique_agent = critique_agent || CritiqueAgent.new(api_key: gemini_api_key)
+    @search_agent = search_agent || Agents::SearchAgent.new(api_key: tavily_api_key)
+    @writer_agent = writer_agent || Agents::WriterAgent.new(api_key: gemini_api_key)
+    @critique_agent = critique_agent || Agents::CritiqueAgent.new(api_key: gemini_api_key)
   end
 
   def run(company_name, recipient: nil, product_info: nil, sender_company: nil)

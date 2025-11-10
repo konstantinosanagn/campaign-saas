@@ -50,6 +50,7 @@ package-lock.json
 /campaign_manager/public/packs/
 /coverage
 /spec/tmp
+/spec/examples.txt
 /dist/
 /build/
 

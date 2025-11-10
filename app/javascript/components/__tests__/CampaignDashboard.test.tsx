@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import CampaignDashboard from '../CampaignDashboard'
+import CampaignDashboard from '@/components/campaigns/CampaignDashboard'
 import type { Campaign, Lead } from '@/types'
 
 // Mock all hooks
@@ -21,19 +21,19 @@ jest.mock('@/hooks/useTypewriter', () => ({
 }))
 
 // Mock child components
-jest.mock('@/components/Navigation', () => {
+jest.mock('@/components/shared/Navigation', () => {
   return function MockNavigation() {
     return <div data-testid="navigation">Navigation</div>
   }
 })
 
-jest.mock('@/components/Background', () => {
+jest.mock('@/components/shared/Background', () => {
   return function MockBackground() {
     return <div data-testid="background">Background</div>
   }
 })
 
-jest.mock('@/components/CampaignForm', () => {
+jest.mock('@/components/campaigns/CampaignForm', () => {
   return function MockCampaignForm({ isOpen, onClose, onSubmit, initialData, isEdit }: any) {
     if (!isOpen) return null
     return (
@@ -46,7 +46,7 @@ jest.mock('@/components/CampaignForm', () => {
   }
 })
 
-jest.mock('@/components/LeadForm', () => {
+jest.mock('@/components/leads/LeadForm', () => {
   return function MockLeadForm({ isOpen, onClose, onSubmit, initialData, isEdit }: any) {
     if (!isOpen) return null
     return (
@@ -59,7 +59,7 @@ jest.mock('@/components/LeadForm', () => {
   }
 })
 
-jest.mock('@/components/CampaignSidebar', () => {
+jest.mock('@/components/campaigns/CampaignSidebar', () => {
   return function MockCampaignSidebar({ campaigns, selectedCampaign, onCampaignClick, onCreateClick, onEditClick, onDeleteClick }: any) {
     return (
       <div data-testid="campaign-sidebar">
@@ -76,7 +76,7 @@ jest.mock('@/components/CampaignSidebar', () => {
   }
 })
 
-jest.mock('@/components/AgentDashboard', () => {
+jest.mock('@/components/agents/AgentDashboard', () => {
   return function MockAgentDashboard({ hasSelectedCampaign, onAddLeadClick, leads }: any) {
     return (
       <div data-testid="agent-dashboard">
@@ -87,7 +87,7 @@ jest.mock('@/components/AgentDashboard', () => {
   }
 })
 
-jest.mock('@/components/ProgressTable', () => {
+jest.mock('@/components/leads/ProgressTable', () => {
   return function MockProgressTable({ leads, onRunLead, onLeadClick, selectedLeads }: any) {
     return (
       <div data-testid="progress-table">
@@ -102,7 +102,7 @@ jest.mock('@/components/ProgressTable', () => {
   }
 })
 
-jest.mock('@/components/EmptyState', () => {
+jest.mock('@/components/shared/EmptyState', () => {
   return function MockEmptyState() {
     return <div data-testid="empty-state">Empty State</div>
   }

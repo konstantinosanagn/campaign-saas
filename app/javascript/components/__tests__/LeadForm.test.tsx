@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import LeadForm from '@/components/LeadForm'
+import LeadForm from '@/components/leads/LeadForm'
 
 describe('LeadForm', () => {
   const mockOnSubmit = jest.fn()

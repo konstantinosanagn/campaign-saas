@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import Navigation from '../Navigation'
+import Navigation from '@/components/shared/Navigation'
 
 // Mock the useApiKeys hook
 jest.mock('@/hooks/useApiKeys', () => ({
@@ -8,7 +8,7 @@ jest.mock('@/hooks/useApiKeys', () => ({
 }))
 
 // Mock ApiKeyModal
-jest.mock('@/components/ApiKeyModal', () => {
+jest.mock('@/components/shared/ApiKeyModal', () => {
   return function MockApiKeyModal({ isOpen, onClose, onSave, initialKeys }: any) {
     if (!isOpen) return null
     return (
@@ -22,7 +22,7 @@ jest.mock('@/components/ApiKeyModal', () => {
 })
 
 // Mock Cube component
-jest.mock('@/components/Cube', () => {
+jest.mock('@/components/shared/Cube', () => {
   return function MockCube() {
     return <div data-testid="cube">Cube</div>
   }

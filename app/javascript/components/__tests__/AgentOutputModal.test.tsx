@@ -1,7 +1,7 @@
 // AgentOutputModal.test.tsx
 import React from 'react'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-import AgentOutputModal from '../AgentOutputModal'
+import AgentOutputModal from '@/components/agents/AgentOutputModal'
 
 const toLocaleSpy = jest.spyOn(Date.prototype, 'toLocaleString').mockReturnValue('LOCAL_TIME')
 

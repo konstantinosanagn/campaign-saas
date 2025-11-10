@@ -27,8 +27,8 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 
 // Import components directly for global fallback
-import CampaignDashboard from '../components/CampaignDashboard'
-import PlaceholderRoot from '../components/PlaceholderRoot'
+import CampaignDashboard from '../components/campaigns/CampaignDashboard'
+import PlaceholderRoot from '../components/shared/PlaceholderRoot'
 
 // Expose React for react-rails UJS
 window.React = React

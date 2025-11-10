@@ -1,5 +1,5 @@
 import React from 'react'
-import { Lead, RunAgentsResponse } from '@/types'
+import { RunAgentsResponse } from '@/types'
 import apiClient from '@/libs/utils/apiClient'
 
 export function useAgentExecution() {

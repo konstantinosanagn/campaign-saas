@@ -1,6 +1,6 @@
 import React from 'react'
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react'
-import ApiKeyModal from '../ApiKeyModal'
+import ApiKeyModal from '@/components/shared/ApiKeyModal'
 
 jest.useFakeTimers()
 
