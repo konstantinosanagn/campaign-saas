@@ -181,7 +181,7 @@ module Api
         else
           permitted[:settings] = {}
         end
-        permitted.with_indifferent_access
+        permitted
       end
 
       def permit_settings(settings_params)

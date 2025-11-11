@@ -11,11 +11,43 @@ Feature: Agent Execution Workflow
     Given a campaign titled "Agent Test" exists for me
     And a lead exists for my campaign
     And the lead has stage "queued"
-    And the campaign has agent configs for "SEARCH", "WRITER", and "CRITIQUE"
+    And the campaign has agent configs for "SEARCH", "WRITER", "CRITIQUE", and "DESIGN"
     When I send a POST request to "/api/v1/leads/#{@lead.id}/run_agents"
     Then the response status should be 200
     And the JSON response should include "status"
     And the JSON response should include "outputs"
+
+  Scenario: Run agents progresses through DESIGN stage
+    Given a campaign titled "Agent Test" exists for me
+    And a lead exists for my campaign
+    And the lead has stage "critiqued"
+    And the lead has a "CRITIQUE" agent output with email content
+    And the campaign has a "DESIGN" agent config
+    And the DESIGN agent will return formatted email
+    When I send a POST request to "/api/v1/leads/#{@lead.id}/run_agents"
+    Then the response status should be 200
+    And the lead stage should be "designed"
+    And the outputs should include "DESIGN"
+
+  Scenario: Run agents with DESIGN agent disabled skips to designed
+    Given a campaign titled "Agent Test" exists for me
+    And a lead exists for my campaign
+    And the lead has stage "critiqued"
+    And the campaign has a "DESIGN" agent config that is disabled
+    When I send a POST request to "/api/v1/leads/#{@lead.id}/run_agents"
+    Then the response status should be 200
+    And the lead stage should be "designed"
+
+  Scenario: DESIGN agent formats email with markdown
+    Given a campaign titled "Agent Test" exists for me
+    And a lead exists for my campaign
+    And the lead has stage "critiqued"
+    And the lead has a "CRITIQUE" agent output with email content
+    And the campaign has a "DESIGN" agent config
+    And the DESIGN agent will return formatted email
+    When I send a POST request to "/api/v1/leads/#{@lead.id}/run_agents"
+    Then the response status should be 200
+    And the DESIGN output should include formatted email
 
   Scenario: Run agents progresses lead through stages
     Given a campaign titled "Agent Test" exists for me

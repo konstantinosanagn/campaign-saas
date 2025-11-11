@@ -67,3 +67,44 @@ Feature: Agent Configuration Management
     When I send a GET request to "/api/v1/campaigns/#{@other_campaign.id}/agent_configs"
     Then the response status should be 404
 
+  Scenario: Update agent config with invalid settings structure
+    Given a campaign titled "Config Test" exists for me
+    And the campaign has a "WRITER" agent config
+    When I send a PATCH request to "/api/v1/campaigns/#{@campaign.id}/agent_configs/#{@agent_config.id}" with JSON:
+      """
+      {"agent_config": {"settings": {"invalid_setting": "value"}}}
+      """
+    Then the response status should be 200
+    And the JSON response should include "agentName"
+
+  Scenario: Delete non-existent agent config
+    Given a campaign titled "Config Test" exists for me
+    When I send a DELETE request to "/api/v1/campaigns/#{@campaign.id}/agent_configs/99999"
+    Then the response status should be 404
+
+  Scenario: Create agent config with nested settings parameters
+    Given a campaign titled "Config Test" exists for me
+    When I send a POST request to "/api/v1/campaigns/#{@campaign.id}/agent_configs" with JSON:
+      """
+      {"agent_config": {"agent_name": "CRITIQUE", "enabled": true, "settings": {"strictness": "high", "checks": {"personalization": true, "brand_voice": false}}}}
+      """
+    Then the response status should be 201
+    And the JSON response should include "agentName" with "CRITIQUE"
+
+  Scenario: Create agent config with empty settings
+    Given a campaign titled "Config Test" exists for me
+    When I send a POST request to "/api/v1/campaigns/#{@campaign.id}/agent_configs" with JSON:
+      """
+      {"agent_config": {"agent_name": "DESIGN", "enabled": true, "settings": {}}}
+      """
+    Then the response status should be 201
+    And the JSON response should include "agentName" with "DESIGN"
+
+  Scenario: Create agent config with missing required parameters returns error
+    Given a campaign titled "Config Test" exists for me
+    When I send a POST request to "/api/v1/campaigns/#{@campaign.id}/agent_configs" with JSON:
+      """
+      {}
+      """
+    Then the response status should be 422
+

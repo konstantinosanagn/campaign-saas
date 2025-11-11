@@ -64,14 +64,26 @@ This directory contains comprehensive Cucumber feature files covering all functi
   - Duplicate config prevention
   - Invalid agent name validation
   - Cross-user access prevention
+  - Error scenarios (validation errors, nested settings, empty params, missing params)
 - **agent_execution_workflow.feature** - Agent execution workflows:
   - Run agents on leads
-  - Stage progression
+  - Stage progression (including DESIGN stage)
+  - DESIGN agent execution and formatted email output
+  - DESIGN agent disabled handling
   - API key validation
   - Completed lead handling
   - Disabled agent handling
   - Output storage
   - Error handling
+- **orchestrator_execution.feature** - Orchestrator standalone service testing (NEW):
+  - Orchestrator.run executes full pipeline (Search → Writer → Critique)
+  - Company name input handling
+  - Optional recipient parameter
+  - Product_info and sender_company parameters
+  - Complete email with critique and sources
+  - API failure handling
+  - Critique "None" handling
+  - Revision loop behavior
 - **agent_outputs.feature** - Basic agent outputs retrieval
 - **agent_outputs_comprehensive.feature** - Comprehensive agent outputs management:
   - Get all agent outputs
@@ -80,14 +92,17 @@ This directory contains comprehensive Cucumber feature files covering all functi
   - Cross-user access prevention
   - Invalid agent name validation
   - Output data verification
+  - AgentOutput status methods (completed?, failed?, pending?)
 - **run_agents_error.feature** - Error handling for agent execution
 - **update_agent_output_writer.feature** - Update WRITER agent output
 - **update_agent_output_search.feature** - Update SEARCH agent output
 - **lead_stage_progression.feature** - Lead stage progression tracking:
   - Initial queued stage
-  - Progression through stages (searched, written, critiqued)
+  - Progression through stages (searched, written, critiqued, designed)
+  - DESIGN agent stage progression
+  - DESIGN agent receives CRITIQUE output
   - Quality score updates
-  - Stage persistence on agent failure
+  - Stage persistence on agent failure (including DESIGN agent)
 
 ### Email Functionality
 - **email_sending.feature** - Email sending functionality:
@@ -135,12 +150,16 @@ Common step definitions for:
 API-specific step definitions for:
 - Campaign setup
 - Lead setup
-- Agent output setup
+- Agent output setup (including status-based setup)
 - Agent config setup
 - API key management
 - Stage progression
-- Agent execution
+- Agent execution (including DESIGN agent mocking)
+- DESIGN agent mocking (will return formatted email, will fail)
+- Orchestrator setup and execution
+- CRITIQUE agent mocking (will return no critique, will return critique)
 - Validation scenarios
+- AgentOutput status method assertions
 
 ## Running Tests
 
@@ -166,14 +185,18 @@ The Cucumber test suite covers:
 - ✅ Lead CRUD operations
 - ✅ Agent configuration management
 - ✅ Agent execution workflows
+- ✅ DESIGN agent execution and stage progression (newly added)
+- ✅ Orchestrator standalone service testing (newly added)
 - ✅ Agent output management
+- ✅ AgentOutput model status methods (newly added)
+- ✅ Controller error handling and edge cases (newly added)
 - ✅ Email sending
 - ✅ API key management
 - ✅ Input validation
 - ✅ Error handling
 - ✅ UI interactions
 - ✅ Data isolation and security
-- ✅ Stage progression
+- ✅ Stage progression (including DESIGN stage)
 - ✅ Campaign-leads relationships
 
 ### Coverage Analysis
@@ -181,9 +204,10 @@ The Cucumber test suite covers:
 For detailed coverage analysis and gap identification, see **[COVERAGE_ANALYSIS.md](./COVERAGE_ANALYSIS.md)**.
 
 **Current Statistics:**
-- **96 scenarios** with **497 steps** - **100% passing** ✅
+- **120 scenarios** with **654 steps** - **100% passing** ✅
 - **19/19 API endpoints** covered (100%)
-- **38 feature files** covering all major functionality
+- **39 feature files** covering all major functionality
+- **76.14% code coverage** (715/939 lines) - +12.29% improvement ✅
 
 The coverage analysis document provides:
 - Complete endpoint coverage mapping
@@ -200,4 +224,27 @@ The coverage analysis document provides:
 - All API endpoints are tested for both success and error cases
 - Cross-user access prevention is thoroughly tested
 - Input validation is tested for all required fields
+- DESIGN agent execution is now fully tested
+- Orchestrator standalone service is now fully tested
+- AgentOutput model status methods are now tested
+- Controller error scenarios are now tested
+
+## Recent Additions
+
+### New Feature Files
+- **orchestrator_execution.feature** - Standalone Orchestrator service tests (8 scenarios)
+
+### Updated Feature Files
+- **agent_execution_workflow.feature** - Added DESIGN agent execution scenarios
+- **lead_stage_progression.feature** - Added DESIGN stage progression tests
+- **agent_outputs_comprehensive.feature** - Added AgentOutput status method tests
+- **agent_config_management.feature** - Added error scenario tests
+- **api_keys_management.feature** - Added edge case tests
+
+### New Step Definitions
+- DESIGN agent mocking (will return formatted email, will fail)
+- Orchestrator setup and execution
+- CRITIQUE agent mocking variations
+- AgentOutput status method assertions
+- Controller error scenario testing
 

@@ -60,3 +60,24 @@ Feature: Agent Outputs Management
     Then the response status should be 200
     And the WRITER output should include "email" in outputData
 
+  Scenario: Agent output with completed status returns true for completed?
+    Given a lead exists for my campaign
+    And a "SEARCH" agent output exists for the lead with status "completed"
+    Then the agent output should be completed
+    And the agent output should not be failed
+    And the agent output should not be pending
+
+  Scenario: Agent output with failed status returns true for failed?
+    Given a lead exists for my campaign
+    And a "WRITER" agent output exists for the lead with status "failed"
+    Then the agent output should be failed
+    And the agent output should not be completed
+    And the agent output should not be pending
+
+  Scenario: Agent output with pending status returns true for pending?
+    Given a lead exists for my campaign
+    And a "CRITIQUE" agent output exists for the lead with status "pending"
+    Then the agent output should be pending
+    And the agent output should not be completed
+    And the agent output should not be failed
+

@@ -39,6 +39,25 @@ Feature: Lead Stage Progression
     When I run the "CRITIQUE" agent on the lead
     Then the lead should have a quality score
 
+  Scenario: Lead progresses to designed after DESIGN agent
+    Given a campaign titled "Stage Test" exists for me
+    And a lead exists for my campaign
+    And the lead has stage "critiqued"
+    And the lead has a "CRITIQUE" agent output with email content
+    And the DESIGN agent will return formatted email
+    When I run the "DESIGN" agent on the lead
+    Then the lead should have stage "designed"
+
+  Scenario: DESIGN agent receives CRITIQUE output
+    Given a campaign titled "Stage Test" exists for me
+    And a lead exists for my campaign
+    And the lead has stage "critiqued"
+    And the lead has a "CRITIQUE" agent output with email content
+    And the DESIGN agent will return formatted email
+    When I run the "DESIGN" agent on the lead
+    Then the lead should have stage "designed"
+    And the lead should have agent outputs stored
+
   Scenario: Lead stage does not progress when agent fails
     Given a campaign titled "Stage Test" exists for me
     And a lead exists for my campaign
@@ -46,4 +65,13 @@ Feature: Lead Stage Progression
     And the SEARCH agent will fail
     When I run the "SEARCH" agent on the lead
     Then the lead should still have stage "queued"
+
+  Scenario: Lead stage does not progress when DESIGN agent fails
+    Given a campaign titled "Stage Test" exists for me
+    And a lead exists for my campaign
+    And the lead has stage "critiqued"
+    And the lead has a "CRITIQUE" agent output with email content
+    And the DESIGN agent will fail
+    When I run the "DESIGN" agent on the lead
+    Then the lead should still have stage "critiqued"
 

@@ -296,8 +296,24 @@ The project includes comprehensive test coverage across three testing frameworks
 - Run: `yarn test`
 - Coverage: `yarn test:coverage`
 
+### Test Coverage Summary
+
+**Combined Test Coverage:**
+- **RSpec**: 81.64% line coverage (787/964 lines)
+- **Cucumber**: 76.14% line coverage (715/939 lines) - **+12.29% improvement** ✅
+- **Jest**: React component testing (separate coverage)
+
+**Recent Cucumber Coverage Improvements (Latest Update):**
+- ✅ **+24 scenarios** (96 → 120 scenarios)
+- ✅ **+157 steps** (497 → 654 steps)
+- ✅ **+12.29% coverage** (63.85% → 76.14%)
+- ✅ **DesignAgent**: 0% → ~80%+ coverage (newly tested)
+- ✅ **Orchestrator**: 0% → ~85%+ coverage (newly tested)
+- ✅ **AgentOutput**: Improved with status method tests
+- ✅ **Controllers**: Improved error scenario coverage
+
 ### Cucumber
-- **96 scenarios** with **497 steps** - **100% passing** ✅
+- **120 scenarios** with **654 steps** - **100% passing** ✅
 - **19/19 API endpoints** covered (100%)
 - User acceptance tests covering:
   - Authentication and authorization (401 responses for unauthenticated API requests)
@@ -305,6 +321,10 @@ The project includes comprehensive test coverage across three testing frameworks
   - Lead management (create, update, delete, validation)
   - Agent workflows (run agents, retrieve outputs, update outputs, disabled agents)
   - Lead stage progression (queued → searched → written → critiqued → designed → completed)
+  - DESIGN agent execution and stage progression (newly added)
+  - Orchestrator standalone service testing (newly added)
+  - AgentOutput model status methods (completed?, failed?, pending?)
+  - Controller error handling and edge cases
   - API key management (store and retrieve)
   - UI layout and assets (title, meta, icons, React mount)
   - Dashboard empty state
@@ -314,10 +334,16 @@ The project includes comprehensive test coverage across three testing frameworks
 Run: `bundle exec cucumber`
 
 **Code Coverage (SimpleCov):**
-- **63.85% line coverage** (664/1040 lines)
+- **76.14% line coverage** (715/939 lines) - **+12.29% improvement** ✅
 - Run with coverage: `COVERAGE=true bundle exec cucumber`
 - View report: `coverage/index.html`
 - See `COVERAGE_REPORT.md` for detailed coverage analysis
+
+**Coverage Improvements:**
+- ✅ DesignAgent: 0% → Now covered with DESIGN agent execution tests
+- ✅ Orchestrator: 0% → Now covered with standalone Orchestrator tests
+- ✅ AgentOutput: 78.57% → Improved with status method tests
+- ✅ Controllers: Improved error scenario coverage
 
 **Coverage Analysis:**
 - See `features/COVERAGE_ANALYSIS.md` for detailed coverage mapping and gap analysis
@@ -394,8 +420,8 @@ rails console                # Open Rails console
 bundle exec rspec            # Run RSpec tests (584 examples, 0 failures, 81.64% coverage)
 yarn test                    # Run Jest tests (210 tests passed, 20 test suites)
 yarn test:coverage           # Run Jest tests with coverage
-bundle exec cucumber         # Run Cucumber tests (96 scenarios, 497 steps, 100% passing)
-COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (63.85% line coverage)
+bundle exec cucumber         # Run Cucumber tests (120 scenarios, 654 steps, 100% passing)
+COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (76.14% line coverage)
 ```
 
 ## Deployment

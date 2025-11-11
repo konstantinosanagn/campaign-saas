@@ -42,6 +42,17 @@ Given('the campaign has agent configs for {string}, {string}, and {string}') do 
   @campaign.agent_configs.create!(agent_name: agent3, enabled: true, settings: {})
 end
 
+Given('the campaign has agent configs for {string}, {string}, {string}, and {string}') do |agent1, agent2, agent3, agent4|
+  @campaign ||= begin
+    step 'a campaign titled "Test Campaign" exists for me'
+    @campaign
+  end
+  @campaign.agent_configs.create!(agent_name: agent1, enabled: true, settings: {})
+  @campaign.agent_configs.create!(agent_name: agent2, enabled: true, settings: {})
+  @campaign.agent_configs.create!(agent_name: agent3, enabled: true, settings: {})
+  @campaign.agent_configs.create!(agent_name: agent4, enabled: true, settings: {})
+end
+
 Given('the campaign has a {string} agent config that is disabled') do |agent_name|
   @campaign ||= begin
     step 'a campaign titled "Test Campaign" exists for me'
@@ -141,6 +152,26 @@ Given('the SEARCH agent will fail') do
   allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_raise(StandardError.new("Search agent failed"))
 end
 
+Given('the DESIGN agent will return formatted email') do
+  @lead ||= begin
+    step 'a lead exists for my campaign'
+    @lead
+  end
+  # Mock DesignAgent to return formatted email with markdown
+  allow_any_instance_of(Agents::DesignAgent).to receive(:run).and_return({
+    email: "Subject: Test\n\n**Hello** World",
+    formatted_email: "Subject: Test\n\n**Hello** World",
+    company: @lead.company,
+    recipient: @lead.name,
+    original_email: "Subject: Test\n\nHello World"
+  })
+end
+
+Given('the DESIGN agent will fail') do
+  # Mock the DesignAgent to raise an error when run
+  allow_any_instance_of(Agents::DesignAgent).to receive(:run).and_raise(StandardError.new("Design agent failed"))
+end
+
 When('I create a lead with name {string} and email {string}') do |name, email|
   @campaign ||= begin
     step 'a campaign titled "Test Campaign" exists for me'
@@ -156,6 +187,37 @@ When('I run the {string} agent on the lead') do |agent_name|
   end
   @campaign ||= @lead.campaign
   step 'I have API keys configured' unless @user&.llm_api_key.present?
+  
+  # Ensure agent config exists for the agent we're trying to run
+  unless @campaign.agent_configs.exists?(agent_name: agent_name)
+    @campaign.agent_configs.create!(agent_name: agent_name, enabled: true, settings: {})
+  end
+  
+  # Mock agents that may run before the target agent (they may have already been mocked)
+  # These mocks will be overridden by explicit mocks set up in Given steps
+  allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return({
+    domain: { domain: @lead.company, sources: [] },
+    recipient: { name: @lead.name, sources: [] },
+    sources: []
+  }) if agent_name != 'SEARCH'
+  
+  allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return({
+    company: @lead.company,
+    email: "Subject: Test\n\nHello World",
+    recipient: @lead.name
+  }) if agent_name != 'WRITER'
+  
+  allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
+    'critique' => nil
+  }) if agent_name != 'CRITIQUE'
+  
+  allow_any_instance_of(Agents::DesignAgent).to receive(:run).and_return({
+    email: "Subject: Test\n\nHello World",
+    formatted_email: "Subject: Test\n\nHello World",
+    company: @lead.company,
+    recipient: @lead.name,
+    original_email: "Subject: Test\n\nHello World"
+  }) if agent_name != 'DESIGN'
   
   # Simulate running the agent by calling the service
   result = LeadAgentService.run_agents_for_lead(@lead, @campaign, @user || User.find_by(email: 'admin@example.com'))
@@ -197,9 +259,24 @@ end
 
 Then('the outputs should include {string}') do |agent_name|
   data = JSON.parse(@last_response.body)
-  outputs = data['outputs'] || []
-  agent_outputs = outputs.select { |o| o['agentName'] == agent_name || o['agent_name'] == agent_name }
-  expect(agent_outputs).not_to be_empty
+  outputs = data['outputs'] || {}
+  # outputs is a hash keyed by agent name (e.g., {"SEARCH" => {...}, "DESIGN" => {...}})
+  # or could be an array in some cases, so handle both
+  if outputs.is_a?(Hash)
+    expect(outputs.key?(agent_name) || outputs.key?(agent_name.to_sym)).to be(true)
+  else
+    agent_outputs = outputs.select { |o| o['agentName'] == agent_name || o['agent_name'] == agent_name }
+    expect(agent_outputs).not_to be_empty
+  end
+end
+
+Then('the DESIGN output should include formatted email') do
+  data = JSON.parse(@last_response.body)
+  outputs = data['outputs'] || {}
+  design_output = outputs['DESIGN'] || outputs[:DESIGN] || outputs['design'] || outputs[:design]
+  expect(design_output).to be_present
+  formatted = design_output['formatted_email'] || design_output[:formatted_email] || design_output['formattedEmail']
+  expect(formatted).to be_present
 end
 
 Then('the outputs array should be empty') do
@@ -347,4 +424,210 @@ end
 Given("the other user's campaign has a lead") do
   step 'there is another user with a separate campaign' unless @other_campaign
   @other_lead = @other_campaign.leads.create!(name: 'Other Lead', email: 'other@example.com', title: 'CTO', company: 'Other Corp')
+end
+
+Given('a {string} agent output exists for the lead with status {string}') do |agent_name, status|
+  @lead ||= begin
+    step 'a lead exists for my campaign'
+    @lead
+  end
+  @agent_output = AgentOutput.create!(lead: @lead, agent_name: agent_name, status: status, output_data: { sample: true })
+end
+
+Then('the agent output should be completed') do
+  @agent_output ||= @lead.agent_outputs.last
+  expect(@agent_output.completed?).to be(true)
+end
+
+Then('the agent output should be failed') do
+  @agent_output ||= @lead.agent_outputs.last
+  expect(@agent_output.failed?).to be(true)
+end
+
+Then('the agent output should be pending') do
+  @agent_output ||= @lead.agent_outputs.last
+  expect(@agent_output.pending?).to be(true)
+end
+
+Then('the agent output should not be completed') do
+  @agent_output ||= @lead.agent_outputs.last
+  expect(@agent_output.completed?).to be(false)
+end
+
+Then('the agent output should not be failed') do
+  @agent_output ||= @lead.agent_outputs.last
+  expect(@agent_output.failed?).to be(false)
+end
+
+Then('the agent output should not be pending') do
+  @agent_output ||= @lead.agent_outputs.last
+  expect(@agent_output.pending?).to be(false)
+end
+
+
+Given('the Orchestrator is configured') do
+  step 'I have API keys configured'
+  # Set up default mocks for all agents used by Orchestrator
+  # Orchestrator uses: SearchAgent, WriterAgent, CritiqueAgent (NO DesignAgent)
+  @mock_search_results = {
+    domain: {
+      domain: 'Test Corp',
+      sources: [
+        {
+          'title' => 'Test Article',
+          'url' => 'https://test.com/article',
+          'content' => 'Test content'
+        }
+      ]
+    },
+    recipient: {
+      name: 'Test Recipient',
+      sources: []
+    },
+    sources: [
+      {
+        'title' => 'Test Article',
+        'url' => 'https://test.com/article',
+        'content' => 'Test content'
+      }
+    ]
+  }
+
+  @mock_writer_output = {
+    company: 'Test Corp',
+    email: 'Subject: Test Subject\n\nTest email body',
+    recipient: 'Test Recipient',
+    sources: @mock_search_results[:sources]
+  }
+
+  @mock_critique_result = { 'critique' => nil }
+
+  allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return(@mock_search_results)
+  allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return(@mock_writer_output)
+  allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return(@mock_critique_result)
+end
+
+Given('the CRITIQUE agent will return no critique') do
+  allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({ 'critique' => nil })
+end
+
+Given('the CRITIQUE agent will return critique') do
+  allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
+    'critique' => 'This email needs improvement in tone and clarity.'
+  })
+end
+
+When('I run the Orchestrator with company name {string}') do |company_name|
+  user = @user || User.find_by(email: 'admin@example.com')
+  gemini_key = user.llm_api_key || 'test-gemini-key'
+  tavily_key = user.tavily_api_key || 'test-tavily-key'
+  
+  begin
+    @orchestrator_result = Orchestrator.run(
+      company_name,
+      gemini_api_key: gemini_key,
+      tavily_api_key: tavily_key
+    )
+    @orchestrator_error = nil
+  rescue => e
+    @orchestrator_error = e
+    @orchestrator_result = nil
+  end
+end
+
+When('I run the Orchestrator with company name {string} and recipient {string}') do |company_name, recipient|
+  user = @user || User.find_by(email: 'admin@example.com')
+  gemini_key = user.llm_api_key || 'test-gemini-key'
+  tavily_key = user.tavily_api_key || 'test-tavily-key'
+  
+  begin
+    @orchestrator_result = Orchestrator.run(
+      company_name,
+      gemini_api_key: gemini_key,
+      tavily_api_key: tavily_key,
+      recipient: recipient
+    )
+    @orchestrator_error = nil
+  rescue => e
+    @orchestrator_error = e
+    @orchestrator_result = nil
+  end
+end
+
+When('I run the Orchestrator with company name {string}, product_info {string}, and sender_company {string}') do |company_name, product_info, sender_company|
+  user = @user || User.find_by(email: 'admin@example.com')
+  gemini_key = user.llm_api_key || 'test-gemini-key'
+  tavily_key = user.tavily_api_key || 'test-tavily-key'
+  
+  begin
+    @orchestrator_result = Orchestrator.run(
+      company_name,
+      gemini_api_key: gemini_key,
+      tavily_api_key: tavily_key,
+      product_info: product_info,
+      sender_company: sender_company
+    )
+    @orchestrator_error = nil
+  rescue => e
+    @orchestrator_error = e
+    @orchestrator_result = nil
+  end
+end
+
+Then('the Orchestrator should return complete email with critique and sources') do
+  expect(@orchestrator_result).to be_a(Hash)
+  expect(@orchestrator_result[:email]).to be_present
+  expect(@orchestrator_result[:sources]).to be_present
+  expect(@orchestrator_result.key?(:critique)).to be(true)
+end
+
+Then('the Orchestrator result should include company {string}') do |company_name|
+  expect(@orchestrator_result[:company]).to eq(company_name)
+end
+
+Then('the Orchestrator result should include recipient {string}') do |recipient|
+  expect(@orchestrator_result[:recipient]).to eq(recipient)
+end
+
+Then('the Orchestrator result should include product_info {string}') do |product_info|
+  expect(@orchestrator_result[:product_info]).to eq(product_info)
+end
+
+Then('the Orchestrator result should include sender_company {string}') do |sender_company|
+  expect(@orchestrator_result[:sender_company]).to eq(sender_company)
+end
+
+Then('the Orchestrator result should include email content') do
+  expect(@orchestrator_result[:email]).to be_present
+  expect(@orchestrator_result[:email]).to be_a(String)
+end
+
+Then('the Orchestrator result should include sources') do
+  expect(@orchestrator_result[:sources]).to be_present
+  expect(@orchestrator_result[:sources]).to be_an(Array)
+end
+
+Then('the Orchestrator result should include critique') do
+  expect(@orchestrator_result.key?(:critique)).to be(true)
+  # Critique can be nil or a string, so we just check that the key exists
+end
+
+Then('an error should be raised') do
+  # This step is used when we expect an error to be raised
+  # The error should have been caught in the When step if we want to test it
+  expect(@orchestrator_error).to be_present
+end
+
+Then('the Orchestrator should complete successfully') do
+  expect(@orchestrator_result).to be_a(Hash)
+  expect(@orchestrator_result[:email]).to be_present
+end
+
+Then('the Orchestrator result should have no critique') do
+  expect(@orchestrator_result[:critique]).to be_nil
+end
+
+Then('the Orchestrator result should include critique text') do
+  expect(@orchestrator_result[:critique]).to be_present
+  expect(@orchestrator_result[:critique]).to be_a(String)
 end
