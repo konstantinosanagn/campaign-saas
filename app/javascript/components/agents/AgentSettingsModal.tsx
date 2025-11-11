@@ -128,7 +128,7 @@ export default function AgentSettingsModal({
         setRewritePolicy(critiqueSettings.rewrite_policy || 'rewrite_if_bad')
         setMinScoreForSend(Math.max(1, Math.min(10, critiqueSettings.min_score_for_send || 6)))
         setVariantSelection(critiqueSettings.variant_selection || 'highest_overall_score')
-      } else if (agentName === 'DESIGN') {
+      } else if (agentName === 'DESIGNER') {
         const designSettings = settings as DesignAgentSettings
         setFormat(designSettings.format || 'formatted')
         setAllowBold(designSettings.allowBold !== false)
@@ -158,7 +158,7 @@ export default function AgentSettingsModal({
         setRewritePolicy('rewrite_if_bad')
         setMinScoreForSend(6)
         setVariantSelection('highest_overall_score')
-      } else if (agentName === 'DESIGN') {
+      } else if (agentName === 'DESIGNER') {
         setFormat('formatted')
         setAllowBold(true)
         setAllowItalic(true)
@@ -202,7 +202,7 @@ export default function AgentSettingsModal({
           min_score_for_send: minScoreForSend,
           variant_selection: variantSelection
         }
-      } else if (agentName === 'DESIGN') {
+      } else if (agentName === 'DESIGNER') {
         settings = {
           format: format,
           allowBold: allowBold,
@@ -255,7 +255,7 @@ export default function AgentSettingsModal({
         setRewritePolicy(critiqueSettings.rewrite_policy || 'rewrite_if_bad')
         setMinScoreForSend(Math.max(1, Math.min(10, critiqueSettings.min_score_for_send || 6)))
         setVariantSelection(critiqueSettings.variant_selection || 'highest_overall_score')
-      } else if (agentName === 'DESIGN') {
+      } else if (agentName === 'DESIGNER') {
         const designSettings = settings as DesignAgentSettings
         setFormat(designSettings.format || 'formatted')
         setAllowBold(designSettings.allowBold !== false)
