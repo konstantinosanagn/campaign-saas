@@ -9,10 +9,8 @@ module Api
         client_secret_present = ENV["GMAIL_CLIENT_SECRET"].present?
         oauth_configured = client_id_present && client_secret_present
         
-        # Log for debugging
+        # Log for debugging (avoid logging sensitive values)
         Rails.logger.info("OAuth Status Check - CLIENT_ID present: #{client_id_present}, CLIENT_SECRET present: #{client_secret_present}")
-        Rails.logger.info("OAuth Status Check - CLIENT_ID value: #{ENV['GMAIL_CLIENT_ID']&.first(20)}...") if client_id_present
-        Rails.logger.info("OAuth Status Check - CLIENT_SECRET value: #{ENV['GMAIL_CLIENT_SECRET']&.first(10)}...") if client_secret_present
         
         status = {
           oauth_configured: oauth_configured,

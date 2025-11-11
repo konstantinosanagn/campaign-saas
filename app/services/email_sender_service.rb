@@ -106,20 +106,38 @@ class EmailSenderService
       # Try Gmail API first if OAuth is configured (more reliable than SMTP XOAUTH2)
       oauth_user = user
       send_from_email = user.send_from_email.presence || user.email
+      Rails.logger.info("[EmailSender] Checking OAuth - user: #{user.id} (#{user.email}), send_from_email: #{send_from_email}")
+      
+      # If send_from_email is different from user email, try to find a user with that email who has OAuth
       if send_from_email != user.email
         email_user = User.find_by(email: send_from_email)
+        Rails.logger.info("[EmailSender] Found email_user: #{email_user&.id} (#{email_user&.email})")
         if email_user && GmailOauthService.oauth_configured?(email_user)
           oauth_user = email_user
+          Rails.logger.info("[EmailSender] Using OAuth from email_user #{email_user.id}")
+        end
+      # If send_from_email == user.email but user doesn't have OAuth, still try to find email_user
+      elsif !GmailOauthService.oauth_configured?(user)
+        email_user = User.find_by(email: send_from_email)
+        if email_user && email_user.id != user.id && GmailOauthService.oauth_configured?(email_user)
+          oauth_user = email_user
+          Rails.logger.info("[EmailSender] User #{user.id} doesn't have OAuth, using OAuth from email_user #{email_user.id}")
         end
       end
 
       if GmailOauthService.oauth_configured?(oauth_user)
+        Rails.logger.info("[EmailSender] OAuth configured for oauth_user #{oauth_user.id}, getting access token...")
         access_token = GmailOauthService.valid_access_token(oauth_user)
+        Rails.logger.info("[EmailSender] Access token present: #{access_token.present?}")
         if access_token
           Rails.logger.info("[EmailSender] Using Gmail API to send email (OAuth configured)")
           send_via_gmail_api(lead, email_content, from_email, oauth_user, access_token)
           return
+        else
+          Rails.logger.warn("[EmailSender] OAuth configured but valid_access_token returned nil for user #{oauth_user.id}")
         end
+      else
+        Rails.logger.info("[EmailSender] OAuth not configured for oauth_user #{oauth_user.id} (#{oauth_user.email})")
       end
 
       # Fallback to SMTP (OAuth or password-based)
