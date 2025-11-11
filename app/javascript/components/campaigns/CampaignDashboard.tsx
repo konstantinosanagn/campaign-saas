@@ -9,6 +9,7 @@ import AgentDashboard from '@/components/agents/AgentDashboard'
 import EmptyState from '@/components/shared/EmptyState'
 import AgentOutputModal from '@/components/agents/AgentOutputModal'
 import AgentSettingsModal from '@/components/agents/AgentSettingsModal'
+import EmailConfigModal from '@/components/shared/EmailConfigModal'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useLeads } from '@/hooks/useLeads'
 import { useSelection } from '@/hooks/useSelection'
@@ -43,6 +44,7 @@ export default function CampaignDashboard() {
   const [outputModalLead, setOutputModalLead] = useState<Lead | null>(null)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [settingsModalAgent, setSettingsModalAgent] = useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | null>(null)
+  const [isEmailConfigModalOpen, setIsEmailConfigModalOpen] = useState(false)
 
   const { campaigns, createCampaign, updateCampaign, deleteCampaign } = useCampaigns()
   const { leads, createLead, updateLead, deleteLeads, findLead, refreshLeads } = useLeads()
@@ -286,9 +288,9 @@ export default function CampaignDashboard() {
     setIsSettingsModalOpen(true)
   }, [])
 
-  // Check if a lead is ready to send (has reached critiqued or completed stage)
+  // Check if a lead is ready to send (has reached designed or completed stage)
   const isLeadReady = useCallback((lead: Lead) => {
-    return lead.stage === 'critiqued' || lead.stage === 'completed'
+    return lead.stage === 'designed' || lead.stage === 'completed'
   }, [])
 
   // Count ready leads
@@ -422,6 +424,13 @@ export default function CampaignDashboard() {
                         title={readyLeadsCount === 0 ? 'No ready leads to send' : `Send emails to ${readyLeadsCount} ready lead(s)`}
                       >
                         {sendingEmails ? 'Sending...' : `Send${readyLeadsCount > 0 ? ` (${readyLeadsCount})` : ''}`}
+                      </button>
+                      <button 
+                        onClick={() => setIsEmailConfigModalOpen(true)}
+                        className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors duration-200"
+                        title="Configure email settings"
+                      >
+                        Email Settings
                       </button>
                     </div>
                   </div>
@@ -571,6 +580,11 @@ export default function CampaignDashboard() {
           loading={configsLoading}
         />
       )}
+
+      <EmailConfigModal
+        isOpen={isEmailConfigModalOpen}
+        onClose={() => setIsEmailConfigModalOpen(false)}
+      />
       </main>
     </>
   )

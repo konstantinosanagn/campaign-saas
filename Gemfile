@@ -37,6 +37,11 @@ gem "rack-attack"
 # HTTP client for API calls
 gem "httparty"
 
+# OAuth for email sending (Gmail/Google Workspace)
+gem "googleauth"
+gem "signet"
+gem "gmail_xoauth"
+
 # Testing
 gem "factory_bot_rails", "~> 6.4"
 gem "shoulda-matchers", "~> 6.0"
