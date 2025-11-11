@@ -102,22 +102,41 @@ RSpec.describe LeadAgentService, type: :service do
 
       it 'passes search output to writer agent' do
         lead.update!(stage: 'searched')
+      
         search_result = {
-          sources: [ { title: 'Article', url: 'http://test.com' } ]
+          company: lead.company,
+          inferred_focus_areas: ["cloud architecture", "scalability"],
+          personalization_signals: {
+            recipient: [{ title: "Article", url: "http://test.com" }],
+            company:   [{ title: "Company News", url: "http://company.com" }]
+          }
         }
-        create(:agent_output, lead: lead, agent_name: 'SEARCH', status: 'completed', output_data: search_result)
-        create(:agent_config, campaign: campaign, agent_name: 'WRITER', enabled: true)
 
-        writer_expectation = nil
-        allow_any_instance_of(Agents::WriterAgent).to receive(:run) do |instance, *args|
-          writer_expectation = args
-          { company: 'Test Corp', email: 'Test', recipient: lead.name }
-        end
+        create(:agent_output,
+          lead: lead,
+          agent_name: 'SEARCH',
+          status: 'completed',
+          output_data: search_result.deep_symbolize_keys
+        )
 
-        described_class.run_agents_for_lead(lead, campaign, user)
+        expected_sources = (search_result[:personalization_signals][:recipient] +
+                      search_result[:personalization_signals][:company]).uniq
 
-        # Writer should receive search results as first argument
-        expect(writer_expectation.first).to include(sources: search_result[:sources])
+        writer_output = {
+          company: lead.company,
+          email: "Subject: Test Email\n\nBody text",
+          recipient: lead.name,
+          variants: ["Subject: Test Email\n\nBody text"]
+        }
+
+        expect_any_instance_of(Agents::WriterAgent).to receive(:run) do |_, passed_search_results, **|
+          expect(passed_search_results[:company]).to eq(lead.company)
+          expect(passed_search_results[:sources]).to eq(expected_sources)
+          expect(passed_search_results[:inferred_focus_areas]).to eq(search_result[:inferred_focus_areas])
+        end.and_return(writer_output)
+        
+        result = described_class.run_agents_for_lead(lead, campaign, user)
+        expect(result[:status]).to eq("completed")
       end
 
       it 'passes writer output to critique agent' do

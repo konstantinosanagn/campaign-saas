@@ -44,7 +44,7 @@ class Orchestrator
     writer_agent: nil,
     critique_agent: nil
   )
-    @search_agent = search_agent || Agents::SearchAgent.new(api_key: tavily_api_key)
+    @search_agent = search_agent || Agents::SearchAgent.new(tavily_key: tavily_api_key, gemini_key: gemini_api_key)
     @writer_agent = writer_agent || Agents::WriterAgent.new(api_key: gemini_api_key)
     @critique_agent = critique_agent || Agents::CritiqueAgent.new(api_key: gemini_api_key)
   end
@@ -60,23 +60,48 @@ class Orchestrator
 
     # Step 1: Search for information about the company
     puts "Step 1: Searching for latest news about #{company_name} and #{recipient || 'General'}..."
+    recipient_name = recipient.is_a?(Hash) ? recipient[:name] : recipient
+    recipient_job_title = recipient.is_a?(Hash) ? recipient[:job_title] : nil
+    recipient_email = recipient.is_a?(Hash) ? recipient[:email] : nil
+    recipient_tone = recipient.is_a?(Hash) ? recipient[:tone] : nil
+    recipient_persona = recipient.is_a?(Hash) ? recipient[:persona] : nil
+    recipient_goal = recipient.is_a?(Hash) ? recipient[:goal] : nil
+
     search_results = @search_agent.run(
-        company: company_name,
-        recipient_name: recipient&.dig(:name),
-        job_title: recipient&.dig(:job_title),
-        email: recipient&.dig(:email),
-        tone: recipient&.dig(:tone),
-        persona: recipient&.dig(:persona),
-        goal: recipient&.dig(:goal)
-      )
-    sources = Array(search_results[:personalization_signals][:recipient])
+      company: company_name,
+      recipient_name: recipient_name,
+      job_title: recipient_job_title,
+      email: recipient_email,
+      tone: recipient_tone,
+      persona: recipient_persona,
+      goal: recipient_goal
+    )
+
+    # search_results = @search_agent.run(
+    #     company: company_name,
+    #     recipient_name: recipient&.dig(:name),
+    #     job_title: recipient&.dig(:job_title),
+    #     email: recipient&.dig(:email),
+    #     tone: recipient&.dig(:tone),
+    #     persona: recipient&.dig(:persona),
+    #     goal: recipient&.dig(:goal)
+    #   )
+    recipient_sources = Array(search_results.dig(:personalization_signals, :recipient))
+    company_sources   = Array(search_results.dig(:personalization_signals, :company))
+    sources = recipient_sources + company_sources
+
     puts "Found #{sources.length} sources"
 
     # Step 2: Generate personalized email TO the company
     puts "Step 2: Generating personalized B2B outreach email..."
+    formatted_search_input = {
+      company: company_name,
+      inferred_focus_areas: search_results[:inferred_focus_areas],
+      sources: Array(search_results.dig(:personalization_signals, :company)) # company-focused signals
+    }
     writer_output = @writer_agent.run(
-      search_results,
-      recipient: search_results[:target_identity],
+      formatted_search_input,
+      recipient: recipient_name,
       company: company_name,
       product_info: product_info,
       sender_company: sender_company
@@ -118,8 +143,10 @@ class Orchestrator
       company: company_name,
       recipient: recipient,
       email: email_text,
+      variants: [email_text],
       critique: critique_result["critique"],
       sources: sources,
+      inferred_focus_areas: search_results[:inferred_focus_areas],
       product_info: product_info,
       sender_company: sender_company
     }

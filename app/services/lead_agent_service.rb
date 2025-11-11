@@ -59,7 +59,7 @@ class LeadAgentService
       tavily_key = ApiKeyService.get_tavily_api_key(user)
 
       # Initialize agents
-      search_agent = Agents::SearchAgent.new(api_key: tavily_key)
+      search_agent = Agents::SearchAgent.new(tavily_key: tavily_key, gemini_key: gemini_key)
       writer_agent = Agents::WriterAgent.new(api_key: gemini_key)
       critique_agent = Agents::CritiqueAgent.new(api_key: gemini_key)
       design_agent = Agents::DesignAgent.new(api_key: gemini_key)
@@ -257,49 +257,47 @@ class LeadAgentService
     ##
     # Executes the SearchAgent
     def execute_search_agent(search_agent, lead, agent_config)
-      # Extract domain from lead email or use company name
-      domain = extract_domain_from_lead(lead)
-      # Pass agent_config to search_agent so it can use settings
-      config_hash = agent_config ? { settings: agent_config.settings } : nil
-      search_agent.run(domain, recipient: lead.name, config: config_hash)
+      search_agent.run(
+      company: lead.company,
+      recipient_name: lead.name,
+      job_title: lead.title || "",
+      email: lead.email,
+      tone: agent_config&.settings&.dig("tone"),
+      persona: agent_config&.settings&.dig("sender_persona"),
+      goal: (lead.campaign.shared_settings || {})["primary_goal"]
+      )
     end
 
     ##
     # Executes the WriterAgent
     def execute_writer_agent(writer_agent, lead, agent_config, search_output)
-      # Prepare search results for writer
-      # Convert string keys to symbols for consistency
-      sources = search_output&.dig("sources") || search_output&.dig(:sources) || []
-      image = search_output&.dig("image") || search_output&.dig(:image)
+      return writer_agent.run({ company: lead.company, sources: [] }, recipient: lead.name, company: lead.company) unless search_output
 
-      # Deep symbolize keys for sources array
-      symbolized_sources = sources.map do |source|
-        source.is_a?(Hash) ? source.deep_symbolize_keys : source
-      end
+      search_output = search_output.deep_symbolize_keys
+      # Extract unified sources (recipient + company)
+      recipient_sources = Array(search_output.dig(:personalization_signals, :recipient))
+      company_sources   = Array(search_output.dig(:personalization_signals, :company))
+      combined_sources  = (recipient_sources + company_sources).uniq
 
       search_results = {
         company: lead.company,
-        sources: symbolized_sources,
-        image: image
+        sources: combined_sources,
+        inferred_focus_areas: search_output[:inferred_focus_areas]
       }
 
-      # Get writer settings from config
-      settings = agent_config&.settings || {}
-
-      # Get shared_settings from campaign (product_info and sender_company are now in shared_settings)
+      settings        = agent_config&.settings || {}
       shared_settings = lead.campaign.shared_settings || {}
-      product_info = shared_settings["product_info"] || shared_settings[:product_info] || settings["product_info"]
-      sender_company = shared_settings["sender_company"] || shared_settings[:sender_company] || settings["sender_company"]
 
-      # Pass config and shared_settings to writer_agent
-      config_hash = agent_config ? { settings: agent_config.settings } : nil
+      product_info   = shared_settings["product_info"]   || settings["product_info"]
+      sender_company = shared_settings["sender_company"] || settings["sender_company"]
+
       writer_agent.run(
         search_results,
         recipient: lead.name,
         company: lead.company,
         product_info: product_info,
         sender_company: sender_company,
-        config: config_hash,
+        config: { settings: settings },
         shared_settings: shared_settings
       )
     end
