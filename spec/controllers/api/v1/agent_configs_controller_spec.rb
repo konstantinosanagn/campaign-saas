@@ -93,7 +93,7 @@ RSpec.describe Api::V1::AgentConfigsController, type: :controller do
 
     it 'renders errors when save fails' do
       allow_any_instance_of(AgentConfig).to receive(:save).and_return(false)
-      allow_any_instance_of(AgentConfig).to receive_message_chain(:errors, :full_messages).and_return(['save failed'])
+      allow_any_instance_of(AgentConfig).to receive_message_chain(:errors, :full_messages).and_return([ 'save failed' ])
 
       post :create, params: { campaign_id: campaign.id, agent_config: { agentName: 'SEARCH' } }
 
@@ -146,7 +146,7 @@ RSpec.describe Api::V1::AgentConfigsController, type: :controller do
     it 'renders errors when update fails' do
       config = create(:agent_config, campaign: campaign, agent_name: 'WRITER')
       allow_any_instance_of(AgentConfig).to receive(:update).and_return(false)
-      allow_any_instance_of(AgentConfig).to receive_message_chain(:errors, :full_messages).and_return(['update failed'])
+      allow_any_instance_of(AgentConfig).to receive_message_chain(:errors, :full_messages).and_return([ 'update failed' ])
 
       patch :update, params: { campaign_id: campaign.id, id: config.id, agent_config: { enabled: false } }
 
