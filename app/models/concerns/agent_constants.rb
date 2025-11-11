@@ -57,4 +57,3 @@ module AgentConstants
     STAGE_COMPLETED
   ].freeze
 end
-

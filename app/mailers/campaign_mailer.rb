@@ -22,7 +22,7 @@ class CampaignMailer < ApplicationMailer
 
   def build_subject(campaign_title, recipient_name)
     base = campaign_title.presence || "Campaign Outreach"
-    if recipient_name.present?
+    if recipient_name.present? && recipient_name.strip.present?
       "#{base} – Outreach for #{recipient_name}"
     else
       "#{base} – Outreach Update"

@@ -93,3 +93,22 @@ cucumber_output.txt
 # Ad-hoc test artifacts
 test-*.test.ts
 useApiKeys-simple.test.ts
+
+# Test coverage screenshots and reports
+*_coverage.png
+*_pass.png
+*_fail.png
+COVERAGE_REPORT.md
+CUCUMBER_COVERAGE_GAPS.md
+UNCOVERED_LINES_REPORT.txt
+
+# Temporary commit files
+commit_message.txt
+
+# Generated analysis/report files
+PROJECT_ANALYSIS.md
+
+# Session-specific documentation and guides
+features/COVERAGE_ANALYSIS.md
+features/HOW_TO_CHECK_COVERAGE.md
+features/SIMPLECOV_GUIDE.md

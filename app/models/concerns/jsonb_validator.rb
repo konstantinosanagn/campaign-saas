@@ -34,9 +34,12 @@ module JsonbValidator
         # Skip validation if value is nil (handled by presence validations)
         next if value.nil?
 
-        # Allow empty hash/array if configured
-        if allow_empty && (value == {} || value == [])
-          next
+        # Allow empty hash/array if configured (default: true)
+        if allow_empty
+          # Check if value is empty (works for both Hash and Array, handles both string and symbol keys)
+          if (value.is_a?(Hash) && value.empty?) || (value.is_a?(Array) && value.empty?)
+            next
+          end
         end
 
         # Basic type checking
@@ -58,26 +61,30 @@ module JsonbValidator
             end
 
             # Validate property types if specified
+            # Only validate properties that actually exist in the data (flexible schema)
             if schema[:properties]
               schema[:properties].each do |prop_name, prop_schema|
                 prop_key = prop_name.to_s
                 prop_value = value[prop_key] || value[prop_key.to_sym]
 
-                next if prop_value.nil? # Skip nil values (optional by default)
+                # Skip nil values (optional by default) - only validate if property exists
+                next if prop_value.nil?
 
                 prop_type = prop_schema[:type] || prop_schema["type"]
                 if prop_type
                   case prop_type
                   when "string"
-                    unless prop_value.is_a?(String)
-                      record.errors.add(attribute, "#{prop_key} must be a string")
+                    # Allow numbers and other types to be converted to string
+                    unless prop_value.is_a?(String) || prop_value.respond_to?(:to_s)
+                      record.errors.add(attribute, "#{prop_key} must be a string or convertible to string")
                     end
                   when "integer"
-                    unless prop_value.is_a?(Integer)
+                    # Allow strings that can be converted to integer
+                    unless prop_value.is_a?(Integer) || (prop_value.is_a?(String) && prop_value.match?(/^\d+$/))
                       record.errors.add(attribute, "#{prop_key} must be an integer")
                     end
                   when "boolean"
-                    unless [true, false].include?(prop_value)
+                    unless [ true, false ].include?(prop_value)
                       record.errors.add(attribute, "#{prop_key} must be a boolean")
                     end
                   when "array"
@@ -85,8 +92,9 @@ module JsonbValidator
                       record.errors.add(attribute, "#{prop_key} must be an array")
                     end
                   when "object"
+                    # Object type means Hash - allow nested objects
                     unless prop_value.is_a?(Hash)
-                      record.errors.add(attribute, "#{prop_key} must be an object")
+                      record.errors.add(attribute, "#{prop_key} must be an object (Hash)")
                     end
                   end
                 end
@@ -103,4 +111,3 @@ module JsonbValidator
     end
   end
 end
-

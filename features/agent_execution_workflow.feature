@@ -96,3 +96,32 @@ Feature: Agent Execution Workflow
     Then the response status should be 200
     And the JSON response should include "failedAgents"
 
+  Scenario: Run agents with async=true enqueues job
+    Given a campaign titled "Agent Test" exists for me
+    And a lead exists for my campaign
+    And the campaign has agent configs for "SEARCH", "WRITER", "CRITIQUE", and "DESIGN"
+    When I send a POST request to "/api/v1/leads/#{@lead.id}/run_agents?async=true"
+    Then the response status should be 202
+    And the JSON response should include "status" with "queued"
+    And the JSON response should include "job_id"
+    And an AgentExecutionJob should be enqueued
+
+  Scenario: Run agents with async=false runs synchronously
+    Given a campaign titled "Agent Test" exists for me
+    And a lead exists for my campaign
+    And the campaign has agent configs for "SEARCH", "WRITER", "CRITIQUE", and "DESIGN"
+    And the Orchestrator is configured
+    When I send a POST request to "/api/v1/leads/#{@lead.id}/run_agents?async=false"
+    Then the response status should be 200
+    And the JSON response should include "status"
+    And no jobs should be enqueued
+    And the lead should have agent outputs stored
+
+  Scenario: Run agents async handles job enqueue failure
+    Given a campaign titled "Agent Test" exists for me
+    And a lead exists for my campaign
+    And job enqueueing will fail
+    When I send a POST request to "/api/v1/leads/#{@lead.id}/run_agents?async=true"
+    Then the response status should be 500
+    And the JSON response should include "error"
+

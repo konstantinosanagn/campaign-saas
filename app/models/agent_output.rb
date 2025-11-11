@@ -12,6 +12,7 @@ class AgentOutput < ApplicationRecord
 
   # JSON schema validation for output_data (optional, won't break existing data)
   # This provides basic structure validation without being too strict
+  # Note: Only validates properties that exist - allows flexible data structures
   validates_jsonb_schema :output_data, schema: {
     type: "object",
     properties: {
@@ -20,11 +21,15 @@ class AgentOutput < ApplicationRecord
       company: { type: "string" },
       recipient: { type: "string" },
       sources: { type: "array" },
+      domain: { type: "object" },  # SEARCH agent output (nested object)
       critique: { type: "string" },
       score: { type: "integer" },
       variants: { type: "array" },
       selected_variant: { type: "string" },
-      error: { type: "string" }
+      error: { type: "string" },
+      image: { type: "string" },  # SEARCH agent may return image URL
+      product_info: { type: "string" },  # WRITER agent output
+      sender_company: { type: "string" }  # WRITER agent output
     }
   }, allow_empty: false, strict: false
 

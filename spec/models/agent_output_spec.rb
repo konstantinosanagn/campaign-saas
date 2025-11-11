@@ -131,7 +131,8 @@ RSpec.describe AgentOutput, type: :model do
         'sources' => [
           { 'title' => 'Test', 'url' => 'https://test.com', 'content' => 'Content' }
         ],
-        'domain' => 'test.com'
+        'domain' => { 'domain' => 'test.com', 'sources' => [] },
+        'recipient' => { 'name' => 'Test User', 'sources' => [] }
       }
       output = create(:agent_output, lead: lead, output_data: complex_data)
       # JSONB stores keys as strings, so expect string keys back

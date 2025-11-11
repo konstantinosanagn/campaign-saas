@@ -55,16 +55,16 @@ class EmailSenderService
     # @return [Boolean] True if lead is ready to send
     def lead_ready?(lead)
       # Must be at designed or completed stage
-      return false unless lead.stage.in?([STAGE_DESIGNED, STAGE_COMPLETED])
+      return false unless lead.stage.in?([ AgentConstants::STAGE_DESIGNED, AgentConstants::STAGE_COMPLETED ])
 
       # Check for DESIGN output first (preferred)
-      design_output = lead.agent_outputs.find_by(agent_name: AGENT_DESIGN, status: STATUS_COMPLETED)
+      design_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED)
       if design_output && design_output.output_data["formatted_email"].present?
         return true
       end
 
       # Fallback to WRITER output if DESIGN is not available
-      writer_output = lead.agent_outputs.find_by(agent_name: AGENT_WRITER, status: STATUS_COMPLETED)
+      writer_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_WRITER, status: AgentConstants::STATUS_COMPLETED)
       if writer_output && writer_output.output_data["email"].present?
         return true
       end
@@ -84,8 +84,8 @@ class EmailSenderService
     # Sends email to a single lead
     def send_email_to_lead(lead)
       # Get the email content (prefer DESIGN formatted_email, fallback to WRITER email)
-      design_output = lead.agent_outputs.find_by(agent_name: AGENT_DESIGN, status: STATUS_COMPLETED)
-      writer_output = lead.agent_outputs.find_by(agent_name: AGENT_WRITER, status: STATUS_COMPLETED)
+      design_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED)
+      writer_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_WRITER, status: AgentConstants::STATUS_COMPLETED)
 
       email_content = nil
       if design_output && design_output.output_data["formatted_email"].present?
@@ -96,7 +96,7 @@ class EmailSenderService
 
       raise "No email content found for lead #{lead.id}" if email_content.blank?
 
-      from_email = lead.campaign.user&.email.presence || ApplicationMailer.default[:from]
+      from_email = lead.campaign.user&.email.presence || ENV.fetch("MAILER_FROM", "noreply@example.com")
 
       # Send email using CampaignMailer
       CampaignMailer.send_email(

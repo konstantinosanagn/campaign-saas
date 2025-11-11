@@ -11,41 +11,25 @@ class AgentConfig < ApplicationRecord
   validates :settings, exclusion: { in: [ nil ] } # Allow empty hash, but not nil
   validates :enabled, inclusion: { in: [ true, false ] }
 
-  # JSON schema validation for settings (optional, won't break existing data)
-  # This provides basic type checking without being too strict
-  validates_jsonb_schema :settings, schema: {
-    type: "object",
-    properties: {
-      # WRITER agent settings
-      tone: { type: "string" },
-      sender_persona: { type: "string" },
-      email_length: { type: "string" },
-      personalization_level: { type: "string" },
-      primary_cta_type: { type: "string" },
-      cta_softness: { type: "string" },
-      num_variants_per_lead: { type: "integer" },
-      product_info: { type: "string" },
-      sender_company: { type: "string" },
-      # SEARCH agent settings
-      search_depth: { type: "string" },
-      max_queries_per_lead: { type: "integer" },
-      on_low_info_behavior: { type: "string" },
-      extracted_fields: { type: "array" },
-      # CRITIQUE agent settings
-      strictness: { type: "string" },
-      min_score_for_send: { type: "integer" },
-      rewrite_policy: { type: "string" },
-      variant_selection: { type: "string" },
-      checks: { type: "object" },
-      # DESIGN agent settings
-      format: { type: "string" },
-      allow_bold: { type: "boolean" },
-      allow_italic: { type: "boolean" },
-      allow_bullets: { type: "boolean" },
-      cta_style: { type: "string" },
-      font_family: { type: "string" }
-    }
-  }, allow_empty: true, strict: false
+  # Simple validation: settings must be a JSON object (Hash) when present
+  # Allow empty hash, nested objects, and arrays - no deep type enforcement
+  validate :settings_must_be_json_object
+
+  private
+
+  def settings_must_be_json_object
+    # Allow nil or empty settings
+    return if settings.nil? || settings == {}
+
+    # Top-level must be a Hash (JSON object)
+    unless settings.is_a?(Hash)
+      errors.add(:settings, "must be a JSON object")
+    end
+
+    # Do NOT add restrictions on nested values here.
+    # Arrays and hashes inside `settings` are fine.
+    # We only validate that the top-level is a Hash, not the contents.
+  end
 
   # Status query methods
   def enabled?

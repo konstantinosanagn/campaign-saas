@@ -2,7 +2,13 @@ FactoryBot.define do
   factory :agent_output do
     association :lead
     agent_name { 'SEARCH' }
-    output_data { { sources: [], domain: 'example.com' } }
+    output_data do
+      {
+        sources: [],
+        domain: { domain: 'example.com', sources: [] },
+        recipient: { name: 'John Doe', sources: [] }
+      }
+    end
     status { 'pending' }
   end
 
@@ -15,7 +21,11 @@ FactoryBot.define do
           { title: 'Article 1', url: 'https://example.com/1', content: 'Content 1' },
           { title: 'Article 2', url: 'https://example.com/2', content: 'Content 2' }
         ],
-        domain: 'example.com'
+        domain: { domain: 'example.com', sources: [
+          { title: 'Article 1', url: 'https://example.com/1', content: 'Content 1' },
+          { title: 'Article 2', url: 'https://example.com/2', content: 'Content 2' }
+        ] },
+        recipient: { name: 'John Doe', sources: [] }
       }
     end
     status { 'completed' }

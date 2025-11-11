@@ -7,9 +7,11 @@ end
 require 'cucumber/rails'
 require 'rspec/mocks'
 require 'warden/test/helpers'
+require 'active_job/test_helper'
 
 World(RSpec::Mocks::ExampleMethods)
 World(Warden::Test::Helpers)
+World(ActiveJob::TestHelper)
 
 Before do
   RSpec::Mocks.setup
@@ -17,6 +19,13 @@ Before do
   ENV['DISABLE_AUTH'] = 'true'
   # Clear any existing Warden sessions
   Warden.test_mode!
+  # Clear email deliveries before each scenario
+  ActionMailer::Base.deliveries.clear
+  # Use test adapter for ActiveJob
+  ActiveJob::Base.queue_adapter = :test
+  # Clear enqueued jobs before each scenario
+  ActiveJob::Base.queue_adapter.enqueued_jobs.clear
+  ActiveJob::Base.queue_adapter.performed_jobs.clear
 end
 
 After do

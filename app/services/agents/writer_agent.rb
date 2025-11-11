@@ -143,12 +143,13 @@ module Agents
     rescue => e
       {
         company: company || search_results[:company],
-        email: "Error generating email: #{e.message}",
+        email: "",
         recipient: recipient,
-        sources: search_results[:sources],
+        sources: search_results[:sources] || [],
         image: search_results[:image],
         product_info: product_info,
-        sender_company: sender_company
+        sender_company: sender_company,
+        error: "WriterAgent LLM error: #{e.class}: #{e.message}"
       }
     end
 

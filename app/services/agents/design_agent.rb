@@ -55,19 +55,20 @@ module Agents
       company = writer_output[:company] || writer_output["company"]
       recipient = writer_output[:recipient] || writer_output["recipient"]
 
-      # If email is empty, return original output
+      # Extract settings from config (handle both camelCase and snake_case)
+      settings = config&.dig(:settings) || config&.dig("settings") || {}
+      format = settings[:format] || settings["format"] || "formatted"
+
+      # If email is empty, return original output with format
       if email_content.blank?
         return {
           email: email_content,
           formatted_email: email_content,
+          format: format,
           company: company,
           recipient: recipient
         }
       end
-
-      # Extract settings from config (handle both camelCase and snake_case)
-      settings = config&.dig(:settings) || config&.dig("settings") || {}
-      format = settings[:format] || settings["format"] || "formatted"
       # Default to true unless explicitly set to false (check all key variations)
       allow_bold = !(settings[:allow_bold] == false || settings["allow_bold"] == false || settings[:allowBold] == false || settings["allowBold"] == false)
       allow_italic = !(settings[:allow_italic] == false || settings["allow_italic"] == false || settings[:allowItalic] == false || settings["allowItalic"] == false)
@@ -116,6 +117,7 @@ module Agents
       {
         email: formatted_email,
         formatted_email: formatted_email,
+        format: format,
         company: company,
         recipient: recipient,
         original_email: email_content
@@ -124,10 +126,11 @@ module Agents
       {
         email: email_content,
         formatted_email: email_content,
+        format: format,
         company: company,
         recipient: recipient,
         original_email: email_content,
-        error: e.message
+        error: "DesignAgent LLM error: #{e.class}: #{e.message}"
       }
     end
 

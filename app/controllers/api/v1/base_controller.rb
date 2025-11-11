@@ -31,7 +31,7 @@ module Api
 
       # Force JSON format for API requests to ensure Devise returns 401 instead of redirecting
       def set_json_format
-        request.format = :json if request.path.start_with?('/api/')
+        request.format = :json if request.path.start_with?("/api/")
       end
     end
   end

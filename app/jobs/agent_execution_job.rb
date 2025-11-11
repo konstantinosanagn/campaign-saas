@@ -24,20 +24,28 @@ class AgentExecutionJob < ApplicationJob
   # @param user_id [Integer] The ID of the user (for API keys)
   def perform(lead_id, campaign_id, user_id)
     # Reload records to ensure we have fresh data
-    lead = Lead.find(lead_id)
-    campaign = Campaign.find(campaign_id)
-    user = User.find(user_id)
+    lead = Lead.find_by(id: lead_id)
+    campaign = Campaign.find_by(id: campaign_id)
+    user = User.find_by(id: user_id)
 
     # Verify ownership (security check)
-    unless campaign.user_id == user.id
+    unless campaign && campaign.user_id == user_id
       Rails.logger.error("AgentExecutionJob: Unauthorized access attempt - campaign #{campaign_id} does not belong to user #{user_id}")
       return
     end
 
-    unless lead.campaign_id == campaign.id
+    unless lead && lead.campaign_id == campaign.id
       Rails.logger.error("AgentExecutionJob: Lead #{lead_id} does not belong to campaign #{campaign_id}")
       return
     end
+
+    # Reload user to ensure we have fresh data
+    user = User.find(user_id)
+
+    # Check API keys before running agents - raise ArgumentError if missing
+    # This will cause the job to be discarded (discard_on ArgumentError)
+    ApiKeyService.get_gemini_api_key(user)
+    ApiKeyService.get_tavily_api_key(user)
 
     # Execute agents
     begin
@@ -56,4 +64,3 @@ class AgentExecutionJob < ApplicationJob
     end
   end
 end
-

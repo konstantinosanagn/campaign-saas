@@ -57,7 +57,7 @@ module Api
       ##
       # POST /api/v1/leads/:id/run_agents
       # Runs all agents (SEARCH → WRITER → CRITIQUE → DESIGN) for a specific lead
-      # 
+      #
       # In production, this runs asynchronously via background job.
       # In development/test, this runs synchronously for easier debugging.
       # Use ?async=true to force async execution, ?async=false to force sync.
@@ -81,7 +81,7 @@ module Api
         # Default: async in production, sync in development/test
         force_async = params[:async] == "true" || params[:async] == true
         force_sync = params[:async] == "false" || params[:async] == false
-        
+
         use_async = if force_async
           true
         elsif force_sync
@@ -95,7 +95,7 @@ module Api
           # Enqueue background job
           begin
             job = AgentExecutionJob.perform_later(lead.id, campaign.id, current_user.id)
-            
+
             render json: {
               status: "queued",
               message: "Agent execution queued successfully",
@@ -202,7 +202,7 @@ module Api
         end
 
         # Only allow updating WRITER, SEARCH, and DESIGN
-        unless agent_name.in?([AgentConstants::AGENT_WRITER, AgentConstants::AGENT_SEARCH, AgentConstants::AGENT_DESIGN])
+        unless agent_name.in?([ AgentConstants::AGENT_WRITER, AgentConstants::AGENT_SEARCH, AgentConstants::AGENT_DESIGN ])
           render json: { errors: [ "Only WRITER, SEARCH, and DESIGN agent outputs can be updated" ] }, status: :unprocessable_entity
           return
         end

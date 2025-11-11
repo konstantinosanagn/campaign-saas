@@ -116,6 +116,13 @@ When('I send a {word} request to {string}') do |method, path|
 end
 
 Then('the response status should be {int}') do |code|
+  if @last_response.status != code
+    # Print response body for debugging
+    puts "\n=== Response Debug ==="
+    puts "Expected: #{code}, Got: #{@last_response.status}"
+    puts "Response body: #{@last_response.body}"
+    puts "=====================\n"
+  end
   expect(@last_response.status).to eq(code)
 end
 
@@ -156,7 +163,9 @@ Then('the JSON nested value at {string} should equal {string}') do |path, expect
       nil
     end
   end
-  expect(value.to_s).to eq(expected)
+  # Handle newline characters - convert \n to actual newlines for comparison
+  expected_normalized = expected.gsub('\\n', "\n")
+  expect(value.to_s).to eq(expected_normalized)
 end
 
 Then('the page title should include {string}') do |text|
