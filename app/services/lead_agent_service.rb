@@ -135,7 +135,7 @@ class LeadAgentService
         rescue => e
           # Store error output with appropriate fields based on agent type
           error_output = { error: e.message, agent: next_agent }
-          
+
           # Add agent-specific fields for error outputs
           case next_agent
           when AgentConstants::AGENT_WRITER
@@ -151,7 +151,7 @@ class LeadAgentService
             error_output["critique"] = nil
             # error key already set above
           end
-          
+
           save_agent_output(lead, next_agent, error_output, AgentConstants::STATUS_FAILED)
           outputs[next_agent] = error_output
           failed_agents << next_agent

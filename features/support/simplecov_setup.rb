@@ -3,7 +3,7 @@
 
 if ENV['COVERAGE']
   require 'simplecov'
-  
+
   SimpleCov.start 'rails' do
     # Filter out test files, migrations, and configuration
     add_filter '/spec/'
@@ -15,7 +15,7 @@ if ENV['COVERAGE']
     add_filter '/node_modules/'
     add_filter '/tmp/'
     add_filter '/coverage/'
-    
+
     # Track these directories
     add_group 'Controllers', 'app/controllers'
     add_group 'Models', 'app/models'
@@ -24,12 +24,11 @@ if ENV['COVERAGE']
     add_group 'Helpers', 'app/helpers'
     add_group 'Jobs', 'app/jobs'
     add_group 'Libraries', 'app/lib'
-    
+
     # Minimum coverage threshold (optional - can be adjusted)
     # Set to 0 to not fail on low coverage, or adjust based on your needs
     minimum_coverage 0  # Disabled for now - can be enabled after improving coverage
   end
-  
+
   puts "SimpleCov started - Coverage tracking enabled"
 end
-

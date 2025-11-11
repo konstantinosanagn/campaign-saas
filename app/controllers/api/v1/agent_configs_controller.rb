@@ -76,9 +76,9 @@ module Api
         # But nested keys may remain in camelCase (agentName stays as agentName)
         # Get agent_name from raw params (before permit filters it)
         raw_config = params[:agent_config] || params["agent_config"] || {}
-        agent_name = raw_config[:agent_name] || 
-                     raw_config[:agentName] || 
-                     raw_config["agent_name"] || 
+        agent_name = raw_config[:agent_name] ||
+                     raw_config[:agentName] ||
+                     raw_config["agent_name"] ||
                      raw_config["agentName"]
 
         # Validate agent name
@@ -182,24 +182,24 @@ module Api
         # So "agentConfig" in JSON becomes "agent_config" in params
         # But nested keys may remain in camelCase
         config_params = params[:agent_config] || params["agent_config"]
-        
+
         unless config_params
           # Fallback: try to get from top-level params
           return params.permit(:agent_name, :agentName, :enabled, settings: {})
         end
-        
+
         # Permit all settings keys explicitly for security
         # Settings vary by agent type, so we permit all known keys
         # Note: permit accepts both symbol and string keys, and both camelCase and snake_case
         permitted = config_params.permit(:agent_name, :agentName, "agent_name", "agentName", :enabled)
-        
+
         settings_data = config_params[:settings] || config_params["settings"]
         if settings_data.present?
           permitted[:settings] = permit_settings(settings_data)
         else
           permitted[:settings] = {}
         end
-        
+
         permitted
       end
 

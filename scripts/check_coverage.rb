@@ -137,14 +137,14 @@ class CoverageChecker
   def feature_covers_endpoint?(resource, action)
     # Simple keyword matching - could be improved
     keywords = {
-      'campaigns' => ['campaign'],
-      'leads' => ['lead'],
-      'agent_configs' => ['agent_config', 'agent config'],
-      'api_keys' => ['api_key', 'api key']
+      'campaigns' => [ 'campaign' ],
+      'leads' => [ 'lead' ],
+      'agent_configs' => [ 'agent_config', 'agent config' ],
+      'api_keys' => [ 'api_key', 'api key' ]
     }
 
-    resource_keywords = keywords[resource] || [resource]
-    action_keywords = [action]
+    resource_keywords = keywords[resource] || [ resource ]
+    action_keywords = [ action ]
 
     @features.any? do |feature|
       feature_name = feature[:name].downcase
@@ -192,4 +192,3 @@ if __FILE__ == $0
   checker = CoverageChecker.new
   checker.check
 end
-
