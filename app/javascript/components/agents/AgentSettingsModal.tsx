@@ -6,7 +6,7 @@ import { AgentConfig, SearchAgentSettings, WriterAgentSettings, CritiqueAgentSet
 interface AgentSettingsModalProps {
   isOpen: boolean
   onClose: () => void
-  agentName: 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE'
+  agentName: 'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE'
   config: AgentConfig | null
   sharedSettings?: SharedSettings
   onSave: (config: AgentConfig) => Promise<void>
@@ -311,7 +311,7 @@ export default function AgentSettingsModal({
         return 'Search agent researches information about target companies using web search.'
       case 'WRITER':
         return 'Writer agent generates personalized email content based on research findings.'
-      case 'DESIGN':
+      case 'DESIGNER':
         return 'Design agent applies formatting (bold, italic, links, etc.) to email content.'
       case 'CRITIQUE':
         return 'Critique agent reviews and provides feedback on generated emails.'
@@ -1212,10 +1212,10 @@ export default function AgentSettingsModal({
             </div>
           )}
 
-              {/* DESIGN Agent - No settings */}
-              {agentName === 'DESIGN' && (
+              {/* DESIGNER Agent - No settings */}
+              {agentName === 'DESIGNER' && (
                 <div className="text-center py-4 text-gray-500 text-sm">
-                  No configurable settings available for DESIGN agent
+                  No configurable settings available for DESIGNER agent
                 </div>
               )}
             </div>

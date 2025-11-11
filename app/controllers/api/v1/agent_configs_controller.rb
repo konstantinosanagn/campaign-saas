@@ -73,7 +73,7 @@ module Api
 
         # Validate agent name
         unless AgentConfig::VALID_AGENT_NAMES.include?(agent_name)
-          render json: { errors: [ "Invalid agent name. Must be one of: SEARCH, WRITER, CRITIQUE" ] }, status: :unprocessable_entity
+          render json: { errors: [ "Invalid agent name. Must be one of: SEARCH, WRITER, DESIGNER, CRITIQUE" ] }, status: :unprocessable_entity
           return
         end
 

@@ -53,7 +53,7 @@ export interface AgentOutput {
   updatedAt: string
 }
 
-export type AgentConfigName = 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE'
+export type AgentConfigName = 'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE'
 
 export interface SearchAgentSettings {
   search_depth?: 'basic' | 'advanced'

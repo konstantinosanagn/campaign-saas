@@ -42,7 +42,7 @@ export default function CampaignDashboard() {
   const [isOutputModalOpen, setIsOutputModalOpen] = useState(false)
   const [outputModalLead, setOutputModalLead] = useState<Lead | null>(null)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
-  const [settingsModalAgent, setSettingsModalAgent] = useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | null>(null)
+  const [settingsModalAgent, setSettingsModalAgent] = useState<'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE' | null>(null)
 
   const { campaigns, createCampaign, updateCampaign, deleteCampaign } = useCampaigns()
   const { leads, createLead, updateLead, deleteLeads, findLead, refreshLeads } = useLeads()
@@ -211,28 +211,20 @@ export default function CampaignDashboard() {
   const handleRunLead = useCallback(async (leadId: number) => {
     setRunningLeadIds(prev => new Set(prev).add(leadId))
     try {
-      console.log('Running agents for lead:', leadId)
       const result = await runAgentsForLead(leadId)
-      console.log('Agent execution result:', result)
       
       if (result) {
         // Check if there were any errors in the response
         if (result.status === 'failed' && result.error) {
           alert(`Failed to run agents: ${result.error}`)
-          console.error('Agent execution failed:', result.error)
         } else if (result.failedAgents && result.failedAgents.length > 0) {
           alert(`Some agents failed: ${result.failedAgents.join(', ')}`)
-          console.error('Some agents failed:', result.failedAgents)
-        } else {
-          console.log('Agents executed successfully:', result.completedAgents)
         }
         // Refresh leads to get updated stage/quality
         await refreshLeads()
       } else {
         // If result is null, there was an error in the API call
-        const errorMsg = 'Failed to run agents. Please check the console for details.'
-        alert(errorMsg)
-        console.error('Agent execution returned null - check API response')
+        alert('Failed to run agents. Please check the console for details.')
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
@@ -279,10 +271,7 @@ export default function CampaignDashboard() {
   }, [filteredLeads, runAgentsForMultipleLeads, refreshLeads])
 
   const handleAgentSettingsClick = useCallback((agentName: 'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE') => {
-    console.log('handleAgentSettingsClick called with:', agentName)
-    // Map 'DESIGNER' to 'DESIGN' for the modal
-    const modalAgentName = agentName === 'DESIGNER' ? 'DESIGN' : agentName
-    setSettingsModalAgent(modalAgentName as 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE')
+    setSettingsModalAgent(agentName as 'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE')
     setIsSettingsModalOpen(true)
   }, [])
 

@@ -163,7 +163,7 @@ export default function AgentOutputModal({
   onUpdateOutput,
   onUpdateSearchOutput
 }: AgentOutputModalProps) {
-  const [activeTab, setActiveTab] = React.useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL'>('ALL')
+  const [activeTab, setActiveTab] = React.useState<'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE' | 'ALL'>('ALL')
   const [editingWriterOutput, setEditingWriterOutput] = React.useState(false)
   const [editingDesignOutput, setEditingDesignOutput] = React.useState(false)
   const [editedEmail, setEditedEmail] = React.useState('')
@@ -224,6 +224,10 @@ export default function AgentOutputModal({
 
   const getTabOutputs = () => {
     if (activeTab === 'ALL') return outputs
+    // Handle DESIGNER tab
+    if (activeTab === 'DESIGNER') {
+      return outputs.filter(o => o.agentName === 'DESIGNER')
+    }
     return outputs.filter(o => o.agentName === activeTab)
   }
 
@@ -451,7 +455,7 @@ export default function AgentOutputModal({
     
     setSaving(true)
     try {
-      await onUpdateOutput(leadId, 'DESIGN', editedDesignEmail)
+      await onUpdateOutput(leadId, 'DESIGNER', editedDesignEmail)
       setEditingDesignOutput(false)
     } catch (error) {
       console.error('Failed to save design output:', error)
@@ -703,8 +707,12 @@ export default function AgentOutputModal({
   }
 
   const formatDesignOutput = (output: Record<string, unknown>) => {
-    const formattedEmail = getStringValue(output, 'formatted_email')
-    const emailFallback = getStringValue(output, 'email')
+    // Try multiple possible keys for the formatted email
+    const formattedEmail = getStringValue(output, 'formatted_email') || 
+                          getStringValue(output, 'formattedEmail') ||
+                          getStringValue(output, 'formatted_email_content')
+    const emailFallback = getStringValue(output, 'email') || 
+                         getStringValue(output, 'email_content')
     const email = formattedEmail || emailFallback
     
     if (editingDesignOutput) {
@@ -799,6 +807,58 @@ export default function AgentOutputModal({
       )
     }
     
+    // Check for error in output
+    const error = getStringValue(output, 'error')
+    
+    // If no email content, show a message
+    if (!email) {
+      return (
+        <div className="space-y-4">
+          <div className={`border rounded-lg p-4 ${error ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
+            <div className="flex items-start space-x-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className={`w-6 h-6 flex-shrink-0 mt-0.5 ${error ? 'text-red-600' : 'text-yellow-600'}`}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              <div>
+                <h4 className={`font-semibold mb-1 ${error ? 'text-red-900' : 'text-yellow-900'}`}>
+                  {error ? 'Design Agent Error' : 'No Content Available'}
+                </h4>
+                {error ? (
+                  <div>
+                    <p className="text-sm text-red-800 mb-2">{error}</p>
+                    <p className="text-xs text-red-700">
+                      The design agent encountered an error while formatting the email. Please check:
+                      <ul className="list-disc list-inside mt-1 space-y-1">
+                        <li>That the WRITER agent has generated email content</li>
+                        <li>That the Gemini API key is valid and has quota</li>
+                        <li>The Rails logs for more details</li>
+                      </ul>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-yellow-800">
+                    The design agent output does not contain email content. This may happen if:
+                    <ul className="list-disc list-inside mt-1 space-y-1">
+                      <li>The WRITER agent has not generated email content yet</li>
+                      <li>The email content was empty when DESIGNER agent ran</li>
+                    </ul>
+                  </p>
+                )}
+                {Object.keys(output).length > 0 && (
+                  <details className="mt-2">
+                    <summary className={`text-xs cursor-pointer ${error ? 'text-red-700' : 'text-yellow-700'}`}>Show raw data</summary>
+                    <pre className={`text-xs mt-2 p-2 rounded overflow-auto ${error ? 'bg-red-100' : 'bg-yellow-100'}`}>
+                      {JSON.stringify(output, null, 2)}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    
     return (
       <div className="space-y-4">
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 relative group">
@@ -880,7 +940,7 @@ export default function AgentOutputModal({
         return formatSearchOutput(isSearchOutputData(output.outputData) ? output.outputData : null)
       case 'WRITER':
         return formatWriterOutput(dataRecord)
-      case 'DESIGN':
+      case 'DESIGNER':
         return formatDesignOutput(dataRecord)
       case 'CRITIQUE':
         return formatCritiqueOutput(dataRecord)
@@ -893,7 +953,7 @@ export default function AgentOutputModal({
     { id: 'ALL' as const, label: 'All Outputs', count: outputs.length },
     { id: 'SEARCH' as const, label: 'Search', count: outputs.filter(o => o.agentName === 'SEARCH').length },
     { id: 'WRITER' as const, label: 'Writer', count: outputs.filter(o => o.agentName === 'WRITER').length },
-    { id: 'DESIGN' as const, label: 'Design', count: outputs.filter(o => o.agentName === 'DESIGN').length },
+    { id: 'DESIGNER' as const, label: 'Design', count: outputs.filter(o => o.agentName === 'DESIGNER').length },
     { id: 'CRITIQUE' as const, label: 'Critique', count: outputs.filter(o => o.agentName === 'CRITIQUE').length },
   ]
 
@@ -956,11 +1016,13 @@ export default function AgentOutputModal({
             </div>
           ) : (
             <div className="space-y-6">
-              {tabOutputs.map((output, idx) => (
+              {tabOutputs.map((output, idx) => {
+                const displayName = output.agentName
+                return (
                 <div key={idx} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{output.agentName}</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">{displayName}</h3>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         output.status === 'completed' ? 'bg-green-100 text-green-800' :
                         output.status === 'failed' ? 'bg-red-100 text-red-800' :
@@ -975,7 +1037,8 @@ export default function AgentOutputModal({
                   </div>
                   {renderOutput(output)}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

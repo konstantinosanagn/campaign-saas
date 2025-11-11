@@ -1,12 +1,14 @@
 require_relative "api_key_service"
 require_relative "agents/search_agent"
 require_relative "agents/writer_agent"
+require_relative "agents/design_agent"
 require_relative "agents/critique_agent"
 
 ##
 # LeadAgentService
 #
-# Orchestrates the execution of agents (SEARCH → WRITER → CRITIQUE) for a specific lead.
+# Orchestrates the execution of agents (SEARCH → WRITER → DESIGNER → CRITIQUE) for a specific lead.
+# The order is: SEARCH → WRITER → DESIGNER → CRITIQUE
 # Manages agent configuration retrieval, sequential execution, output storage, and stage updates.
 #
 # Usage:
@@ -14,10 +16,10 @@ require_relative "agents/critique_agent"
 #   # Returns: { status: 'completed'|'partial'|'failed', outputs: {...}, lead: {...} }
 #
 class LeadAgentService
-  AGENT_ORDER = %w[SEARCH WRITER CRITIQUE].freeze
-  # Stage progression: queued → searched → written → critiqued → completed
+  AGENT_ORDER = %w[SEARCH WRITER DESIGNER CRITIQUE].freeze
+  # Stage progression: queued → searched → written → designed → critiqued → completed
   # Each agent moves the lead to the next stage in the progression
-  STAGE_PROGRESSION = %w[queued searched written critiqued completed].freeze
+  STAGE_PROGRESSION = %w[queued searched written designed critiqued completed].freeze
 
   class << self
     ##
@@ -46,6 +48,7 @@ class LeadAgentService
       # Initialize agents
       search_agent = Agents::SearchAgent.new(api_key: tavily_key)
       writer_agent = Agents::WriterAgent.new(api_key: gemini_key)
+      design_agent = Agents::DesignAgent.new(api_key: gemini_key)
       critique_agent = Agents::CritiqueAgent.new(api_key: gemini_key)
 
       # Determine which agent to run based on current stage
@@ -94,7 +97,13 @@ class LeadAgentService
         when "WRITER"
           result = execute_writer_agent(writer_agent, lead, agent_config, previous_outputs["SEARCH"])
         when "CRITIQUE"
-          result = execute_critique_agent(critique_agent, lead, agent_config, previous_outputs["WRITER"])
+          # CRITIQUE can use either DESIGNER or WRITER output, prefer DESIGNER if available
+          designer_output = previous_outputs["DESIGNER"]
+          writer_output = previous_outputs["WRITER"]
+          result = execute_critique_agent(critique_agent, lead, agent_config, designer_output || writer_output)
+        when "DESIGNER"
+          # DESIGNER uses WRITER output
+          result = execute_design_agent(design_agent, lead, agent_config, previous_outputs["WRITER"])
         end
 
         # Store output
@@ -140,6 +149,12 @@ class LeadAgentService
     private
 
     ##
+    # Finds DESIGNER agent output
+    def find_designer_output(lead)
+      lead.agent_outputs.find_by(agent_name: "DESIGNER")
+    end
+
+    ##
     # Determines which agent should run next based on current stage
     def determine_next_agent(current_stage)
       stage_index = STAGE_PROGRESSION.index(current_stage)
@@ -148,7 +163,7 @@ class LeadAgentService
       # Map stage to next agent
       # queued -> SEARCH (to become 'searched')
       # searched -> WRITER (to become 'written')
-      # written -> DESIGN (to become 'designed')
+      # written -> DESIGNER (to become 'designed')
       # designed -> CRITIQUE (to become 'critiqued')
       case current_stage
       when "queued"
@@ -156,6 +171,8 @@ class LeadAgentService
       when "searched"
         "WRITER"
       when "written"
+        "DESIGNER"
+      when "designed"
         "CRITIQUE"
       else
         nil
@@ -173,9 +190,24 @@ class LeadAgentService
         outputs["SEARCH"] = search_output&.output_data
       end
 
-      if current_agent == "CRITIQUE"
+      # DESIGNER needs WRITER output
+      if current_agent == "DESIGNER"
         writer_output = lead.agent_outputs.find_by(agent_name: "WRITER")
-        outputs["WRITER"] = writer_output&.output_data
+        if writer_output
+          outputs["WRITER"] = writer_output&.output_data
+        end
+      end
+
+      # CRITIQUE needs DESIGNER output (preferred) or WRITER output (fallback)
+      if current_agent == "CRITIQUE"
+        designer_output = find_designer_output(lead)
+        if designer_output
+          outputs["DESIGNER"] = designer_output&.output_data
+        else
+          # Fallback to WRITER if DESIGNER not available
+          writer_output = lead.agent_outputs.find_by(agent_name: "WRITER")
+          outputs["WRITER"] = writer_output&.output_data
+        end
       end
 
       outputs
@@ -198,7 +230,7 @@ class LeadAgentService
       case agent_name
       when "WRITER"
         { product_info: "", sender_company: "" }
-      when "SEARCH", "DESIGN", "CRITIQUE"
+      when "SEARCH", "DESIGNER", "CRITIQUE"
         {}
       else
         {}
@@ -256,9 +288,9 @@ class LeadAgentService
     end
 
     ##
-    # Executes the CritiqueAgent
-    def execute_critique_agent(critique_agent, lead, agent_config, writer_output)
-      # Prepare writer output for critique
+    # Executes the DesignAgent
+    def execute_design_agent(design_agent, lead, agent_config, writer_output)
+      # Prepare WRITER output for design
       # Handle both string and symbol keys from JSONB storage
       email_content = writer_output&.dig("email") ||
                       writer_output&.dig(:email) ||
@@ -266,8 +298,86 @@ class LeadAgentService
                       writer_output&.dig(:formatted_email) ||
                       ""
 
-      # Get variants if they exist
-      variants = writer_output&.dig("variants") || writer_output&.dig(:variants) || []
+      # If still empty, try to get from WRITER output directly from database
+      if email_content.blank?
+        writer_output_record = lead.agent_outputs.find_by(agent_name: "WRITER")
+        if writer_output_record&.output_data
+          writer_data = writer_output_record.output_data
+          email_content = writer_data&.dig("email") ||
+                         writer_data&.dig(:email) ||
+                         writer_data&.dig("formatted_email") ||
+                         writer_data&.dig(:formatted_email) ||
+                         ""
+        end
+        
+        if email_content.blank?
+          Rails.logger.error("DesignAgent: No email content found in WRITER output for lead #{lead.id}")
+        end
+      end
+
+      company = lead.company
+      recipient = lead.name
+
+      output_for_design = {
+        email: email_content,
+        company: company,
+        recipient: recipient
+      }
+
+      # Pass config to design_agent
+      config_hash = agent_config ? { settings: agent_config.settings } : nil
+      result = design_agent.run(output_for_design)
+
+      if result[:error]
+        Rails.logger.error("DesignAgent: Failed for lead #{lead.id}: #{result[:error]}")
+      end
+
+      result
+    end
+
+    ##
+    # Executes the CritiqueAgent
+    def execute_critique_agent(critique_agent, lead, agent_config, agent_output)
+      # Prepare agent output for critique (can be from DESIGNER or WRITER)
+      # Handle both string and symbol keys from JSONB storage
+      # For DESIGNER output, use formatted_email or email
+      # For WRITER output, use email
+      email_content = agent_output&.dig("formatted_email") ||
+                      agent_output&.dig(:formatted_email) ||
+                      agent_output&.dig("email") ||
+                      agent_output&.dig(:email) ||
+                      ""
+
+      # If still empty, try to get from DESIGNER output directly
+      if email_content.blank?
+        designer_output = find_designer_output(lead)
+        if designer_output&.output_data
+          designer_data = designer_output.output_data
+          email_content = designer_data&.dig("formatted_email") ||
+                         designer_data&.dig(:formatted_email) ||
+                         designer_data&.dig("email") ||
+                         designer_data&.dig(:email) ||
+                         ""
+        end
+        
+        # Fallback to WRITER if DESIGNER doesn't have content
+        if email_content.blank?
+          writer_output = lead.agent_outputs.find_by(agent_name: "WRITER")
+          if writer_output&.output_data
+            writer_data = writer_output.output_data
+            email_content = writer_data&.dig("email") ||
+                           writer_data&.dig(:email) ||
+                           ""
+          end
+        end
+        
+        if email_content.blank?
+          Rails.logger.error("CritiqueAgent: No email content found for lead #{lead.id}")
+        end
+      end
+
+      # Get variants if they exist (usually from WRITER output)
+      variants = agent_output&.dig("variants") || agent_output&.dig(:variants) || []
 
       article = {
         "email_content" => email_content,
@@ -313,12 +423,16 @@ class LeadAgentService
     ##
     # Advances lead to the next stage in the progression
     def advance_stage(lead, agent_name)
-      current_index = STAGE_PROGRESSION.index(lead.stage) || -1
-      next_index = current_index + 1
-
-      # Only advance if not already at the final stage
-      if next_index < STAGE_PROGRESSION.length
-        new_stage = STAGE_PROGRESSION[next_index]
+      # Map agent to stage
+      stage_map = {
+        "SEARCH" => "searched",
+        "WRITER" => "written",
+        "DESIGNER" => "designed",
+        "CRITIQUE" => "critiqued"
+      }
+      
+      new_stage = stage_map[agent_name]
+      if new_stage
         lead.update!(stage: new_stage)
       end
     end
