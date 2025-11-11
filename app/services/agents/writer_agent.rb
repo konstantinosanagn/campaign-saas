@@ -143,7 +143,7 @@ module Agents
     rescue => e
       {
         company: company || search_results[:company],
-        email: "",
+        email: "Error generating email: #{e.message}",
         recipient: recipient,
         sources: search_results[:sources] || [],
         image: search_results[:image],

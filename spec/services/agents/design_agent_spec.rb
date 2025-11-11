@@ -426,7 +426,7 @@ RSpec.describe Agents::DesignAgent, type: :service do
 
         expect(result[:email]).to eq(writer_output[:email])
         expect(result[:formatted_email]).to eq(writer_output[:email])
-        expect(result[:error]).to eq('Network error')
+        expect(result[:error]).to eq('DesignAgent LLM error: StandardError: Network error')
         expect(result[:company]).to eq(writer_output[:company])
         expect(result[:recipient]).to eq(writer_output[:recipient])
       end

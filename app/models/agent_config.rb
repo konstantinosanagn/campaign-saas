@@ -31,6 +31,8 @@ class AgentConfig < ApplicationRecord
     # We only validate that the top-level is a Hash, not the contents.
   end
 
+  public
+
   # Status query methods
   def enabled?
     enabled == true
