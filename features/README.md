@@ -176,6 +176,22 @@ The Cucumber test suite covers:
 - ✅ Stage progression
 - ✅ Campaign-leads relationships
 
+### Coverage Analysis
+
+For detailed coverage analysis and gap identification, see **[COVERAGE_ANALYSIS.md](./COVERAGE_ANALYSIS.md)**.
+
+**Current Statistics:**
+- **96 scenarios** with **497 steps** - **100% passing** ✅
+- **19/19 API endpoints** covered (100%)
+- **38 feature files** covering all major functionality
+
+The coverage analysis document provides:
+- Complete endpoint coverage mapping
+- Identified gaps and missing scenarios
+- Recommendations for improvement
+- Tools and methods for coverage analysis
+- Coverage metrics and statistics
+
 ## Notes
 
 - Tests use `DISABLE_AUTH=true` by default (configured in `features/support/env.rb`)

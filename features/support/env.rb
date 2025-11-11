@@ -1,3 +1,9 @@
+# SimpleCov is loaded in simplecov_setup.rb (loaded before this file)
+# Load it explicitly if COVERAGE is set but simplecov_setup wasn't loaded
+if ENV['COVERAGE'] && !defined?(SimpleCov)
+  require_relative 'simplecov_setup'
+end
+
 require 'cucumber/rails'
 require 'rspec/mocks'
 require 'warden/test/helpers'

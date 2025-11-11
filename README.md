@@ -291,6 +291,7 @@ The project includes comprehensive test coverage across three testing frameworks
 
 ### Cucumber
 - **96 scenarios** with **497 steps** - **100% passing** ✅
+- **19/19 API endpoints** covered (100%)
 - User acceptance tests covering:
   - Authentication and authorization (401 responses for unauthenticated API requests)
   - Campaign CRUD operations (create, read, update, delete)
@@ -304,6 +305,17 @@ The project includes comprehensive test coverage across three testing frameworks
   - Agent execution with error handling and disabled agent skipping
 
 Run: `bundle exec cucumber`
+
+**Code Coverage (SimpleCov):**
+- **63.85% line coverage** (664/1040 lines)
+- Run with coverage: `COVERAGE=true bundle exec cucumber`
+- View report: `coverage/index.html`
+- See `COVERAGE_REPORT.md` for detailed coverage analysis
+
+**Coverage Analysis:**
+- See `features/COVERAGE_ANALYSIS.md` for detailed coverage mapping and gap analysis
+- See `features/HOW_TO_CHECK_COVERAGE.md` for methods to verify test coverage
+- See `COVERAGE_REPORT.md` for SimpleCov coverage breakdown by file and category
 
 ## API Endpoints
 
@@ -376,6 +388,7 @@ bundle exec rspec            # Run RSpec tests (178 tests, 90%+ coverage)
 yarn test                    # Run Jest tests (106 tests, 96.6% coverage)
 yarn test:coverage           # Run Jest tests with coverage
 bundle exec cucumber         # Run Cucumber tests (96 scenarios, 497 steps, 100% passing)
+COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (63.85% line coverage)
 ```
 
 ## Deployment
