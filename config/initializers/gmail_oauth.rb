@@ -22,3 +22,5 @@ else
   Rails.logger.warn "Gmail OAuth not configured. Set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET to enable OAuth email sending."
 end
 
+
+
