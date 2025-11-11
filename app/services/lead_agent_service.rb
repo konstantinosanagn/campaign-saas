@@ -138,7 +138,7 @@ class LeadAgentService
           when "WRITER"
             result = execute_writer_agent(writer_agent, lead, agent_config, previous_outputs["SEARCH"])
           when "CRITIQUE"
-          # CRITIQUE can use either DESIGNER or WRITER output, prefer DESIGNER if available
+            # CRITIQUE can use either DESIGNER or WRITER output, prefer DESIGNER if available
             designer_output = previous_outputs["DESIGNER"]
             writer_output = previous_outputs["WRITER"]
             result = execute_critique_agent(critique_agent, lead, agent_config, designer_output || writer_output)
@@ -363,7 +363,7 @@ class LeadAgentService
                          writer_data&.dig(:formatted_email) ||
                          ""
         end
-        
+
         if email_content.blank?
           Rails.logger.error("DesignAgent: No email content found in WRITER output for lead #{lead.id}")
         end
@@ -413,7 +413,7 @@ class LeadAgentService
                          designer_data&.dig(:email) ||
                          ""
         end
-        
+
         # Fallback to WRITER if DESIGNER doesn't have content
         if email_content.blank?
           writer_output = lead.agent_outputs.find_by(agent_name: "WRITER")
@@ -424,7 +424,7 @@ class LeadAgentService
                            ""
           end
         end
-        
+
         if email_content.blank?
           Rails.logger.error("CritiqueAgent: No email content found for lead #{lead.id}")
         end
@@ -514,7 +514,7 @@ class LeadAgentService
         "DESIGNER" => "designed",
         "CRITIQUE" => "critiqued"
       }
-      
+
       new_stage = stage_map[agent_name]
       if new_stage
         lead.update!(stage: new_stage)

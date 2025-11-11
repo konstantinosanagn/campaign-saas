@@ -141,11 +141,11 @@ module Agents
 
       if candidate && candidate["content"] && candidate["content"]["parts"]
         formatted_email = candidate["content"]["parts"][0]["text"]
-        
+
         # Clean up the formatted email (remove any markdown code blocks if present)
         formatted_email = formatted_email.strip
         formatted_email = formatted_email.gsub(/^```markdown\n/, "").gsub(/^```\n/, "").gsub(/\n```$/, "").strip if formatted_email.start_with?("```")
-        
+
         # If formatted email is empty or same as original, use original
         if formatted_email.blank? || formatted_email == email_content
           formatted_email = email_content
