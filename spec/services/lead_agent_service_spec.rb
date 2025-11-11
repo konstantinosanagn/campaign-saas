@@ -102,13 +102,13 @@ RSpec.describe LeadAgentService, type: :service do
 
       it 'passes search output to writer agent' do
         lead.update!(stage: 'searched')
-      
+
         search_result = {
           company: lead.company,
-          inferred_focus_areas: ["cloud architecture", "scalability"],
+          inferred_focus_areas: [ "cloud architecture", "scalability" ],
           personalization_signals: {
-            recipient: [{ title: "Article", url: "http://test.com" }],
-            company:   [{ title: "Company News", url: "http://company.com" }]
+            recipient: [ { title: "Article", url: "http://test.com" } ],
+            company:   [ { title: "Company News", url: "http://company.com" } ]
           }
         }
 
@@ -126,7 +126,7 @@ RSpec.describe LeadAgentService, type: :service do
           company: lead.company,
           email: "Subject: Test Email\n\nBody text",
           recipient: lead.name,
-          variants: ["Subject: Test Email\n\nBody text"]
+          variants: [ "Subject: Test Email\n\nBody text" ]
         }
 
         expect_any_instance_of(Agents::WriterAgent).to receive(:run) do |_, passed_search_results, **|
@@ -134,7 +134,7 @@ RSpec.describe LeadAgentService, type: :service do
           expect(passed_search_results[:sources]).to eq(expected_sources)
           expect(passed_search_results[:inferred_focus_areas]).to eq(search_result[:inferred_focus_areas])
         end.and_return(writer_output)
-        
+
         result = described_class.run_agents_for_lead(lead, campaign, user)
         expect(result[:status]).to eq("completed")
       end

@@ -59,7 +59,7 @@ RSpec.describe Agents::WriterAgent, type: :service do
     let(:company) { 'Test Corp' }
     let(:product_info) { 'Our amazing product' }
     let(:sender_company) { 'My Company' }
-    let(:focus_areas){ [] }
+    let(:focus_areas) { [] }
 
     let(:mock_response) do
       double('response', body: {

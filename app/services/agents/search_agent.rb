@@ -1,8 +1,8 @@
 # app/services/agents/search_agent.rb
 
-require 'httparty'
-require 'json'
-require 'logger'
+require "httparty"
+require "json"
+require "logger"
 
 module Agents
   class SearchAgent
@@ -72,7 +72,7 @@ module Agents
         "https://generativelanguage.googleapis.com/v1beta/models/#{@model}:generateContent?key=#{@gemini_key}",
         headers: { "Content-Type" => "application/json" },
         body: {
-          contents: [{ parts: [{ text: prompt }] }]
+          contents: [ { parts: [ { text: prompt } ] } ]
         }.to_json
       )
 

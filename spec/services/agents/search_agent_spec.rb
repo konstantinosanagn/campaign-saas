@@ -25,7 +25,7 @@ RSpec.describe Agents::SearchAgent, type: :service do
     let(:mock_gemini_response) do
       {
         "candidates" => [
-          { "content" => { "parts" => [{ "text" => '["AI Safety", "Scaling", "Partnerships"]' }] } }
+          { "content" => { "parts" => [ { "text" => '["AI Safety", "Scaling", "Partnerships"]' } ] } }
         ]
       }
     end
@@ -37,7 +37,7 @@ RSpec.describe Agents::SearchAgent, type: :service do
     end
 
     let(:mock_company_results_raw) do
-      [{ "title" => "Company News", "url" => "https://example-news.com", "content" => "Update" }]
+      [ { "title" => "Company News", "url" => "https://example-news.com", "content" => "Update" } ]
     end
 
     let(:mock_recipient_results) do
@@ -47,7 +47,7 @@ RSpec.describe Agents::SearchAgent, type: :service do
     end
 
     let(:mock_company_results) do
-      [{ title: "Company News", url: "https://example-news.com", content: "Update" }]
+      [ { title: "Company News", url: "https://example-news.com", content: "Update" } ]
     end
 
 
@@ -74,7 +74,7 @@ RSpec.describe Agents::SearchAgent, type: :service do
       )
 
       expect(result[:target_identity][:name]).to eq("Sam Altman")
-      expect(result[:inferred_focus_areas]).to eq(["AI Safety", "Scaling", "Partnerships"])
+      expect(result[:inferred_focus_areas]).to eq([ "AI Safety", "Scaling", "Partnerships" ])
       expect(result[:personalization_signals][:recipient]).to eq(mock_recipient_results)
       expect(result[:personalization_signals][:company]).to eq(mock_company_results)
     end
@@ -82,7 +82,7 @@ RSpec.describe Agents::SearchAgent, type: :service do
 
   describe "#run_tavily_search" do
     let(:response) do
-      { "results" => [{ "title" => "News", "url" => nil, "content" => nil }] }
+      { "results" => [ { "title" => "News", "url" => nil, "content" => nil } ] }
     end
 
     before do

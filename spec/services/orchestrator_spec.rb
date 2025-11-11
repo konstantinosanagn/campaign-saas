@@ -13,7 +13,7 @@ RSpec.describe Orchestrator, type: :service do
         job_title: 'Head of Engineering',
         email: 'john@example.com'
       },
-      inferred_focus_areas: ["cloud architecture", "scalability"],
+      inferred_focus_areas: [ "cloud architecture", "scalability" ],
       personalization_signals: {
         recipient: [],
         company: [
@@ -32,7 +32,7 @@ RSpec.describe Orchestrator, type: :service do
     {
       company: 'Test Corp',
       email: 'Subject: Test Subject\n\nTest email body',
-      variants: ['Subject: Test Subject\n\nTest email body'],
+      variants: [ 'Subject: Test Subject\n\nTest email body' ],
       recipient: 'John Doe',
       sources: mock_search_results[:personalization_signals][:company],
       inferred_focus_areas: mock_search_results[:inferred_focus_areas],
@@ -89,7 +89,7 @@ RSpec.describe Orchestrator, type: :service do
         company: company_name,
         recipient: recipient,
         email: 'Subject: Test Subject\n\nTest email body',
-        variants: ['Subject: Test Subject\n\nTest email body'],
+        variants: [ 'Subject: Test Subject\n\nTest email body' ],
         critique: nil,
         sources: mock_search_results[:personalization_signals][:company],
         inferred_focus_areas: mock_search_results[:inferred_focus_areas],
@@ -117,7 +117,7 @@ RSpec.describe Orchestrator, type: :service do
         {
           company: company_name,
           sources: mock_search_results[:personalization_signals][:company],
-          inferred_focus_areas: mock_search_results[:inferred_focus_areas],
+          inferred_focus_areas: mock_search_results[:inferred_focus_areas]
         },
         recipient: recipient,
         company: company_name,

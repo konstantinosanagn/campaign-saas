@@ -143,7 +143,7 @@ class Orchestrator
       company: company_name,
       recipient: recipient,
       email: email_text,
-      variants: [email_text],
+      variants: [ email_text ],
       critique: critique_result["critique"],
       sources: sources,
       inferred_focus_areas: search_results[:inferred_focus_areas],
