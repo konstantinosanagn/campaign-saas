@@ -1,4 +1,26 @@
 require 'cucumber/rails'
+require 'rspec/mocks'
+require 'warden/test/helpers'
+
+World(RSpec::Mocks::ExampleMethods)
+World(Warden::Test::Helpers)
+
+Before do
+  RSpec::Mocks.setup
+  # Default to disabled auth for most tests
+  ENV['DISABLE_AUTH'] = 'true'
+  # Clear any existing Warden sessions
+  Warden.test_mode!
+end
+
+After do
+  RSpec::Mocks.verify
+  RSpec::Mocks.teardown
+  # Reset DISABLE_AUTH after each scenario
+  ENV['DISABLE_AUTH'] = 'true'
+  # Clear Warden sessions after each scenario
+  Warden.test_reset!
+end
 
 Capybara.default_driver = :rack_test
 Capybara.javascript_driver = :rack_test
@@ -9,8 +31,4 @@ begin
   Cucumber::Rails::Database.javascript_strategy = :truncation
 rescue NameError
   raise "You need to add database_cleaner-active_record to your Gemfile (in the :test group)"
-end
-
-Before do
-  ENV['DISABLE_AUTH'] = 'true'
 end

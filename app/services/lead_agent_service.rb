@@ -39,6 +39,20 @@ class LeadAgentService
         }
       end
 
+      # Check if lead is already at final stage
+      next_agent = determine_next_agent(lead.stage)
+      unless next_agent
+        # Lead is already at final stage
+        return {
+          status: "completed",
+          error: "Lead has already reached the final stage",
+          outputs: {},
+          lead: lead,
+          completed_agents: [],
+          failed_agents: []
+        }
+      end
+
       # Get API keys
       gemini_key = ApiKeyService.get_gemini_api_key(user)
       tavily_key = ApiKeyService.get_tavily_api_key(user)
@@ -48,78 +62,84 @@ class LeadAgentService
       writer_agent = Agents::WriterAgent.new(api_key: gemini_key)
       critique_agent = Agents::CritiqueAgent.new(api_key: gemini_key)
 
-      # Determine which agent to run based on current stage
-      next_agent = determine_next_agent(lead.stage)
-
-      # If already at final stage, return
-      unless next_agent
-        return {
-          status: "completed",
-          error: "Lead has already reached the final stage",
-          outputs: {},
-          lead: lead
-        }
-      end
-
-      # Get agent config for this campaign
-      agent_config = get_agent_config(campaign, next_agent)
-
-      # Skip if agent is disabled
-      if agent_config&.disabled?
-        # Still advance stage for disabled agents
-        advance_stage(lead, next_agent)
-        lead.reload
-        return {
-          status: "completed",
-          outputs: {},
-          lead: lead,
-          completed_agents: [],
-          failed_agents: []
-        }
-      end
-
       # Track execution results
       outputs = {}
       completed_agents = []
       failed_agents = []
 
-      begin
-        # Load previous outputs if needed
-        previous_outputs = load_previous_outputs(lead, next_agent)
+      # Run agents, skipping disabled ones and continuing to the next enabled agent
+      # Stop after the first successful execution (or failure)
+      max_iterations = 10 # Safety limit to prevent infinite loops
+      iteration = 0
+      agent_executed = false
 
-        # Execute agent based on type
-        case next_agent
-        when "SEARCH"
-          result = execute_search_agent(search_agent, lead, agent_config)
-        when "WRITER"
-          result = execute_writer_agent(writer_agent, lead, agent_config, previous_outputs["SEARCH"])
-        when "CRITIQUE"
-          result = execute_critique_agent(critique_agent, lead, agent_config, previous_outputs["WRITER"])
+      while iteration < max_iterations && !agent_executed
+        iteration += 1
+        
+        # Determine which agent to run based on current stage
+        next_agent = determine_next_agent(lead.stage)
+
+        # If already at final stage, break
+        unless next_agent
+          break
         end
 
-        # Store output
-        save_agent_output(lead, next_agent, result, "completed")
-        outputs[next_agent] = result
-        completed_agents << next_agent
+        # Get agent config for this campaign
+        agent_config = get_agent_config(campaign, next_agent)
 
-        # Advance to next stage
-        advance_stage(lead, next_agent)
-
-        # Update lead quality if CRITIQUE completed successfully
-        if next_agent == "CRITIQUE" && result
-          update_lead_quality(lead, result)
+        # Skip if agent is disabled - advance stage and continue to next agent
+        if agent_config&.disabled?
+          # Still advance stage for disabled agents
+          advance_stage(lead, next_agent)
+          lead.reload
+          # Continue to next agent without executing
+          next
         end
 
-      rescue => e
+        # Execute the agent (this is the first enabled agent we found)
+        begin
+          # Load previous outputs if needed
+          previous_outputs = load_previous_outputs(lead, next_agent)
 
-        # Store error output
-        error_output = { error: e.message, agent: next_agent }
-        save_agent_output(lead, next_agent, error_output, "failed")
-        outputs[next_agent] = error_output
-        failed_agents << next_agent
+          # Execute agent based on type
+          case next_agent
+          when "SEARCH"
+            result = execute_search_agent(search_agent, lead, agent_config)
+          when "WRITER"
+            result = execute_writer_agent(writer_agent, lead, agent_config, previous_outputs["SEARCH"])
+          when "CRITIQUE"
+            result = execute_critique_agent(critique_agent, lead, agent_config, previous_outputs["WRITER"])
+          end
 
-        # DO NOT advance stage if agent failed
-        # Lead stays at current stage for retry
+          # Store output
+          save_agent_output(lead, next_agent, result, "completed")
+          outputs[next_agent] = result
+          completed_agents << next_agent
+
+          # Advance to next stage
+          advance_stage(lead, next_agent)
+
+          # Update lead quality if CRITIQUE completed successfully
+          if next_agent == "CRITIQUE" && result
+            update_lead_quality(lead, result)
+          end
+
+          # Mark that we've executed an agent and break
+          agent_executed = true
+          lead.reload
+
+        rescue => e
+          # Store error output
+          error_output = { error: e.message, agent: next_agent }
+          save_agent_output(lead, next_agent, error_output, "failed")
+          outputs[next_agent] = error_output
+          failed_agents << next_agent
+
+          # DO NOT advance stage if agent failed
+          # Lead stays at current stage for retry
+          # Mark as executed and break
+          agent_executed = true
+        end
       end
 
       # Determine overall status

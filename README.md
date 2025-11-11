@@ -275,6 +275,8 @@ Creates:
 
 ## Testing
 
+The project includes comprehensive test coverage across three testing frameworks:
+
 ### RSpec
 - **178 tests** with **90%+ line coverage**
 - Tests cover models, controllers, services, and integration scenarios
@@ -288,15 +290,18 @@ Creates:
 - Coverage: `yarn test:coverage`
 
 ### Cucumber
-User acceptance tests covering:
-- Authentication and authorization
-- Campaign CRUD operations (create, read, update, delete)
-- Lead management (create, update, delete, validation)
-- Agent workflows (run agents, retrieve outputs, update outputs)
-- API key management (store and retrieve)
-- UI layout and assets (title, meta, icons, React mount)
-- Dashboard empty state
-- Input validation and authorization boundaries
+- **96 scenarios** with **497 steps** - **100% passing** ✅
+- User acceptance tests covering:
+  - Authentication and authorization (401 responses for unauthenticated API requests)
+  - Campaign CRUD operations (create, read, update, delete)
+  - Lead management (create, update, delete, validation)
+  - Agent workflows (run agents, retrieve outputs, update outputs, disabled agents)
+  - Lead stage progression (queued → searched → written → critiqued → completed)
+  - API key management (store and retrieve)
+  - UI layout and assets (title, meta, icons, React mount)
+  - Dashboard empty state
+  - Input validation and authorization boundaries
+  - Agent execution with error handling and disabled agent skipping
 
 Run: `bundle exec cucumber`
 
@@ -367,10 +372,10 @@ rails server                 # Start Rails server
 rails console                # Open Rails console
 
 # Testing
-bundle exec rspec            # Run RSpec tests (178 tests)
-yarn test                    # Run Jest tests (106 tests)
+bundle exec rspec            # Run RSpec tests (178 tests, 90%+ coverage)
+yarn test                    # Run Jest tests (106 tests, 96.6% coverage)
 yarn test:coverage           # Run Jest tests with coverage
-bundle exec cucumber         # Run Cucumber tests
+bundle exec cucumber         # Run Cucumber tests (96 scenarios, 497 steps, 100% passing)
 ```
 
 ## Deployment

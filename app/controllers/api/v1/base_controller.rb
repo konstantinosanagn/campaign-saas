@@ -4,6 +4,8 @@ module Api
       protect_from_forgery with: :null_session
       skip_before_action :verify_authenticity_token
 
+      # Set request format to JSON for API requests to ensure proper handling
+      before_action :set_json_format
       before_action :authenticate_user!, unless: :skip_auth?
 
       private
@@ -25,6 +27,11 @@ module Api
         else
           super
         end
+      end
+
+      # Force JSON format for API requests to ensure Devise returns 401 instead of redirecting
+      def set_json_format
+        request.format = :json if request.path.start_with?('/api/')
       end
     end
   end
