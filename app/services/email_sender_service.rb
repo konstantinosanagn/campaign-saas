@@ -2,7 +2,7 @@
 # EmailSenderService
 #
 # Service responsible for sending emails to leads that have completed
-# the agent processing pipeline (SEARCH → WRITER → CRITIQUE → DESIGN).
+# the agent processing pipeline (SEARCH → WRITER → DESIGNER → CRITIQUE).
 #
 # Usage:
 #   EmailSenderService.send_emails_for_campaign(campaign)
@@ -12,8 +12,8 @@ class EmailSenderService
   class << self
     ##
     # Sends emails to all ready leads in a campaign
-    # A lead is considered "ready" if it has completed the DESIGN agent
-    # (or WRITER agent if DESIGN is disabled) and reached 'designed' or 'completed' stage
+    # A lead is considered "ready" if it has completed the CRITIQUE agent
+    # (which runs after DESIGNER) and reached 'critiqued' or 'completed' stage
     #
     # @param campaign [Campaign] The campaign containing leads to send emails to
     # @return [Hash] Result with counts of sent/failed emails and any errors
@@ -47,24 +47,25 @@ class EmailSenderService
     ##
     # Checks if a lead is ready to have its email sent
     # A lead is ready if:
-    # 1. It has reached 'designed' or 'completed' stage
-    # 2. It has a completed DESIGN output (preferred) or WRITER output (fallback)
+    # 1. It has reached 'critiqued' or 'completed' stage (after CRITIQUE agent)
+    # 2. It has a completed DESIGNER output (required, since DESIGNER runs before CRITIQUE)
     #
     # @param lead [Lead] The lead to check
     # @return [Boolean] True if lead is ready to send
     def lead_ready?(lead)
-      # Must be at designed or completed stage
-      return false unless lead.stage.in?(%w[designed completed])
+      # Must be at critiqued or completed stage (after CRITIQUE has run)
+      return false unless lead.stage.in?(%w[critiqued completed])
 
-      # Check for DESIGN output first (preferred)
-      design_output = lead.agent_outputs.find_by(agent_name: "DESIGN", status: "completed")
-      if design_output && design_output.output_data["formatted_email"].present?
+      # Check for DESIGNER output (required, since DESIGNER runs before CRITIQUE now)
+      designer_output = lead.agent_outputs.find_by(agent_name: "DESIGNER", status: "completed")
+      if designer_output && designer_output.output_data["formatted_email"].present?
         return true
       end
 
-      # Fallback to WRITER output if DESIGN is not available
+      # Fallback to WRITER output only if DESIGNER is not available (for backward compatibility)
       writer_output = lead.agent_outputs.find_by(agent_name: "WRITER", status: "completed")
       if writer_output && writer_output.output_data["email"].present?
+        Rails.logger.warn("Lead #{lead.id} ready to send but using WRITER output instead of DESIGNER")
         return true
       end
 
@@ -82,18 +83,20 @@ class EmailSenderService
     ##
     # Sends email to a single lead
     def send_email_to_lead(lead)
-      # Get the email content (prefer DESIGN formatted_email, fallback to WRITER email)
-      design_output = lead.agent_outputs.find_by(agent_name: "DESIGN", status: "completed")
+      # Get the email content (prefer DESIGNER formatted_email, fallback to WRITER email)
+      # Since DESIGNER runs before CRITIQUE now, DESIGNER output should always be available
+      designer_output = lead.agent_outputs.find_by(agent_name: "DESIGNER", status: "completed")
       writer_output = lead.agent_outputs.find_by(agent_name: "WRITER", status: "completed")
 
       email_content = nil
-      if design_output && design_output.output_data["formatted_email"].present?
-        email_content = design_output.output_data["formatted_email"]
+      if designer_output && designer_output.output_data["formatted_email"].present?
+        email_content = designer_output.output_data["formatted_email"]
       elsif writer_output && writer_output.output_data["email"].present?
         email_content = writer_output.output_data["email"]
+        Rails.logger.warn("Sending email to lead #{lead.id} using WRITER email (DESIGNER not available)")
       end
 
-      raise "No email content found for lead #{lead.id}" if email_content.blank?
+      raise "No email content found for lead #{lead.id}. DESIGNER or WRITER output required." if email_content.blank?
 
       from_email = lead.campaign.user&.email.presence || ApplicationMailer.default[:from]
 

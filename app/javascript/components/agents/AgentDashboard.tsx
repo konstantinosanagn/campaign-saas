@@ -21,10 +21,7 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
     }
     if (a.name === 'SEARCH' || a.name === 'WRITER' || a.name === 'DESIGNER' || a.name === 'CRITIQUE') {
       const agentName = a.name as ConfigurableAgentName
-      return { ...a, onClick: () => {
-        console.log('Agent clicked:', agentName)
-        onAgentSettingsClick?.(agentName)
-      }}
+      return { ...a, onClick: () => onAgentSettingsClick?.(agentName) }
     }
     return a
   })
@@ -70,11 +67,8 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  console.log('Button clicked for agent:', agent.name, 'onClick exists:', !!agent.onClick)
                   if (agent.onClick) {
                     agent.onClick()
-                  } else {
-                    console.warn('No onClick handler for agent:', agent.name)
                   }
                 }}
                 className="flex items-center mb-1 w-full text-left hover:bg-gray-50 rounded px-1 py-1 -mx-1 -my-1 transition-colors duration-200 group"
