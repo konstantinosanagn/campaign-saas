@@ -62,6 +62,7 @@ module Agents
       company_name = company || search_results[:company]
       sources = search_results[:sources]
       image = search_results[:image]
+      focus_areas = search_results[:inferred_focus_areas] || []
 
       # Get settings from config or use defaults
       settings = config&.dig("settings") || config&.dig(:settings) || {}
@@ -87,7 +88,7 @@ module Agents
         prompt = build_prompt(
           company_name, sources, image, recipient, company_name,
           product_info, sender_company, tone, sender_persona, email_length,
-          personalization_level, primary_cta_type, cta_softness, variant_index, num_variants
+          personalization_level, primary_cta_type, cta_softness, variant_index, num_variants, focus_areas
         )
 
         # Build full prompt with system instructions
@@ -155,7 +156,7 @@ module Agents
 
     private
 
-    def build_prompt(company_name, sources, image, recipient, company, product_info, sender_company, tone, sender_persona, email_length, personalization_level, primary_cta_type, cta_softness, variant_index = 0, total_variants = 1)
+    def build_prompt(company_name, sources, image, recipient, company, product_info, sender_company, tone, sender_persona, email_length, personalization_level, primary_cta_type, cta_softness, variant_index = 0, total_variants = 1, focus_areas = [])
       prompt = "Write a personalized B2B marketing outreach email"
       prompt += " to #{recipient}" if recipient
       prompt += " at #{company}"
@@ -185,6 +186,10 @@ module Agents
         prompt += "Consider incorporating visual elements. Image URL: #{image}\n\n"
       end
 
+      if focus_areas.any?
+        prompt += "The recipient's technical focus areas include: #{focus_areas.join(', ')}\n\n"
+      end
+      
       prompt += "CRITICAL REQUIREMENTS:\n"
       prompt += "- Subject Line: Compelling and personalized (max 50 chars recommended)\n"
 

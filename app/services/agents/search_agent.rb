@@ -1,172 +1,127 @@
-require "httparty"
-begin
-  require "dotenv/load"
-rescue LoadError
-  # Dotenv is optional in production environments (e.g. Heroku)
-end
-require "json"
-require "logger"
+# app/services/agents/search_agent.rb
+
+require 'httparty'
+require 'json'
+require 'logger'
 
 module Agents
-  ##
-  # SearchAgent integrates with the Tavily API to fetch recent news and background
-  # information about a target company (domain) and optional recipient.
-  # @return Top 5 news sources for both company and recipient.
   class SearchAgent
     include HTTParty
-    base_uri "https://api.tavily.com"
+    base_uri "https://api.tavily.com"  # For Tavily
 
-    def initialize(api_key: ENV["TAVILY_API_KEY"], logger: ::Logger.new($stdout))
-      @api_key = api_key
-      @logger = logger || ::Logger.new($stdout)
-      raise ArgumentError, "Tavily API key is required" if @api_key.blank?
+    GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta"
+
+    def initialize(tavily_key:, gemini_key:, model: "gemini-2.5-flash")
+      raise ArgumentError, "Tavily API key is required" if tavily_key.nil? || tavily_key.empty?
+      raise ArgumentError, "Gemini API key is required" if gemini_key.nil? || gemini_key.empty?
+
+      @tavily_key = tavily_key
+      @gemini_key = gemini_key
+      @model = model
+      @logger = ::Logger.new($stdout)
     end
 
-    # Get recent news sources for a domain (target company) and optional recipient
-    # @param domain [String] Company domain or name
-    # @param recipient [String, nil] Optional recipient name
-    # @param config [Hash, nil] Agent configuration with settings
-    #   - search_depth: 'basic' | 'advanced'
-    #   - max_queries_per_lead: Integer (default: 2)
-    #   - extracted_fields: Array of field names
-    #   - on_low_info_behavior: 'generic_industry' | 'light_personalization' | 'skip'
-    def run(domain, recipient: nil, config: nil)
-      @logger.info("Running search for domain=#{domain.inspect}, recipient=#{recipient.inspect}, config=#{config.inspect}")
+    def run(company:, recipient_name:, job_title:, email:, tone: nil, persona: nil, goal: nil)
+      identity = {
+        name: recipient_name,
+        company: company,
+        job_title: job_title,
+        email: email
+      }
 
-      settings = config&.dig("settings") || config&.dig(:settings) || {}
-      search_depth = settings["search_depth"] || settings[:search_depth] || "basic"
-      max_queries = (settings["max_queries_per_lead"] || settings[:max_queries_per_lead] || 2).to_i
-      extracted_fields = settings["extracted_fields"] || settings[:extracted_fields] || []
-      on_low_info = settings["on_low_info_behavior"] || settings[:on_low_info_behavior] || "generic_industry"
+      @logger.info("SearchAgent: Personalization lookup for #{recipient_name} @ #{company}")
 
-      # Determine max_results based on search_depth
-      max_results = search_depth == "advanced" ? 10 : 5
+      inferred_focus_areas = infer_focus_areas(identity, tone: tone, persona: persona, goal: goal)
 
-      domain_sources = domain.present? ? domain_search(domain, max_results: max_results, max_queries: max_queries) : []
-      recipient_sources = recipient.present? ? recipient_search(recipient, max_results: max_results, max_queries: max_queries) : []
+      recipient_query = "#{recipient_name} #{company} #{job_title}"
+      company_query = "#{company} #{inferred_focus_areas.join(', ')}"
 
-      # Check if we have low information
-      total_sources = domain_sources.length + recipient_sources.length
-      has_low_info = total_sources < 3
-
-      # Handle low info behavior
-      if has_low_info && on_low_info == "skip"
-        @logger.info("Low information detected (#{total_sources} sources), skipping per config")
-        return {
-          domain: { domain: domain, sources: [] },
-          recipient: { name: recipient, sources: [] },
-          sources: [],
-          low_info_flag: true,
-          on_low_info_behavior: on_low_info
-        }
-      end
-
-      # Combine and cap total sources at 10
-      combined_sources = domain_sources + recipient_sources
-      capped_sources = combined_sources.first(10)
-
-      # Extract specified fields if any
-      enriched_sources = if extracted_fields.any?
-        capped_sources.map do |source|
-          enriched = source.dup
-          # Note: Tavily API already provides title, url, content
-          # Additional field extraction would require additional processing
-          enriched
-        end
-      else
-        capped_sources
-      end
+      recipient_signals = run_tavily_search(recipient_query)
+      company_signals = run_tavily_search(company_query)
 
       {
-        domain: {
-          domain: domain,
-          sources: domain_sources.first(10) # Cap domain sources at 10
-        },
-        recipient: {
-          name: recipient,
-          sources: recipient_sources.first(10) # Cap recipient sources at 10
-        },
-        sources: enriched_sources,
-        extracted_fields: extracted_fields,
-        search_depth: search_depth,
-        on_low_info_behavior: on_low_info
+        target_identity: identity,
+        inferred_focus_areas: inferred_focus_areas,
+        personalization_signals: {
+          recipient: recipient_signals,
+          company: company_signals
+        }
       }
     end
 
     private
 
-    # Private helper method to launch the Tavily search query
-    # @param entity [String]
-    # @param max_results [Integer] Maximum number of results to return
-    # @param max_queries [Integer] Maximum number of queries to execute
-    # @return [Array<Hash>] list of news sources
-    def domain_search(entity, max_results: 5, max_queries: 2)
-      queries = if max_queries > 1
-        [
-          "latest news about #{entity}",
-          "#{entity} company updates",
-          "#{entity} business news"
-        ].first(max_queries)
-      else
-        [ "latest news about #{entity}" ]
-      end
+    def infer_focus_areas(identity, tone:, persona:, goal:)
+      tone ||= ""
+      persona ||= ""
+      goal ||= ""
 
-      all_results = queries.flat_map do |query|
-        results = tavily_search(query, topic: "news", max_results: max_results)
-        results["results"] || []
-      end
+      prompt = <<~PROMPT
+        Given the recipient below, infer 3–5 technical focus areas or themes likely relevant to them in their work. Output only a JSON array of short phrases.
+        Recipient:
+        - Name: #{identity[:name]}
+        - Job Title: #{identity[:job_title]}
+        - Company: #{identity[:company]}
+        - Email: #{identity[:email]}
+        - Sender Persona: #{persona}
+        - Email Tone: #{tone}
+        - Goal: #{goal}
+      PROMPT
 
-      # Remove duplicates by URL and limit results
-      all_results.uniq { |result| result["url"] }.first(max_results)
-    end
-
-    def recipient_search(name, max_results: 5, max_queries: 2)
-      return [] if name.blank?
-
-      queries = [
-        "#{name} LinkedIn",
-        "#{name} profile",
-        "#{name} professional background",
-        "#{name} executive",
-        "#{name} career"
-      ].first(max_queries)
-
-      all_results = queries.flat_map do |query|
-        res = tavily_search(query, topic: "general", max_results: max_results)
-        res["results"] || []
-      end
-
-      # Remove duplicates by URL and limit results
-      all_results.uniq { |result| result["url"] }.first(max_results)
-    end
-
-    # Method to perform a Tavily API request
-    # @param query [String] Search query
-    # @param topic [String] Search topic (news, general, etc.)
-    # @param max_results [Integer] Maximum number of results
-    # @param include_images [Boolean] Whether to include images
-    # @return [Hash] parsed response
-    def tavily_search(query, topic:, max_results: 5, include_images: false)
-      response = self.class.post(
-        "/search",
-        headers: {
-          "Content-Type" => "application/json",
-          "Authorization" => "Bearer #{@api_key}"
-        },
+      response = HTTParty.post(
+        "https://generativelanguage.googleapis.com/v1beta/models/#{@model}:generateContent?key=#{@gemini_key}",
+        headers: { "Content-Type" => "application/json" },
         body: {
-          query: query,
-          topic: topic,
-          max_results: max_results,
-          include_images: include_images
+          contents: [{ parts: [{ text: prompt }] }]
         }.to_json
       )
-      JSON.parse(response.body)
-    rescue JSON::ParserError, Net::OpenTimeout, Net::ReadTimeout => e
-      @logger.error("Tavily error: #{e.message}")
-      {}
-    rescue StandardError => e
-      @logger.error("Tavily error: #{e.message}")
-      {}
+
+      raw = response.parsed_response.dig("candidates", 0, "content", "parts", 0, "text") || ""
+
+      # @logger.debug("Gemini raw response: #{raw}")
+
+      # Remove markdown and surrounding quotes
+      cleaned = raw
+        .gsub(/```json/i, "")
+        .gsub(/```/, "")
+        .gsub(/\A\s+|\s+\z/, "")  # trim leading/trailing whitespace
+        .gsub("\n", "")           # remove line breaks
+
+      JSON.parse(cleaned)
+    rescue => e
+      @logger.error("Gemini inference failed: #{e.message}")
+      []
+    end
+
+
+
+    def run_tavily_search(query)
+      response = self.class.post(
+        "/search",
+        headers: { "Content-Type" => "application/json" },
+        body: {
+          api_key: @tavily_key,
+          query: query,
+          search_depth: "advanced",
+          include_answer: false,
+          include_raw_content: false,
+          max_results: 5
+        }.to_json
+      )
+
+      begin
+        sources = response.parsed_response["results"]
+        sources&.map do |result|
+          {
+            title: result["title"],
+            url: result["url"],
+            content: result["content"]
+          }
+        end || []
+      rescue => e
+        @logger.error("Tavily batch search failed: #{e.message}")
+        []
+      end
     end
   end
 end

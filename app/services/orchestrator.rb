@@ -60,15 +60,23 @@ class Orchestrator
 
     # Step 1: Search for information about the company
     puts "Step 1: Searching for latest news about #{company_name} and #{recipient || 'General'}..."
-    search_results = @search_agent.run(company_name, recipient: recipient)
-    sources = Array(search_results[:sources])
+    search_results = @search_agent.run(
+        company: company_name,
+        recipient_name: recipient&.dig(:name),
+        job_title: recipient&.dig(:job_title),
+        email: recipient&.dig(:email),
+        tone: recipient&.dig(:tone),
+        persona: recipient&.dig(:persona),
+        goal: recipient&.dig(:goal)
+      )
+    sources = Array(search_results[:personalization_signals][:recipient])
     puts "Found #{sources.length} sources"
 
     # Step 2: Generate personalized email TO the company
     puts "Step 2: Generating personalized B2B outreach email..."
     writer_output = @writer_agent.run(
       search_results,
-      recipient: recipient,
+      recipient: search_results[:target_identity],
       company: company_name,
       product_info: product_info,
       sender_company: sender_company
