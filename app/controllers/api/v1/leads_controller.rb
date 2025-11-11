@@ -3,7 +3,10 @@ module Api
     class LeadsController < BaseController
       def index
         # Only return leads from campaigns belonging to the current user
-        render json: Lead.joins(:campaign).where(campaigns: { user_id: current_user.id })
+        # Use includes to prevent N+1 queries when accessing associations
+        render json: Lead.includes(:campaign, :agent_outputs)
+                         .joins(:campaign)
+                         .where(campaigns: { user_id: current_user.id })
       end
 
       def create
@@ -24,7 +27,11 @@ module Api
 
       def update
         # Only allow updating leads from campaigns belonging to current user
-        lead = Lead.joins(:campaign).where(campaigns: { user_id: current_user.id }).find_by(id: params[:id])
+        # Use includes to prevent N+1 queries
+        lead = Lead.includes(:campaign, :agent_outputs)
+                   .joins(:campaign)
+                   .where(campaigns: { user_id: current_user.id })
+                   .find_by(id: params[:id])
         if lead && lead.update(lead_params.except(:campaign_id))
           render json: lead
         else
@@ -34,7 +41,11 @@ module Api
 
       def destroy
         # Only allow deleting leads from campaigns belonging to current user
-        lead = Lead.joins(:campaign).where(campaigns: { user_id: current_user.id }).find_by(id: params[:id])
+        # Use includes to prevent N+1 queries
+        lead = Lead.includes(:campaign, :agent_outputs)
+                   .joins(:campaign)
+                   .where(campaigns: { user_id: current_user.id })
+                   .find_by(id: params[:id])
         if lead
           lead.destroy
           head :no_content
@@ -45,10 +56,18 @@ module Api
 
       ##
       # POST /api/v1/leads/:id/run_agents
-      # Runs all agents (SEARCH → WRITER → CRITIQUE) for a specific lead
+      # Runs all agents (SEARCH → WRITER → CRITIQUE → DESIGN) for a specific lead
+      # 
+      # In production, this runs asynchronously via background job.
+      # In development/test, this runs synchronously for easier debugging.
+      # Use ?async=true to force async execution, ?async=false to force sync.
       def run_agents
         # Find lead and verify ownership
-        lead = Lead.joins(:campaign).where(campaigns: { user_id: current_user.id }).find_by(id: params[:id])
+        # Use includes to prevent N+1 queries and eager load associations
+        lead = Lead.includes(:campaign, :agent_outputs)
+                   .joins(:campaign)
+                   .where(campaigns: { user_id: current_user.id })
+                   .find_by(id: params[:id])
 
         unless lead
           render json: { errors: [ "Lead not found or unauthorized" ] }, status: :not_found
@@ -58,35 +77,70 @@ module Api
         # Get the campaign
         campaign = lead.campaign
 
-        begin
-          # Run agents using LeadAgentService
-          result = LeadAgentService.run_agents_for_lead(lead, campaign, current_user)
+        # Determine if we should run async or sync
+        # Default: async in production, sync in development/test
+        force_async = params[:async] == "true" || params[:async] == true
+        force_sync = params[:async] == "false" || params[:async] == false
+        
+        use_async = if force_async
+          true
+        elsif force_sync
+          false
+        else
+          # Default behavior: async in production, sync in development/test
+          Rails.env.production?
+        end
 
-          # Check for service-level errors
-          if result[:status] == "failed" && result[:error]
+        if use_async
+          # Enqueue background job
+          begin
+            job = AgentExecutionJob.perform_later(lead.id, campaign.id, current_user.id)
+            
+            render json: {
+              status: "queued",
+              message: "Agent execution queued successfully",
+              job_id: job.job_id,
+              lead: lead
+            }, status: :accepted
+          rescue => e
+            Rails.logger.error("Failed to enqueue AgentExecutionJob: #{e.message}")
+            render json: {
+              status: "error",
+              error: "Failed to queue agent execution: #{e.message}"
+            }, status: :internal_server_error
+          end
+        else
+          # Run synchronously (for development/test or when explicitly requested)
+          begin
+            # Run agents using LeadAgentService
+            result = LeadAgentService.run_agents_for_lead(lead, campaign, current_user)
+
+            # Check for service-level errors
+            if result[:status] == "failed" && result[:error]
+              render json: {
+                status: result[:status],
+                error: result[:error],
+                lead: lead
+              }, status: :unprocessable_entity
+              return
+            end
+
+            # Return success response with results
             render json: {
               status: result[:status],
-              error: result[:error],
-              lead: lead
-            }, status: :unprocessable_entity
-            return
+              outputs: result[:outputs],
+              lead: lead,
+              completedAgents: result[:completed_agents],
+              failedAgents: result[:failed_agents]
+            }, status: :ok
+
+          rescue => e
+            # Handle any unexpected errors
+            render json: {
+              status: "error",
+              error: e.message
+            }, status: :internal_server_error
           end
-
-          # Return success response with results
-          render json: {
-            status: result[:status],
-            outputs: result[:outputs],
-            lead: lead,
-            completedAgents: result[:completed_agents],
-            failedAgents: result[:failed_agents]
-          }, status: :ok
-
-        rescue => e
-          # Handle any unexpected errors
-          render json: {
-            status: "error",
-            error: e.message
-          }, status: :internal_server_error
         end
       end
 
@@ -95,7 +149,11 @@ module Api
       # Returns all agent outputs for a specific lead
       def agent_outputs
         # Find lead and verify ownership
-        lead = Lead.joins(:campaign).where(campaigns: { user_id: current_user.id }).find_by(id: params[:id])
+        # Use includes to prevent N+1 queries when loading agent_outputs
+        lead = Lead.includes(:campaign, :agent_outputs)
+                   .joins(:campaign)
+                   .where(campaigns: { user_id: current_user.id })
+                   .find_by(id: params[:id])
 
         unless lead
           render json: { errors: [ "Lead not found or unauthorized" ] }, status: :not_found
@@ -125,7 +183,11 @@ module Api
       # Updates a specific agent output (supports WRITER and SEARCH)
       def update_agent_output
         # Find lead and verify ownership
-        lead = Lead.joins(:campaign).where(campaigns: { user_id: current_user.id }).find_by(id: params[:id])
+        # Use includes to prevent N+1 queries
+        lead = Lead.includes(:campaign, :agent_outputs)
+                   .joins(:campaign)
+                   .where(campaigns: { user_id: current_user.id })
+                   .find_by(id: params[:id])
 
         unless lead
           render json: { errors: [ "Lead not found or unauthorized" ] }, status: :not_found
@@ -140,7 +202,7 @@ module Api
         end
 
         # Only allow updating WRITER, SEARCH, and DESIGN
-        unless agent_name.in?(%w[WRITER SEARCH DESIGN])
+        unless agent_name.in?([AgentConstants::AGENT_WRITER, AgentConstants::AGENT_SEARCH, AgentConstants::AGENT_DESIGN])
           render json: { errors: [ "Only WRITER, SEARCH, and DESIGN agent outputs can be updated" ] }, status: :unprocessable_entity
           return
         end
@@ -154,7 +216,7 @@ module Api
         end
 
         # Handle different agent types
-        if agent_name == "WRITER"
+        if agent_name == AgentConstants::AGENT_WRITER
           # Get the new email content from params
           new_email = params[:content] || params[:email]
 
@@ -166,7 +228,7 @@ module Api
           # Update the output data
           updated_data = agent_output.output_data.merge(email: new_email)
           agent_output.update!(output_data: updated_data)
-        elsif agent_name == "DESIGN"
+        elsif agent_name == AgentConstants::AGENT_DESIGN
           # Get the new formatted email content from params
           new_email = params[:content] || params[:email] || params[:formatted_email]
 
@@ -181,7 +243,7 @@ module Api
             formatted_email: new_email
           )
           agent_output.update!(output_data: updated_data)
-        elsif agent_name == "SEARCH"
+        elsif agent_name == AgentConstants::AGENT_SEARCH
           # Get the updated data from params
           updated_data_param = params[:updatedData] || params[:updated_data]
 

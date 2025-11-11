@@ -3,7 +3,8 @@ module Api
     class CampaignsController < BaseController
       def index
         # Only return campaigns belonging to the current user
-        render json: current_user.campaigns
+        # Use includes to prevent N+1 queries when accessing associations
+        render json: current_user.campaigns.includes(:leads, :agent_configs)
       end
 
       def create
@@ -41,7 +42,8 @@ module Api
       # POST /api/v1/campaigns/:id/send_emails
       # Sends emails to all ready leads in the campaign
       def send_emails
-        campaign = current_user.campaigns.find_by(id: params[:id])
+        # Use includes to prevent N+1 queries when loading leads and agent_outputs
+        campaign = current_user.campaigns.includes(:leads, leads: :agent_outputs).find_by(id: params[:id])
 
         unless campaign
           render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found

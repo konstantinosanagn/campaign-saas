@@ -15,10 +15,10 @@ require_relative "agents/design_agent"
 #   # Returns: { status: 'completed'|'partial'|'failed', outputs: {...}, lead: {...} }
 #
 class LeadAgentService
-  AGENT_ORDER = %w[SEARCH WRITER CRITIQUE DESIGN].freeze
+  include AgentConstants
+
   # Stage progression: queued → searched → written → critiqued → designed → completed
   # Each agent moves the lead to the next stage in the progression
-  STAGE_PROGRESSION = %w[queued searched written critiqued designed completed].freeze
 
   class << self
     ##
@@ -105,18 +105,18 @@ class LeadAgentService
 
           # Execute agent based on type
           case next_agent
-          when "SEARCH"
+          when AGENT_SEARCH
             result = execute_search_agent(search_agent, lead, agent_config)
-          when "WRITER"
-            result = execute_writer_agent(writer_agent, lead, agent_config, previous_outputs["SEARCH"])
-          when "CRITIQUE"
-            result = execute_critique_agent(critique_agent, lead, agent_config, previous_outputs["WRITER"])
-          when "DESIGN"
-            result = execute_design_agent(design_agent, lead, agent_config, previous_outputs["CRITIQUE"])
+          when AGENT_WRITER
+            result = execute_writer_agent(writer_agent, lead, agent_config, previous_outputs[AGENT_SEARCH])
+          when AGENT_CRITIQUE
+            result = execute_critique_agent(critique_agent, lead, agent_config, previous_outputs[AGENT_WRITER])
+          when AGENT_DESIGN
+            result = execute_design_agent(design_agent, lead, agent_config, previous_outputs[AGENT_CRITIQUE])
           end
 
           # Store output
-          save_agent_output(lead, next_agent, result, "completed")
+          save_agent_output(lead, next_agent, result, STATUS_COMPLETED)
           outputs[next_agent] = result
           completed_agents << next_agent
 
@@ -124,7 +124,7 @@ class LeadAgentService
           advance_stage(lead, next_agent)
 
           # Update lead quality if CRITIQUE completed successfully
-          if next_agent == "CRITIQUE" && result
+          if next_agent == AGENT_CRITIQUE && result
             update_lead_quality(lead, result)
           end
 
@@ -135,7 +135,7 @@ class LeadAgentService
         rescue => e
           # Store error output
           error_output = { error: e.message, agent: next_agent }
-          save_agent_output(lead, next_agent, error_output, "failed")
+          save_agent_output(lead, next_agent, error_output, STATUS_FAILED)
           outputs[next_agent] = error_output
           failed_agents << next_agent
 
@@ -176,14 +176,14 @@ class LeadAgentService
       # critiqued -> DESIGN (to become 'designed')
       # designed -> nil (final stage)
       case current_stage
-      when "queued"
-        "SEARCH"
-      when "searched"
-        "WRITER"
-      when "written"
-        "CRITIQUE"
-      when "critiqued"
-        "DESIGN"
+      when STAGE_QUEUED
+        AGENT_SEARCH
+      when STAGE_SEARCHED
+        AGENT_WRITER
+      when STAGE_WRITTEN
+        AGENT_CRITIQUE
+      when STAGE_CRITIQUED
+        AGENT_DESIGN
       else
         nil
       end
@@ -195,19 +195,19 @@ class LeadAgentService
       outputs = {}
 
       # WRITER needs SEARCH output
-      if current_agent == "WRITER"
-        search_output = lead.agent_outputs.find_by(agent_name: "SEARCH")
-        outputs["SEARCH"] = search_output&.output_data
+      if current_agent == AGENT_WRITER
+        search_output = lead.agent_outputs.find_by(agent_name: AGENT_SEARCH)
+        outputs[AGENT_SEARCH] = search_output&.output_data
       end
 
-      if current_agent == "CRITIQUE"
-        writer_output = lead.agent_outputs.find_by(agent_name: "WRITER")
-        outputs["WRITER"] = writer_output&.output_data
+      if current_agent == AGENT_CRITIQUE
+        writer_output = lead.agent_outputs.find_by(agent_name: AGENT_WRITER)
+        outputs[AGENT_WRITER] = writer_output&.output_data
       end
 
-      if current_agent == "DESIGN"
-        critique_output = lead.agent_outputs.find_by(agent_name: "CRITIQUE")
-        outputs["CRITIQUE"] = critique_output&.output_data
+      if current_agent == AGENT_DESIGN
+        critique_output = lead.agent_outputs.find_by(agent_name: AGENT_CRITIQUE)
+        outputs[AGENT_CRITIQUE] = critique_output&.output_data
       end
 
       outputs
@@ -228,9 +228,9 @@ class LeadAgentService
     # Returns default settings for each agent type
     def default_settings_for_agent(agent_name)
       case agent_name
-      when "WRITER"
+      when AGENT_WRITER
         { product_info: "", sender_company: "" }
-      when "SEARCH", "DESIGN", "CRITIQUE"
+      when AGENT_SEARCH, AGENT_DESIGN, AGENT_CRITIQUE
         {}
       else
         {}
@@ -367,7 +367,7 @@ class LeadAgentService
       agent_output.assign_attributes(
         output_data: output_data,
         status: status,
-        error_message: status == "failed" ? output_data[:error] : nil
+        error_message: status == STATUS_FAILED ? output_data[:error] : nil
       )
       agent_output.save!
     end

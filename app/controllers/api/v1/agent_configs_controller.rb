@@ -5,7 +5,8 @@ module Api
       # GET /api/v1/campaigns/:campaign_id/agent_configs
       # Returns all agent configs for a campaign
       def index
-        campaign = current_user.campaigns.find_by(id: params[:campaign_id])
+        # Use includes to prevent N+1 queries
+        campaign = current_user.campaigns.includes(:agent_configs).find_by(id: params[:campaign_id])
 
         unless campaign
           render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
@@ -33,7 +34,8 @@ module Api
       # GET /api/v1/campaigns/:campaign_id/agent_configs/:id
       # Returns a specific agent config
       def show
-        campaign = current_user.campaigns.find_by(id: params[:campaign_id])
+        # Use includes to prevent N+1 queries
+        campaign = current_user.campaigns.includes(:agent_configs).find_by(id: params[:campaign_id])
 
         unless campaign
           render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
@@ -61,7 +63,8 @@ module Api
       # POST /api/v1/campaigns/:campaign_id/agent_configs
       # Creates a new agent config
       def create
-        campaign = current_user.campaigns.find_by(id: params[:campaign_id])
+        # Use includes to prevent N+1 queries
+        campaign = current_user.campaigns.includes(:agent_configs).find_by(id: params[:campaign_id])
 
         unless campaign
           render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
@@ -72,8 +75,8 @@ module Api
         agent_name = agent_config_params[:agent_name] || agent_config_params[:agentName]
 
         # Validate agent name
-        unless AgentConfig::VALID_AGENT_NAMES.include?(agent_name)
-          render json: { errors: [ "Invalid agent name. Must be one of: SEARCH, WRITER, CRITIQUE" ] }, status: :unprocessable_entity
+        unless AgentConstants::VALID_AGENT_NAMES.include?(agent_name)
+          render json: { errors: [ "Invalid agent name. Must be one of: SEARCH, WRITER, CRITIQUE, DESIGN" ] }, status: :unprocessable_entity
           return
         end
 
@@ -108,7 +111,8 @@ module Api
       # PATCH/PUT /api/v1/campaigns/:campaign_id/agent_configs/:id
       # Updates an existing agent config
       def update
-        campaign = current_user.campaigns.find_by(id: params[:campaign_id])
+        # Use includes to prevent N+1 queries
+        campaign = current_user.campaigns.includes(:agent_configs).find_by(id: params[:campaign_id])
 
         unless campaign
           render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
@@ -144,7 +148,8 @@ module Api
       # DELETE /api/v1/campaigns/:campaign_id/agent_configs/:id
       # Deletes an agent config
       def destroy
-        campaign = current_user.campaigns.find_by(id: params[:campaign_id])
+        # Use includes to prevent N+1 queries
+        campaign = current_user.campaigns.includes(:agent_configs).find_by(id: params[:campaign_id])
 
         unless campaign
           render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found

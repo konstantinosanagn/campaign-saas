@@ -1,11 +1,8 @@
 class AgentOutput < ApplicationRecord
+  include AgentConstants
+  include JsonbValidator
+
   belongs_to :lead
-
-  # Valid agent names - SEARCH, WRITER, DESIGN, and CRITIQUE agents are implemented
-  VALID_AGENT_NAMES = %w[SEARCH WRITER DESIGN CRITIQUE].freeze
-
-  # Valid status values
-  VALID_STATUSES = %w[pending completed failed].freeze
 
   # Validations
   validates :lead_id, presence: true
@@ -13,16 +10,34 @@ class AgentOutput < ApplicationRecord
   validates :status, presence: true, inclusion: { in: VALID_STATUSES }
   validates :output_data, presence: true
 
+  # JSON schema validation for output_data (optional, won't break existing data)
+  # This provides basic structure validation without being too strict
+  validates_jsonb_schema :output_data, schema: {
+    type: "object",
+    properties: {
+      email: { type: "string" },
+      formatted_email: { type: "string" },
+      company: { type: "string" },
+      recipient: { type: "string" },
+      sources: { type: "array" },
+      critique: { type: "string" },
+      score: { type: "integer" },
+      variants: { type: "array" },
+      selected_variant: { type: "string" },
+      error: { type: "string" }
+    }
+  }, allow_empty: false, strict: false
+
   # Status query methods
   def completed?
-    status == "completed"
+    status == STATUS_COMPLETED
   end
 
   def failed?
-    status == "failed"
+    status == STATUS_FAILED
   end
 
   def pending?
-    status == "pending"
+    status == STATUS_PENDING
   end
 end

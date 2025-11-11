@@ -9,6 +9,7 @@
 #   # Returns: { sent: 5, failed: 2, errors: [...] }
 #
 class EmailSenderService
+  include AgentConstants
   class << self
     ##
     # Sends emails to all ready leads in a campaign
@@ -54,16 +55,16 @@ class EmailSenderService
     # @return [Boolean] True if lead is ready to send
     def lead_ready?(lead)
       # Must be at designed or completed stage
-      return false unless lead.stage.in?(%w[designed completed])
+      return false unless lead.stage.in?([STAGE_DESIGNED, STAGE_COMPLETED])
 
       # Check for DESIGN output first (preferred)
-      design_output = lead.agent_outputs.find_by(agent_name: "DESIGN", status: "completed")
+      design_output = lead.agent_outputs.find_by(agent_name: AGENT_DESIGN, status: STATUS_COMPLETED)
       if design_output && design_output.output_data["formatted_email"].present?
         return true
       end
 
       # Fallback to WRITER output if DESIGN is not available
-      writer_output = lead.agent_outputs.find_by(agent_name: "WRITER", status: "completed")
+      writer_output = lead.agent_outputs.find_by(agent_name: AGENT_WRITER, status: STATUS_COMPLETED)
       if writer_output && writer_output.output_data["email"].present?
         return true
       end
@@ -83,8 +84,8 @@ class EmailSenderService
     # Sends email to a single lead
     def send_email_to_lead(lead)
       # Get the email content (prefer DESIGN formatted_email, fallback to WRITER email)
-      design_output = lead.agent_outputs.find_by(agent_name: "DESIGN", status: "completed")
-      writer_output = lead.agent_outputs.find_by(agent_name: "WRITER", status: "completed")
+      design_output = lead.agent_outputs.find_by(agent_name: AGENT_DESIGN, status: STATUS_COMPLETED)
+      writer_output = lead.agent_outputs.find_by(agent_name: AGENT_WRITER, status: STATUS_COMPLETED)
 
       email_content = nil
       if design_output && design_output.output_data["formatted_email"].present?
