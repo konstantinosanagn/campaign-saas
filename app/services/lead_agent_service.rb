@@ -3,6 +3,7 @@ require_relative "agents/search_agent"
 require_relative "agents/writer_agent"
 require_relative "agents/design_agent"
 require_relative "agents/critique_agent"
+require_relative "agents/design_agent"
 
 ##
 # LeadAgentService
@@ -81,30 +82,70 @@ class LeadAgentService
         }
       end
 
+      # Get API keys
+      gemini_key = ApiKeyService.get_gemini_api_key(user)
+      tavily_key = ApiKeyService.get_tavily_api_key(user)
+
+      # Initialize agents
+      search_agent = Agents::SearchAgent.new(api_key: tavily_key)
+      writer_agent = Agents::WriterAgent.new(api_key: gemini_key)
+      critique_agent = Agents::CritiqueAgent.new(api_key: gemini_key)
+      design_agent = Agents::DesignAgent.new(api_key: gemini_key)
+
       # Track execution results
       outputs = {}
       completed_agents = []
       failed_agents = []
 
-      begin
-        # Load previous outputs if needed
-        previous_outputs = load_previous_outputs(lead, next_agent)
+      # Run agents, skipping disabled ones and continuing to the next enabled agent
+      # Stop after the first successful execution (or failure)
+      max_iterations = 10 # Safety limit to prevent infinite loops
+      iteration = 0
+      agent_executed = false
 
-        # Execute agent based on type
-        case next_agent
-        when "SEARCH"
-          result = execute_search_agent(search_agent, lead, agent_config)
-        when "WRITER"
-          result = execute_writer_agent(writer_agent, lead, agent_config, previous_outputs["SEARCH"])
-        when "CRITIQUE"
-          # CRITIQUE can use either DESIGNER or WRITER output, prefer DESIGNER if available
-          designer_output = previous_outputs["DESIGNER"]
-          writer_output = previous_outputs["WRITER"]
-          result = execute_critique_agent(critique_agent, lead, agent_config, designer_output || writer_output)
-        when "DESIGNER"
-          # DESIGNER uses WRITER output
-          result = execute_design_agent(design_agent, lead, agent_config, previous_outputs["WRITER"])
+      while iteration < max_iterations && !agent_executed
+        iteration += 1
+
+        # Determine which agent to run based on current stage
+        next_agent = determine_next_agent(lead.stage)
+
+        # If already at final stage, break
+        unless next_agent
+          break
         end
+
+        # Get agent config for this campaign
+        agent_config = get_agent_config(campaign, next_agent)
+
+        # Skip if agent is disabled - advance stage and continue to next agent
+        if agent_config&.disabled?
+          # Still advance stage for disabled agents
+          advance_stage(lead, next_agent)
+          lead.reload
+          # Continue to next agent without executing
+          next
+        end
+
+        # Execute the agent (this is the first enabled agent we found)
+        begin
+          # Load previous outputs if needed
+          previous_outputs = load_previous_outputs(lead, next_agent)
+
+          # Execute agent based on type
+          case next_agent
+          when "SEARCH"
+            result = execute_search_agent(search_agent, lead, agent_config)
+          when "WRITER"
+            result = execute_writer_agent(writer_agent, lead, agent_config, previous_outputs["SEARCH"])
+          when "CRITIQUE"
+          # CRITIQUE can use either DESIGNER or WRITER output, prefer DESIGNER if available
+            designer_output = previous_outputs["DESIGNER"]
+            writer_output = previous_outputs["WRITER"]
+            result = execute_critique_agent(critique_agent, lead, agent_config, designer_output || writer_output)
+          when "DESIGNER"
+            # DESIGNER uses WRITER output
+            result = execute_design_agent(design_agent, lead, agent_config, previous_outputs["WRITER"])
+          end
 
           # Store output
           save_agent_output(lead, next_agent, result, "completed")
@@ -180,6 +221,8 @@ class LeadAgentService
         "DESIGNER"
       when "designed"
         "CRITIQUE"
+      when "critiqued"
+        "DESIGN"
       else
         nil
       end
@@ -214,6 +257,11 @@ class LeadAgentService
           writer_output = lead.agent_outputs.find_by(agent_name: "WRITER")
           outputs["WRITER"] = writer_output&.output_data
         end
+      end
+
+      if current_agent == "DESIGN"
+        critique_output = lead.agent_outputs.find_by(agent_name: "CRITIQUE")
+        outputs["CRITIQUE"] = critique_output&.output_data
       end
 
       outputs
@@ -402,6 +450,36 @@ class LeadAgentService
       end
 
       result
+    end
+
+    ##
+    # Executes the DesignAgent
+    def execute_design_agent(design_agent, lead, agent_config, critique_output)
+      # Prepare critique output for design
+      # Prefer selected_variant if available, otherwise use email_content or email
+      # Handle both string and symbol keys from JSONB storage
+      email_content = critique_output&.dig("selected_variant") ||
+                      critique_output&.dig(:selected_variant) ||
+                      critique_output&.dig("email_content") ||
+                      critique_output&.dig(:email_content) ||
+                      critique_output&.dig("email") ||
+                      critique_output&.dig(:email) ||
+                      ""
+
+      # Get company and recipient from lead
+      company = lead.company
+      recipient = lead.name
+
+      # Prepare input hash for design agent
+      design_input = {
+        email: email_content,
+        company: company,
+        recipient: recipient
+      }
+
+      # Pass config to design_agent
+      config_hash = agent_config ? { settings: agent_config.settings } : nil
+      design_agent.run(design_input, config: config_hash)
     end
 
     ##

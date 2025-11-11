@@ -27,6 +27,14 @@ RSpec.describe LeadAgentService, type: :service do
         allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
           'critique' => nil
         })
+
+        allow_any_instance_of(Agents::DesignAgent).to receive(:run).and_return({
+          email: 'Subject: Test Email\n\nBody content',
+          formatted_email: 'Subject: Test Email\n\n**Body** content',
+          company: lead.company,
+          recipient: lead.name,
+          original_email: 'Subject: Test Email\n\nBody content'
+        })
       end
 
       it 'runs only the SEARCH agent for a queued lead' do
@@ -133,6 +141,211 @@ RSpec.describe LeadAgentService, type: :service do
         expect(critique_expectation.first).to include('email_content')
         expect(critique_expectation.first['email_content']).to eq('Test Email Content')
       end
+
+      it 'runs DESIGN agent for a critiqued lead' do
+        lead.update!(stage: 'critiqued')
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nTest email content',
+          'selected_variant' => 'Subject: Test\n\nSelected variant content'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+
+        result = described_class.run_agents_for_lead(lead, campaign, user)
+
+        expect(result[:completed_agents]).to contain_exactly('DESIGN')
+      end
+
+      it 'updates lead stage from critiqued to designed after running DESIGN' do
+        lead.update!(stage: 'critiqued')
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nTest email content'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        lead.reload
+        expect(lead.stage).to eq('designed')
+      end
+
+      it 'passes critique output to design agent' do
+        lead.update!(stage: 'critiqued')
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nTest email content',
+          'selected_variant' => 'Subject: Test\n\nSelected variant content'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+
+        design_expectation = nil
+        allow_any_instance_of(Agents::DesignAgent).to receive(:run) do |instance, *args|
+          design_expectation = args
+          {
+            email: 'Subject: Test\n\nFormatted content',
+            formatted_email: 'Subject: Test\n\n**Formatted** content',
+            company: lead.company,
+            recipient: lead.name
+          }
+        end
+
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        # Design should receive critique output with email, company, and recipient
+        expect(design_expectation.first).to include(
+          email: 'Subject: Test\n\nSelected variant content',
+          company: lead.company,
+          recipient: lead.name
+        )
+      end
+
+      it 'prefers selected_variant from critique output when available' do
+        lead.update!(stage: 'critiqued')
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nOriginal email content',
+          'selected_variant' => 'Subject: Test\n\nSelected variant content'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+
+        design_expectation = nil
+        allow_any_instance_of(Agents::DesignAgent).to receive(:run) do |instance, *args|
+          design_expectation = args
+          {
+            email: 'Subject: Test\n\nFormatted content',
+            formatted_email: 'Subject: Test\n\n**Formatted** content',
+            company: lead.company,
+            recipient: lead.name
+          }
+        end
+
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        # Design should receive selected_variant, not email_content
+        expect(design_expectation.first[:email]).to eq('Subject: Test\n\nSelected variant content')
+      end
+
+      it 'falls back to email_content when selected_variant is not available' do
+        lead.update!(stage: 'critiqued')
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nEmail content without variant'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+
+        design_expectation = nil
+        allow_any_instance_of(Agents::DesignAgent).to receive(:run) do |instance, *args|
+          design_expectation = args
+          {
+            email: 'Subject: Test\n\nFormatted content',
+            formatted_email: 'Subject: Test\n\n**Formatted** content',
+            company: lead.company,
+            recipient: lead.name
+          }
+        end
+
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        # Design should receive email_content as fallback
+        expect(design_expectation.first[:email]).to eq('Subject: Test\n\nEmail content without variant')
+      end
+
+      it 'falls back to email key when selected_variant and email_content are not available' do
+        lead.update!(stage: 'critiqued')
+        critique_result = {
+          'critique' => nil,
+          'email' => 'Subject: Test\n\nFallback email'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+
+        design_expectation = nil
+        allow_any_instance_of(Agents::DesignAgent).to receive(:run) do |instance, *args|
+          design_expectation = args
+          {
+            email: 'Subject: Test\n\nFormatted content',
+            formatted_email: 'Subject: Test\n\n**Formatted** content',
+            company: lead.company,
+            recipient: lead.name
+          }
+        end
+
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        # Design should receive email as final fallback
+        expect(design_expectation.first[:email]).to eq('Subject: Test\n\nFallback email')
+      end
+
+      it 'passes config to design agent when available' do
+        lead.update!(stage: 'critiqued')
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nTest email content'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        design_config = create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true, settings: {
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: false,
+          cta_style: 'button'
+        })
+
+        design_expectation = nil
+        allow_any_instance_of(Agents::DesignAgent).to receive(:run) do |instance, *args|
+          design_expectation = args
+          {
+            email: 'Subject: Test\n\nFormatted content',
+            formatted_email: 'Subject: Test\n\n**Formatted** content',
+            company: lead.company,
+            recipient: lead.name
+          }
+        end
+
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        # Design should receive config as second argument with settings nested
+        expect(design_expectation[1]).to include(config: hash_including(settings: design_config.settings))
+      end
+
+      it 'creates agent output for DESIGN agent' do
+        lead.update!(stage: 'critiqued')
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nTest email content'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+
+        expect {
+          described_class.run_agents_for_lead(lead, campaign, user)
+        }.to change(AgentOutput, :count).by(1)
+
+        design_output = lead.agent_outputs.find_by(agent_name: 'DESIGN')
+        expect(design_output).to be_present
+        expect(design_output.status).to eq('completed')
+        expect(design_output.output_data).to include('formatted_email')
+      end
+
+      it 'does not update quality for DESIGN agent' do
+        lead.update!(stage: 'critiqued', quality: 'high')
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nTest email content'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        lead.reload
+        expect(lead.quality).to eq('high')
+      end
     end
 
     context 'when API keys are missing' do
@@ -202,6 +415,10 @@ RSpec.describe LeadAgentService, type: :service do
     context 'when agent config is disabled' do
       before do
         create(:agent_config, campaign: campaign, agent_name: 'SEARCH', enabled: false)
+        # Also disable WRITER, CRITIQUE, and DESIGN so they don't run after SEARCH is skipped
+        create(:agent_config, campaign: campaign, agent_name: 'WRITER', enabled: false)
+        create(:agent_config, campaign: campaign, agent_name: 'CRITIQUE', enabled: false)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: false)
       end
 
       it 'skips disabled agents and advances stage' do
@@ -215,7 +432,8 @@ RSpec.describe LeadAgentService, type: :service do
         described_class.run_agents_for_lead(lead, campaign, user)
 
         lead.reload
-        expect(lead.stage).to eq('searched')
+        # When all agents are disabled, lead advances through all stages to final stage
+        expect(lead.stage).to eq('designed')
       end
 
       it 'does not create output for disabled agent' do
@@ -223,6 +441,75 @@ RSpec.describe LeadAgentService, type: :service do
 
         search_output = lead.agent_outputs.find_by(agent_name: 'SEARCH')
         expect(search_output).to be_nil
+      end
+    end
+
+    context 'when DESIGN agent config is disabled' do
+      before do
+        lead.update!(stage: 'critiqued')
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nTest email content'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: false)
+      end
+
+      it 'skips disabled DESIGN agent and advances stage' do
+        result = described_class.run_agents_for_lead(lead, campaign, user)
+
+        expect(result[:completed_agents]).to be_empty
+        expect(result[:failed_agents]).to be_empty
+      end
+
+      it 'advances stage even when DESIGN agent is disabled' do
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        lead.reload
+        expect(lead.stage).to eq('designed')
+      end
+
+      it 'does not create output for disabled DESIGN agent' do
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        design_output = lead.agent_outputs.find_by(agent_name: 'DESIGN')
+        expect(design_output).to be_nil
+      end
+    end
+
+    context 'when DESIGN agent fails' do
+      before do
+        lead.update!(stage: 'critiqued')
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nTest email content'
+        }
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: critique_result.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+        allow_any_instance_of(Agents::DesignAgent).to receive(:run).and_raise(StandardError, 'Design failed')
+      end
+
+      it 'does not advance stage when DESIGN agent fails' do
+        result = described_class.run_agents_for_lead(lead, campaign, user)
+
+        expect(result[:failed_agents]).to include('DESIGN')
+        expect(result[:completed_agents]).to be_empty
+      end
+
+      it 'stores error in DESIGN agent output' do
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        design_output = lead.agent_outputs.find_by(agent_name: 'DESIGN')
+        expect(design_output.status).to eq('failed')
+        expect(design_output.error_message).to be_present
+      end
+
+      it 'does not advance stage when DESIGN fails' do
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        lead.reload
+        # Stage should remain at critiqued
+        expect(lead.stage).to eq('critiqued')
       end
     end
 
@@ -273,6 +560,7 @@ RSpec.describe LeadAgentService, type: :service do
         expect(result[:outputs]).to have_key('SEARCH')
         expect(result[:outputs]).not_to have_key('WRITER')
         expect(result[:outputs]).not_to have_key('CRITIQUE')
+        expect(result[:outputs]).not_to have_key('DESIGN')
       end
 
       it 'returns updated lead with current attributes' do
@@ -289,6 +577,68 @@ RSpec.describe LeadAgentService, type: :service do
 
         expect(result[:status]).to eq('completed')
         expect(result[:error]).to match(/already reached the final stage/)
+      end
+
+      it 'returns completed status when lead is at designed stage' do
+        lead.update!(stage: 'designed')
+
+        result = described_class.run_agents_for_lead(lead, campaign, user)
+
+        expect(result[:status]).to eq('completed')
+        expect(result[:error]).to match(/already reached the final stage/)
+      end
+    end
+
+    context 'full pipeline progression' do
+      it 'progresses through all stages: queued → searched → written → critiqued → designed' do
+        # Stage 1: queued → searched
+        create(:agent_config_search, campaign: campaign)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
+        expect(result[:completed_agents]).to contain_exactly('SEARCH')
+        lead.reload
+        expect(lead.stage).to eq('searched')
+
+        # Stage 2: searched → written
+        lead.agent_outputs.find_or_create_by(agent_name: 'SEARCH') do |ao|
+          ao.status = 'completed'
+          ao.output_data = { sources: [] }
+        end
+        create(:agent_config, campaign: campaign, agent_name: 'WRITER', enabled: true)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
+        expect(result[:completed_agents]).to contain_exactly('WRITER')
+        lead.reload
+        expect(lead.stage).to eq('written')
+
+        # Stage 3: written → critiqued
+        lead.agent_outputs.find_or_create_by(agent_name: 'WRITER') do |ao|
+          ao.status = 'completed'
+          ao.output_data = {
+            email: "Subject: Test Email\n\nBody of the email",
+            company: 'Example Corp',
+            recipient: 'John Doe'
+          }
+        end
+        create(:agent_config, campaign: campaign, agent_name: 'CRITIQUE', enabled: true)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
+        expect(result[:completed_agents]).to contain_exactly('CRITIQUE')
+        lead.reload
+        expect(lead.stage).to eq('critiqued')
+
+        # Stage 4: critiqued → designed
+        critique_result = {
+          'critique' => nil,
+          'email_content' => 'Subject: Test\n\nTest email content',
+          'selected_variant' => 'Subject: Test\n\nSelected variant'
+        }
+        lead.agent_outputs.find_or_create_by(agent_name: 'CRITIQUE') do |ao|
+          ao.status = 'completed'
+          ao.output_data = critique_result.with_indifferent_access
+        end
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+        result = described_class.run_agents_for_lead(lead, campaign, user)
+        expect(result[:completed_agents]).to contain_exactly('DESIGN')
+        lead.reload
+        expect(lead.stage).to eq('designed')
       end
     end
   end

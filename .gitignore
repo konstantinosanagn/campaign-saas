@@ -78,6 +78,18 @@ Thumbs.db
 # ESLint cache
 .eslintcache
 
+# Test output files
+*_output.txt
+rspec_output.txt
+jest_output.txt
+cucumber_output.txt
+
+# Test artifacts and cache
+/.rspec_cache/
+/.rspec_status
+/jest-cache/
+/.jest-cache/
+
 # Ad-hoc test artifacts
 test-*.test.ts
 useApiKeys-simple.test.ts

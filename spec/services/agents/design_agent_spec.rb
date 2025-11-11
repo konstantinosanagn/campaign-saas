@@ -115,6 +115,268 @@ RSpec.describe Agents::DesignAgent, type: :service do
       expect(result[:recipient]).to eq('John')
     end
 
+    context 'with config parameter' do
+      let(:config_with_settings) do
+        {
+          settings: {
+            format: 'formatted',
+            allow_bold: true,
+            allow_italic: true,
+            allow_bullets: true,
+            cta_style: 'link',
+            font_family: 'system_sans'
+          }
+        }
+      end
+
+      it 'accepts config parameter' do
+        allow(described_class).to receive(:post).and_return(mock_response)
+        allow(JSON).to receive(:parse).and_return(JSON.parse(mock_response.body))
+
+        expect {
+          design_agent.run(writer_output, config: config_with_settings)
+        }.not_to raise_error
+      end
+
+      it 'extracts settings from config' do
+        allow(described_class).to receive(:post).and_return(mock_response)
+        allow(JSON).to receive(:parse).and_return(JSON.parse(mock_response.body))
+
+        result = design_agent.run(writer_output, config: config_with_settings)
+
+        expect(result).to include(
+          company: 'Test Corp',
+          recipient: 'John Doe'
+        )
+      end
+
+      context 'with plain_text format' do
+        let(:plain_text_config) do
+          {
+            settings: {
+              format: 'plain_text'
+            }
+          }
+        end
+
+        it 'builds prompt for plain text format' do
+          expect(design_agent).to receive(:build_prompt).with(
+            anything,
+            anything,
+            anything,
+            format: 'plain_text',
+            allow_bold: true,
+            allow_italic: true,
+            allow_bullets: true,
+            cta_style: 'link',
+            font_family: nil
+          )
+
+          allow(described_class).to receive(:post).and_return(mock_response)
+          allow(JSON).to receive(:parse).and_return(JSON.parse(mock_response.body))
+
+          design_agent.run(writer_output, config: plain_text_config)
+        end
+      end
+
+      context 'with formatting disabled' do
+        let(:no_formatting_config) do
+          {
+            settings: {
+              allow_bold: false,
+              allow_italic: false,
+              allow_bullets: false
+            }
+          }
+        end
+
+        it 'builds prompt without formatting instructions' do
+          prompt = design_agent.send(
+            :build_prompt,
+            writer_output[:email],
+            writer_output[:company],
+            writer_output[:recipient],
+            format: 'formatted',
+            allow_bold: false,
+            allow_italic: false,
+            allow_bullets: false,
+            cta_style: 'link',
+            font_family: nil
+          )
+
+          expect(prompt).not_to include('**bold**')
+          expect(prompt).not_to include('*italic*')
+          expect(prompt).not_to include('bullet points')
+        end
+      end
+
+      context 'with button CTA style' do
+        let(:button_cta_config) do
+          {
+            settings: {
+              cta_style: 'button'
+            }
+          }
+        end
+
+        it 'includes button-style CTA instructions' do
+          prompt = design_agent.send(
+            :build_prompt,
+            writer_output[:email],
+            writer_output[:company],
+            writer_output[:recipient],
+            format: 'formatted',
+            allow_bold: true,
+            allow_italic: true,
+            allow_bullets: true,
+            cta_style: 'button',
+            font_family: nil
+          )
+
+          expect(prompt).to include('button-style')
+          expect(prompt).not_to include('[link text](url)')
+        end
+      end
+
+      context 'with serif font family' do
+        let(:serif_config) do
+          {
+            settings: {
+              font_family: 'serif'
+            }
+          }
+        end
+
+        it 'includes serif typography guidance' do
+          prompt = design_agent.send(
+            :build_prompt,
+            writer_output[:email],
+            writer_output[:company],
+            writer_output[:recipient],
+            format: 'formatted',
+            allow_bold: true,
+            allow_italic: true,
+            allow_bullets: true,
+            cta_style: 'link',
+            font_family: 'serif'
+          )
+
+          expect(prompt).to include('serif-style emphasis')
+        end
+      end
+
+      context 'with camelCase settings keys' do
+        let(:camel_case_config) do
+          {
+            settings: {
+              'format' => 'formatted',
+              'allowBold' => false,
+              'allowItalic' => true,
+              'allowBullets' => false,
+              'ctaStyle' => 'button',
+              'fontFamily' => 'serif'
+            }
+          }
+        end
+
+        it 'handles camelCase settings keys' do
+          allow(described_class).to receive(:post).and_return(mock_response)
+          allow(JSON).to receive(:parse).and_return(JSON.parse(mock_response.body))
+
+          expect(design_agent).to receive(:build_prompt).with(
+            anything,
+            anything,
+            anything,
+            format: 'formatted',
+            allow_bold: false,
+            allow_italic: true,
+            allow_bullets: false,
+            cta_style: 'button',
+            font_family: 'serif'
+          )
+
+          design_agent.run(writer_output, config: camel_case_config)
+        end
+      end
+
+      context 'with snake_case settings keys' do
+        let(:snake_case_config) do
+          {
+            settings: {
+              format: 'formatted',
+              allow_bold: true,
+              allow_italic: false,
+              allow_bullets: true,
+              cta_style: 'link',
+              font_family: 'system_sans'
+            }
+          }
+        end
+
+        it 'handles snake_case settings keys' do
+          allow(described_class).to receive(:post).and_return(mock_response)
+          allow(JSON).to receive(:parse).and_return(JSON.parse(mock_response.body))
+
+          expect(design_agent).to receive(:build_prompt).with(
+            anything,
+            anything,
+            anything,
+            format: 'formatted',
+            allow_bold: true,
+            allow_italic: false,
+            allow_bullets: true,
+            cta_style: 'link',
+            font_family: 'system_sans'
+          )
+
+          design_agent.run(writer_output, config: snake_case_config)
+        end
+      end
+    end
+
+    context 'with input from CRITIQUE output (processed by lead_agent_service)' do
+      # Note: The design_agent receives a hash with email, company, and recipient keys
+      # The extraction of selected_variant/email_content from CRITIQUE output is handled
+      # in lead_agent_service.execute_design_agent, which is tested in lead_agent_service_spec
+      let(:design_input_from_critique) do
+        {
+          email: "Subject: Test Subject\n\nThis is the selected variant from critique.",
+          company: 'Test Corp',
+          recipient: 'John Doe'
+        }
+      end
+
+      it 'handles input hash with email, company, and recipient keys' do
+        allow(described_class).to receive(:post).and_return(mock_response)
+        allow(JSON).to receive(:parse).and_return(JSON.parse(mock_response.body))
+
+        result = design_agent.run(design_input_from_critique)
+
+        expect(result).to include(
+          company: 'Test Corp',
+          recipient: 'John Doe',
+          original_email: design_input_from_critique[:email]
+        )
+        expect(result[:formatted_email]).to be_present
+      end
+
+      it 'handles string keys in design input' do
+        design_input_string_keys = {
+          'email' => "Subject: Test\n\nHello",
+          'company' => 'Test Corp',
+          'recipient' => 'John'
+        }
+
+        allow(described_class).to receive(:post).and_return(mock_response)
+        allow(JSON).to receive(:parse).and_return(JSON.parse(mock_response.body))
+
+        result = design_agent.run(design_input_string_keys)
+
+        expect(result[:company]).to eq('Test Corp')
+        expect(result[:recipient]).to eq('John')
+      end
+    end
+
     it 'makes POST request to correct endpoint' do
       expect(described_class).to receive(:post).with(
         "/models/gemini-2.5-flash:generateContent?key=#{api_key}",
@@ -235,6 +497,218 @@ RSpec.describe Agents::DesignAgent, type: :service do
       prompt = design_agent.send(:build_prompt, email_content, company, recipient)
 
       expect(prompt).to include('Be selective - don\'t over-format')
+    end
+
+    context 'with config settings' do
+      it 'builds plain_text format prompt when format is plain_text' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'plain_text',
+          allow_bold: true,
+          allow_italic: true,
+          allow_bullets: true,
+          cta_style: 'link',
+          font_family: nil
+        )
+
+        expect(prompt).to include('Return the following email content as plain text')
+        expect(prompt).to include('Do not add any markdown, HTML, or other formatting')
+        expect(prompt).not_to include('**bold**')
+        expect(prompt).not_to include('*italic*')
+      end
+
+      it 'conditionally includes bold formatting when allow_bold is true' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: true,
+          allow_bullets: true,
+          cta_style: 'link',
+          font_family: nil
+        )
+
+        expect(prompt).to include('**bold**')
+      end
+
+      it 'excludes bold formatting when allow_bold is false' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: false,
+          allow_italic: true,
+          allow_bullets: true,
+          cta_style: 'link',
+          font_family: nil
+        )
+
+        expect(prompt).not_to include('**bold**')
+      end
+
+      it 'conditionally includes italic formatting when allow_italic is true' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: true,
+          allow_bullets: true,
+          cta_style: 'link',
+          font_family: nil
+        )
+
+        expect(prompt).to include('*italic*')
+      end
+
+      it 'excludes italic formatting when allow_italic is false' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: false,
+          allow_bullets: true,
+          cta_style: 'link',
+          font_family: nil
+        )
+
+        expect(prompt).not_to include('*italic*')
+      end
+
+      it 'conditionally includes bullet points when allow_bullets is true' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: true,
+          allow_bullets: true,
+          cta_style: 'link',
+          font_family: nil
+        )
+
+        expect(prompt).to include('bullet points')
+      end
+
+      it 'excludes bullet points when allow_bullets is false' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: true,
+          allow_bullets: false,
+          cta_style: 'link',
+          font_family: nil
+        )
+
+        expect(prompt).not_to include('bullet points')
+      end
+
+      it 'includes button-style CTA when cta_style is button' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: true,
+          allow_bullets: true,
+          cta_style: 'button',
+          font_family: nil
+        )
+
+        expect(prompt).to include('button-style')
+        expect(prompt).not_to include('[link text](url)')
+      end
+
+      it 'includes link CTA when cta_style is link' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: true,
+          allow_bullets: true,
+          cta_style: 'link',
+          font_family: nil
+        )
+
+        expect(prompt).to include('[link text](url)')
+        expect(prompt).not_to include('button-style')
+      end
+
+      it 'includes serif typography guidance when font_family is serif' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: true,
+          allow_bullets: true,
+          cta_style: 'link',
+          font_family: 'serif'
+        )
+
+        expect(prompt).to include('serif-style emphasis')
+      end
+
+      it 'includes system sans-serif guidance when font_family is system_sans' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: true,
+          allow_bullets: true,
+          cta_style: 'link',
+          font_family: 'system_sans'
+        )
+
+        expect(prompt).to include('system sans-serif style')
+      end
+
+      it 'does not include font family guidance when font_family is nil' do
+        prompt = design_agent.send(
+          :build_prompt,
+          email_content,
+          company,
+          recipient,
+          format: 'formatted',
+          allow_bold: true,
+          allow_italic: true,
+          allow_bullets: true,
+          cta_style: 'link',
+          font_family: nil
+        )
+
+        expect(prompt).not_to include('serif-style')
+        expect(prompt).not_to include('system sans-serif')
+      end
     end
   end
 

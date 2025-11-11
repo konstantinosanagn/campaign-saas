@@ -90,11 +90,20 @@ export interface CritiqueAgentSettings {
   variant_selection?: 'highest_overall_score' | 'highest_personalization_score'
 }
 
+export interface DesignAgentSettings {
+  format?: 'plain_text' | 'formatted'
+  allowBold?: boolean
+  allowItalic?: boolean
+  allowBullets?: boolean
+  ctaStyle?: 'link' | 'button'
+  fontFamily?: 'system_sans' | 'serif'
+}
+
 export interface AgentConfig {
   id?: number
   agentName: AgentConfigName
   enabled: boolean
-  settings: SearchAgentSettings | WriterAgentSettings | CritiqueAgentSettings | Record<string, unknown>
+  settings: SearchAgentSettings | WriterAgentSettings | CritiqueAgentSettings | DesignAgentSettings | Record<string, unknown>
   createdAt?: string
   updatedAt?: string
 }
