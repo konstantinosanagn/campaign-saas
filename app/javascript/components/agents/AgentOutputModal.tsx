@@ -893,11 +893,25 @@ export default function AgentOutputModal({
     { id: 'ALL' as const, label: 'All Outputs', count: outputs.length },
     { id: 'SEARCH' as const, label: 'Search', count: outputs.filter(o => o.agentName === 'SEARCH').length },
     { id: 'WRITER' as const, label: 'Writer', count: outputs.filter(o => o.agentName === 'WRITER').length },
-    { id: 'DESIGN' as const, label: 'Design', count: outputs.filter(o => o.agentName === 'DESIGN').length },
     { id: 'CRITIQUE' as const, label: 'Critique', count: outputs.filter(o => o.agentName === 'CRITIQUE').length },
+    { id: 'DESIGN' as const, label: 'Design', count: outputs.filter(o => o.agentName === 'DESIGN').length },
   ]
 
-  const tabOutputs = getTabOutputs()
+  // Sort outputs to match agent execution order: SEARCH → WRITER → CRITIQUE → DESIGN
+  const agentOrder = ['SEARCH', 'WRITER', 'CRITIQUE', 'DESIGN']
+  const sortOutputs = (outputs: AgentOutputType[]) => {
+    return [...outputs].sort((a, b) => {
+      const aIndex = agentOrder.indexOf(a.agentName)
+      const bIndex = agentOrder.indexOf(b.agentName)
+      // If agent not in order list, put it at the end
+      if (aIndex === -1 && bIndex === -1) return 0
+      if (aIndex === -1) return 1
+      if (bIndex === -1) return -1
+      return aIndex - bIndex
+    })
+  }
+
+  const tabOutputs = sortOutputs(getTabOutputs())
   const fallbackTabLabel =
     activeTab === 'ALL'
       ? 'All Outputs'

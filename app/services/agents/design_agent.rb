@@ -50,7 +50,7 @@ module Agents
       raise ArgumentError, "Gemini API key is required" if @api_key.blank?
     end
 
-    def run(writer_output)
+    def run(writer_output, config: nil)
       email_content = writer_output[:email] || writer_output["email"] || ""
       company = writer_output[:company] || writer_output["company"]
       recipient = writer_output[:recipient] || writer_output["recipient"]
@@ -65,7 +65,17 @@ module Agents
         }
       end
 
-      prompt = build_prompt(email_content, company, recipient)
+      # Extract settings from config (handle both camelCase and snake_case)
+      settings = config&.dig(:settings) || config&.dig("settings") || {}
+      format = settings[:format] || settings["format"] || "formatted"
+      # Default to true unless explicitly set to false (check all key variations)
+      allow_bold = !(settings[:allow_bold] == false || settings["allow_bold"] == false || settings[:allowBold] == false || settings["allowBold"] == false)
+      allow_italic = !(settings[:allow_italic] == false || settings["allow_italic"] == false || settings[:allowItalic] == false || settings["allowItalic"] == false)
+      allow_bullets = !(settings[:allow_bullets] == false || settings["allow_bullets"] == false || settings[:allowBullets] == false || settings["allowBullets"] == false)
+      cta_style = settings[:cta_style] || settings["cta_style"] || settings[:ctaStyle] || settings["ctaStyle"] || "link"
+      font_family = settings[:font_family] || settings["font_family"] || settings[:fontFamily] || settings["fontFamily"]
+
+      prompt = build_prompt(email_content, company, recipient, format: format, allow_bold: allow_bold, allow_italic: allow_italic, allow_bullets: allow_bullets, cta_style: cta_style, font_family: font_family)
 
       # Build full prompt with system instructions
       full_prompt = "You are an expert email designer who enhances email content with strategic formatting to improve readability and engagement. Apply bold and italic formatting thoughtfully.\n\n#{prompt}"
@@ -123,18 +133,51 @@ module Agents
 
     private
 
-    def build_prompt(email_content, company, recipient)
-      prompt = "Apply formatting to the following email content using markdown syntax:\n"
-      prompt += "- Use **bold** for: company names, key terms, important concepts, product names, and call-to-action phrases\n"
-      prompt += "- Use *italic* for: emphasis, quotes, subtle highlights, and secondary important information\n"
-      prompt += "- Use ~~strikethrough~~ for: crossed-out text, discounts, or old prices\n"
-      prompt += "- Use `code` for: technical terms, product codes, or inline code references\n"
-      prompt += "- Use [link text](url) for: clickable links (only if URLs are provided)\n"
-      prompt += "- Use > quote for: important quotes or testimonials\n"
-      prompt += "- Keep the Subject line unchanged (do not format it)\n"
-      prompt += "- Maintain all line breaks and structure\n"
-      prompt += "- Do not change the content, only add formatting\n"
-      prompt += "- Be selective - don't over-format. Only format truly important elements\n\n"
+    def build_prompt(email_content, company, recipient, format: "formatted", allow_bold: true, allow_italic: true, allow_bullets: true, cta_style: "link", font_family: nil)
+      # If format is plain_text, return the content as-is without formatting instructions
+      if format == "plain_text"
+        prompt = "Return the following email content as plain text without any formatting:\n"
+        prompt += "- Do not add any markdown, HTML, or other formatting\n"
+        prompt += "- Keep the exact same structure and content\n\n"
+      else
+        prompt = "Apply formatting to the following email content using markdown syntax:\n"
+
+        # Conditionally include formatting instructions based on settings
+        if allow_bold
+          prompt += "- Use **bold** for: company names, key terms, important concepts, product names, and call-to-action phrases\n"
+        end
+
+        if allow_italic
+          prompt += "- Use *italic* for: emphasis, quotes, subtle highlights, and secondary important information\n"
+        end
+
+        if allow_bullets
+          prompt += "- Use bullet points (- or *) for lists when appropriate\n"
+        end
+
+        prompt += "- Use ~~strikethrough~~ for: crossed-out text, discounts, or old prices\n"
+        prompt += "- Use `code` for: technical terms, product codes, or inline code references\n"
+
+        # Apply CTA style guidance
+        if cta_style == "button"
+          prompt += "- Format call-to-action phrases as button-style: **[CTA text]** or use emphasis to make them stand out\n"
+        else
+          prompt += "- Use [link text](url) for: clickable links (only if URLs are provided)\n"
+        end
+
+        prompt += "- Use > quote for: important quotes or testimonials\n"
+        prompt += "- Keep the Subject line unchanged (do not format it)\n"
+        prompt += "- Maintain all line breaks and structure\n"
+        prompt += "- Do not change the content, only add formatting\n"
+        prompt += "- Be selective - don't over-format. Only format truly important elements\n"
+
+        # Apply font family guidance if relevant (mainly for documentation, not directly applicable to markdown)
+        if font_family
+          prompt += "- Consider typography: #{font_family == 'serif' ? 'Use serif-style emphasis for formal content' : 'Use system sans-serif style for modern, clean appearance'}\n"
+        end
+
+        prompt += "\n"
+      end
 
       if company
         prompt += "Company: #{company}\n"

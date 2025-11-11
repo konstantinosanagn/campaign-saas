@@ -44,6 +44,21 @@ FactoryBot.define do
     status { 'completed' }
   end
 
+  factory :agent_output_design, class: AgentOutput do
+    association :lead
+    agent_name { 'DESIGN' }
+    output_data do
+      {
+        email: "Subject: Test Email\n\n**Body** of the email",
+        formatted_email: "Subject: Test Email\n\n**Body** of the email",
+        company: 'Example Corp',
+        recipient: 'John Doe',
+        original_email: "Subject: Test Email\n\nBody of the email"
+      }
+    end
+    status { 'completed' }
+  end
+
   factory :agent_output_failed, class: AgentOutput do
     association :lead
     agent_name { 'WRITER' }

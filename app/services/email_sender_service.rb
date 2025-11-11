@@ -2,7 +2,7 @@
 # EmailSenderService
 #
 # Service responsible for sending emails to leads that have completed
-# the agent processing pipeline (SEARCH → WRITER → DESIGN → CRITIQUE).
+# the agent processing pipeline (SEARCH → WRITER → CRITIQUE → DESIGN).
 #
 # Usage:
 #   EmailSenderService.send_emails_for_campaign(campaign)
@@ -13,7 +13,7 @@ class EmailSenderService
     ##
     # Sends emails to all ready leads in a campaign
     # A lead is considered "ready" if it has completed the DESIGN agent
-    # (or WRITER agent if DESIGN is disabled) and reached 'critiqued' stage
+    # (or WRITER agent if DESIGN is disabled) and reached 'designed' or 'completed' stage
     #
     # @param campaign [Campaign] The campaign containing leads to send emails to
     # @return [Hash] Result with counts of sent/failed emails and any errors
@@ -47,14 +47,14 @@ class EmailSenderService
     ##
     # Checks if a lead is ready to have its email sent
     # A lead is ready if:
-    # 1. It has reached 'critiqued' or 'completed' stage
+    # 1. It has reached 'designed' or 'completed' stage
     # 2. It has a completed DESIGN output (preferred) or WRITER output (fallback)
     #
     # @param lead [Lead] The lead to check
     # @return [Boolean] True if lead is ready to send
     def lead_ready?(lead)
-      # Must be at critiqued or completed stage
-      return false unless lead.stage.in?(%w[critiqued completed])
+      # Must be at designed or completed stage
+      return false unless lead.stage.in?(%w[designed completed])
 
       # Check for DESIGN output first (preferred)
       design_output = lead.agent_outputs.find_by(agent_name: "DESIGN", status: "completed")

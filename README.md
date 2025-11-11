@@ -180,7 +180,7 @@ saas-proj/
 │   │   └── types/           # TypeScript definitions
 │   └── views/               # ERB templates
 ├── db/                      # Database migrations and seeds
-├── spec/                    # RSpec test suite (178 tests)
+├── spec/                    # RSpec test suite (584 examples)
 ├── features/                # Cucumber tests
 └── config/                  # Rails configuration
 ```
@@ -199,20 +199,22 @@ The system uses a multi-agent pipeline to process leads:
    - Personalizes content for target company and recipient
    - Generates subject lines and email body
 
-3. **DesignAgent** - Applies markdown formatting
-   - Adds bold, italic, links, and other formatting
-   - Enhances email readability and engagement
-   - Outputs formatted email content
-
-4. **CritiqueAgent** - Reviews email quality
+3. **CritiqueAgent** - Reviews email quality
    - Evaluates email effectiveness and personalization
    - Provides feedback and improvement suggestions
    - Scores email quality
+   - Selects best variant from multiple revisions
+
+4. **DesignAgent** - Applies markdown formatting
+   - Adds bold, italic, links, and other formatting
+   - Enhances email readability and engagement
+   - Outputs formatted email content
+   - Configurable formatting options (format, allow_bold, allow_italic, allow_bullets, cta_style, font_family)
 
 ### Orchestration
-- **Orchestrator** - Coordinates the full pipeline (SEARCH → WRITER → DESIGN → CRITIQUE)
+- **Orchestrator** - Coordinates the full pipeline (SEARCH → WRITER → CRITIQUE → DESIGN)
 - **LeadAgentService** - Manages agent execution for individual leads
-- **Stage Progression:** `queued → searched → written → critiqued → completed`
+- **Stage Progression:** `queued → searched → written → critiqued → designed → completed`
 
 ### Agent Configuration
 - Each campaign has agent configurations (AgentConfig)
@@ -278,14 +280,19 @@ Creates:
 The project includes comprehensive test coverage across three testing frameworks:
 
 ### RSpec
-- **178 tests** with **90%+ line coverage**
+- **584 examples, 0 failures** ✅
+- **81.64% line coverage** (787 / 964 lines)
 - Tests cover models, controllers, services, and integration scenarios
+- Comprehensive coverage of all AI agents (Search, Writer, Critique, Design)
+- Full pipeline progression testing (queued → searched → written → critiqued → designed)
 - Run: `bundle exec rspec`
 - Coverage report: `coverage/index.html`
 
 ### Jest
-- **106 tests** with **96.6% coverage**
-- Tests cover React components and hooks
+- **210 tests passed, 20 test suites** ✅
+- Tests cover React components, hooks, and utilities
+- Comprehensive component testing including CampaignDashboard, AgentDashboard, AgentOutputModal, and more
+- Custom hooks testing (useCampaigns, useLeads, useApiKeys, useSelection, useTypewriter)
 - Run: `yarn test`
 - Coverage: `yarn test:coverage`
 
@@ -297,7 +304,7 @@ The project includes comprehensive test coverage across three testing frameworks
   - Campaign CRUD operations (create, read, update, delete)
   - Lead management (create, update, delete, validation)
   - Agent workflows (run agents, retrieve outputs, update outputs, disabled agents)
-  - Lead stage progression (queued → searched → written → critiqued → completed)
+  - Lead stage progression (queued → searched → written → critiqued → designed → completed)
   - API key management (store and retrieve)
   - UI layout and assets (title, meta, icons, React mount)
   - Dashboard empty state
@@ -384,8 +391,8 @@ rails server                 # Start Rails server
 rails console                # Open Rails console
 
 # Testing
-bundle exec rspec            # Run RSpec tests (178 tests, 90%+ coverage)
-yarn test                    # Run Jest tests (106 tests, 96.6% coverage)
+bundle exec rspec            # Run RSpec tests (584 examples, 0 failures, 81.64% coverage)
+yarn test                    # Run Jest tests (210 tests passed, 20 test suites)
 yarn test:coverage           # Run Jest tests with coverage
 bundle exec cucumber         # Run Cucumber tests (96 scenarios, 497 steps, 100% passing)
 COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (63.85% line coverage)

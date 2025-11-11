@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { AgentConfig, SearchAgentSettings, WriterAgentSettings, CritiqueAgentSettings, SharedSettings } from '@/types'
+import { AgentConfig, SearchAgentSettings, WriterAgentSettings, CritiqueAgentSettings, DesignAgentSettings, SharedSettings } from '@/types'
 
 interface AgentSettingsModalProps {
   isOpen: boolean
@@ -78,6 +78,21 @@ export default function AgentSettingsModal({
   const rewritePolicyRef = React.useRef<HTMLDivElement>(null)
   const variantSelectionRef = React.useRef<HTMLDivElement>(null)
 
+  // DESIGN agent state
+  const [format, setFormat] = React.useState<'plain_text' | 'formatted'>('formatted')
+  const [allowBold, setAllowBold] = React.useState(true)
+  const [allowItalic, setAllowItalic] = React.useState(true)
+  const [allowBullets, setAllowBullets] = React.useState(true)
+  const [ctaStyle, setCtaStyle] = React.useState<'link' | 'button'>('link')
+  const [fontFamily, setFontFamily] = React.useState<'system_sans' | 'serif'>('system_sans')
+  const [formatOpen, setFormatOpen] = React.useState(false)
+  const [ctaStyleOpen, setCtaStyleOpen] = React.useState(false)
+  const [fontFamilyOpen, setFontFamilyOpen] = React.useState(false)
+  
+  const formatRef = React.useRef<HTMLDivElement>(null)
+  const ctaStyleRef = React.useRef<HTMLDivElement>(null)
+  const fontFamilyRef = React.useRef<HTMLDivElement>(null)
+
   // Available extracted fields for SEARCH agent
   const availableExtractedFields = [
     'company_industry',
@@ -113,6 +128,14 @@ export default function AgentSettingsModal({
         setRewritePolicy(critiqueSettings.rewrite_policy || 'rewrite_if_bad')
         setMinScoreForSend(Math.max(1, Math.min(10, critiqueSettings.min_score_for_send || 6)))
         setVariantSelection(critiqueSettings.variant_selection || 'highest_overall_score')
+      } else if (agentName === 'DESIGN') {
+        const designSettings = settings as DesignAgentSettings
+        setFormat(designSettings.format || 'formatted')
+        setAllowBold(designSettings.allowBold !== false)
+        setAllowItalic(designSettings.allowItalic !== false)
+        setAllowBullets(designSettings.allowBullets !== false)
+        setCtaStyle(designSettings.ctaStyle || 'link')
+        setFontFamily(designSettings.fontFamily || 'system_sans')
       }
     } else {
       // Reset to defaults
@@ -135,6 +158,13 @@ export default function AgentSettingsModal({
         setRewritePolicy('rewrite_if_bad')
         setMinScoreForSend(6)
         setVariantSelection('highest_overall_score')
+      } else if (agentName === 'DESIGN') {
+        setFormat('formatted')
+        setAllowBold(true)
+        setAllowItalic(true)
+        setAllowBullets(true)
+        setCtaStyle('link')
+        setFontFamily('system_sans')
       }
     }
   }, [config, agentName, isOpen, sharedSettings])
@@ -171,6 +201,15 @@ export default function AgentSettingsModal({
           rewrite_policy: rewritePolicy,
           min_score_for_send: minScoreForSend,
           variant_selection: variantSelection
+        }
+      } else if (agentName === 'DESIGN') {
+        settings = {
+          format: format,
+          allowBold: allowBold,
+          allowItalic: allowItalic,
+          allowBullets: allowBullets,
+          ctaStyle: ctaStyle,
+          fontFamily: fontFamily
         }
       }
       
@@ -216,6 +255,14 @@ export default function AgentSettingsModal({
         setRewritePolicy(critiqueSettings.rewrite_policy || 'rewrite_if_bad')
         setMinScoreForSend(Math.max(1, Math.min(10, critiqueSettings.min_score_for_send || 6)))
         setVariantSelection(critiqueSettings.variant_selection || 'highest_overall_score')
+      } else if (agentName === 'DESIGN') {
+        const designSettings = settings as DesignAgentSettings
+        setFormat(designSettings.format || 'formatted')
+        setAllowBold(designSettings.allowBold !== false)
+        setAllowItalic(designSettings.allowItalic !== false)
+        setAllowBullets(designSettings.allowBullets !== false)
+        setCtaStyle(designSettings.ctaStyle || 'link')
+        setFontFamily(designSettings.fontFamily || 'system_sans')
       }
     }
     onClose()
@@ -284,6 +331,15 @@ export default function AgentSettingsModal({
       }
       if (variantSelectionRef.current && !variantSelectionRef.current.contains(event.target as Node)) {
         setVariantSelectionOpen(false)
+      }
+      if (formatRef.current && !formatRef.current.contains(event.target as Node)) {
+        setFormatOpen(false)
+      }
+      if (ctaStyleRef.current && !ctaStyleRef.current.contains(event.target as Node)) {
+        setCtaStyleOpen(false)
+      }
+      if (fontFamilyRef.current && !fontFamilyRef.current.contains(event.target as Node)) {
+        setFontFamilyOpen(false)
       }
     }
 
@@ -1212,10 +1268,219 @@ export default function AgentSettingsModal({
             </div>
           )}
 
-              {/* DESIGN Agent - No settings */}
+              {/* DESIGN Agent Settings */}
               {agentName === 'DESIGN' && (
-                <div className="text-center py-4 text-gray-500 text-sm">
-                  No configurable settings available for DESIGN agent
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div ref={formatRef} className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Format
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setFormatOpen(!formatOpen)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-left text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white flex items-center justify-between"
+                      >
+                        <span className="text-gray-700">
+                          {format === 'plain_text' && 'Plain Text'}
+                          {format === 'formatted' && 'Formatted'}
+                        </span>
+                        <svg
+                          className={`w-5 h-5 text-gray-400 transition-transform ${formatOpen ? 'transform rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {formatOpen && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                          {[
+                            { value: 'plain_text', label: 'Plain Text' },
+                            { value: 'formatted', label: 'Formatted' }
+                          ].map((option) => {
+                            const isSelected = format === option.value
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                  setFormat(option.value as 'plain_text' | 'formatted')
+                                  setFormatOpen(false)
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center space-x-2"
+                              >
+                                <span className={`flex-shrink-0 ${isSelected ? 'text-blue-600' : 'text-transparent'}`}>
+                                  <TickerIcon className="w-4 h-4" />
+                                </span>
+                                <span className={isSelected ? 'text-blue-600' : 'text-gray-700'}>{option.label}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div ref={ctaStyleRef} className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        CTA Style
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setCtaStyleOpen(!ctaStyleOpen)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-left text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white flex items-center justify-between"
+                      >
+                        <span className="text-gray-700">
+                          {ctaStyle === 'link' && 'Link'}
+                          {ctaStyle === 'button' && 'Button'}
+                        </span>
+                        <svg
+                          className={`w-5 h-5 text-gray-400 transition-transform ${ctaStyleOpen ? 'transform rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {ctaStyleOpen && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                          {[
+                            { value: 'link', label: 'Link' },
+                            { value: 'button', label: 'Button' }
+                          ].map((option) => {
+                            const isSelected = ctaStyle === option.value
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                  setCtaStyle(option.value as 'link' | 'button')
+                                  setCtaStyleOpen(false)
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center space-x-2"
+                              >
+                                <span className={`flex-shrink-0 ${isSelected ? 'text-blue-600' : 'text-transparent'}`}>
+                                  <TickerIcon className="w-4 h-4" />
+                                </span>
+                                <span className={isSelected ? 'text-blue-600' : 'text-gray-700'}>{option.label}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div ref={fontFamilyRef} className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Font Family
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setFontFamilyOpen(!fontFamilyOpen)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-left text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white flex items-center justify-between"
+                    >
+                      <span className="text-gray-700">
+                        {fontFamily === 'system_sans' && 'System Sans'}
+                        {fontFamily === 'serif' && 'Serif'}
+                      </span>
+                      <svg
+                        className={`w-5 h-5 text-gray-400 transition-transform ${fontFamilyOpen ? 'transform rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {fontFamilyOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                        {[
+                          { value: 'system_sans', label: 'System Sans' },
+                          { value: 'serif', label: 'Serif' }
+                        ].map((option) => {
+                          const isSelected = fontFamily === option.value
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                setFontFamily(option.value as 'system_sans' | 'serif')
+                                setFontFamilyOpen(false)
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center space-x-2"
+                            >
+                              <span className={`flex-shrink-0 ${isSelected ? 'text-blue-600' : 'text-transparent'}`}>
+                                <TickerIcon className="w-4 h-4" />
+                              </span>
+                              <span className={isSelected ? 'text-blue-600' : 'text-gray-700'}>{option.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <label htmlFor="allowBold" className="text-sm font-medium text-gray-900">
+                        Allow Bold Formatting
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setAllowBold(!allowBold)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          allowBold ? 'bg-blue-600' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            allowBold ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <label htmlFor="allowItalic" className="text-sm font-medium text-gray-900">
+                        Allow Italic Formatting
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setAllowItalic(!allowItalic)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          allowItalic ? 'bg-blue-600' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            allowItalic ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <label htmlFor="allowBullets" className="text-sm font-medium text-gray-900">
+                        Allow Bullet Points
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setAllowBullets(!allowBullets)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          allowBullets ? 'bg-blue-600' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            allowBullets ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

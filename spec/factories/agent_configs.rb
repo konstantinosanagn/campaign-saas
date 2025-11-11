@@ -32,6 +32,22 @@ FactoryBot.define do
     enabled { true }
   end
 
+  factory :agent_config_design, class: AgentConfig do
+    association :campaign
+    agent_name { 'DESIGN' }
+    settings do
+      {
+        'format' => 'formatted',
+        'allow_bold' => true,
+        'allow_italic' => true,
+        'allow_bullets' => true,
+        'cta_style' => 'link',
+        'font_family' => 'system_sans'
+      }
+    end
+    enabled { true }
+  end
+
   factory :agent_config_disabled, class: AgentConfig do
     association :campaign
     agent_name { 'WRITER' }

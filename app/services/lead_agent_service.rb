@@ -2,11 +2,12 @@ require_relative "api_key_service"
 require_relative "agents/search_agent"
 require_relative "agents/writer_agent"
 require_relative "agents/critique_agent"
+require_relative "agents/design_agent"
 
 ##
 # LeadAgentService
 #
-# Orchestrates the execution of agents (SEARCH → WRITER → CRITIQUE) for a specific lead.
+# Orchestrates the execution of agents (SEARCH → WRITER → CRITIQUE → DESIGN) for a specific lead.
 # Manages agent configuration retrieval, sequential execution, output storage, and stage updates.
 #
 # Usage:
@@ -14,10 +15,10 @@ require_relative "agents/critique_agent"
 #   # Returns: { status: 'completed'|'partial'|'failed', outputs: {...}, lead: {...} }
 #
 class LeadAgentService
-  AGENT_ORDER = %w[SEARCH WRITER CRITIQUE].freeze
-  # Stage progression: queued → searched → written → critiqued → completed
+  AGENT_ORDER = %w[SEARCH WRITER CRITIQUE DESIGN].freeze
+  # Stage progression: queued → searched → written → critiqued → designed → completed
   # Each agent moves the lead to the next stage in the progression
-  STAGE_PROGRESSION = %w[queued searched written critiqued completed].freeze
+  STAGE_PROGRESSION = %w[queued searched written critiqued designed completed].freeze
 
   class << self
     ##
@@ -61,6 +62,7 @@ class LeadAgentService
       search_agent = Agents::SearchAgent.new(api_key: tavily_key)
       writer_agent = Agents::WriterAgent.new(api_key: gemini_key)
       critique_agent = Agents::CritiqueAgent.new(api_key: gemini_key)
+      design_agent = Agents::DesignAgent.new(api_key: gemini_key)
 
       # Track execution results
       outputs = {}
@@ -75,7 +77,7 @@ class LeadAgentService
 
       while iteration < max_iterations && !agent_executed
         iteration += 1
-        
+
         # Determine which agent to run based on current stage
         next_agent = determine_next_agent(lead.stage)
 
@@ -109,6 +111,8 @@ class LeadAgentService
             result = execute_writer_agent(writer_agent, lead, agent_config, previous_outputs["SEARCH"])
           when "CRITIQUE"
             result = execute_critique_agent(critique_agent, lead, agent_config, previous_outputs["WRITER"])
+          when "DESIGN"
+            result = execute_design_agent(design_agent, lead, agent_config, previous_outputs["CRITIQUE"])
           end
 
           # Store output
@@ -168,8 +172,9 @@ class LeadAgentService
       # Map stage to next agent
       # queued -> SEARCH (to become 'searched')
       # searched -> WRITER (to become 'written')
-      # written -> DESIGN (to become 'designed')
-      # designed -> CRITIQUE (to become 'critiqued')
+      # written -> CRITIQUE (to become 'critiqued')
+      # critiqued -> DESIGN (to become 'designed')
+      # designed -> nil (final stage)
       case current_stage
       when "queued"
         "SEARCH"
@@ -177,6 +182,8 @@ class LeadAgentService
         "WRITER"
       when "written"
         "CRITIQUE"
+      when "critiqued"
+        "DESIGN"
       else
         nil
       end
@@ -196,6 +203,11 @@ class LeadAgentService
       if current_agent == "CRITIQUE"
         writer_output = lead.agent_outputs.find_by(agent_name: "WRITER")
         outputs["WRITER"] = writer_output&.output_data
+      end
+
+      if current_agent == "DESIGN"
+        critique_output = lead.agent_outputs.find_by(agent_name: "CRITIQUE")
+        outputs["CRITIQUE"] = critique_output&.output_data
       end
 
       outputs
@@ -306,6 +318,36 @@ class LeadAgentService
       end
 
       result
+    end
+
+    ##
+    # Executes the DesignAgent
+    def execute_design_agent(design_agent, lead, agent_config, critique_output)
+      # Prepare critique output for design
+      # Prefer selected_variant if available, otherwise use email_content or email
+      # Handle both string and symbol keys from JSONB storage
+      email_content = critique_output&.dig("selected_variant") ||
+                      critique_output&.dig(:selected_variant) ||
+                      critique_output&.dig("email_content") ||
+                      critique_output&.dig(:email_content) ||
+                      critique_output&.dig("email") ||
+                      critique_output&.dig(:email) ||
+                      ""
+
+      # Get company and recipient from lead
+      company = lead.company
+      recipient = lead.name
+
+      # Prepare input hash for design agent
+      design_input = {
+        email: email_content,
+        company: company,
+        recipient: recipient
+      }
+
+      # Pass config to design_agent
+      config_hash = agent_config ? { settings: agent_config.settings } : nil
+      design_agent.run(design_input, config: config_hash)
     end
 
     ##
