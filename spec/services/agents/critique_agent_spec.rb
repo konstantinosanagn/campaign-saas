@@ -124,6 +124,82 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       critique_agent.critique(article)
     end
 
+    context 'strictness guidance' do
+      it 'uses lenient guidance when strictness is lenient' do
+        config = { 'settings' => { 'strictness' => 'lenient' } }
+
+        expect(described_class).to receive(:post) do |_, options|
+          body = JSON.parse(options[:body])
+          model_content = body['contents'].find { |c| c['role'] == 'model' }['parts'][0]['text']
+          expect(model_content).to include('Be lenient - only flag extreme issues. Focus on major problems that would significantly impact email effectiveness.')
+          mock_response
+        end
+
+        critique_agent.critique(article, config: config)
+      end
+
+      it 'uses moderate guidance when strictness is moderate' do
+        config = { 'settings' => { 'strictness' => 'moderate' } }
+
+        expect(described_class).to receive(:post) do |_, options|
+          body = JSON.parse(options[:body])
+          model_content = body['contents'].find { |c| c['role'] == 'model' }['parts'][0]['text']
+          expect(model_content).to include('Enforce basic quality & tone standards. Flag issues that would reduce email effectiveness or professionalism.')
+          mock_response
+        end
+
+        critique_agent.critique(article, config: config)
+      end
+
+      it 'uses strict guidance when strictness is strict' do
+        config = { 'settings' => { 'strictness' => 'strict' } }
+
+        expect(described_class).to receive(:post) do |_, options|
+          body = JSON.parse(options[:body])
+          model_content = body['contents'].find { |c| c['role'] == 'model' }['parts'][0]['text']
+          expect(model_content).to include('Be strict - require strong personalization & adherence to best practices. Flag any issues that could be improved.')
+          mock_response
+        end
+
+        critique_agent.critique(article, config: config)
+      end
+
+      it 'falls back to default guidance when strictness is unknown' do
+        config = { 'settings' => { 'strictness' => 'unknown_value' } }
+
+        expect(described_class).to receive(:post) do |_, options|
+          body = JSON.parse(options[:body])
+          model_content = body['contents'].find { |c| c['role'] == 'model' }['parts'][0]['text']
+          expect(model_content).to include('Enforce basic quality & tone standards.')
+          mock_response
+        end
+
+        critique_agent.critique(article, config: config)
+      end
+    end
+
+    context 'when article contains variants' do
+      it 'delegates to critique_and_select_variant when variants present and selection not none' do
+        variants = ['A', 'B']
+        article_with_variants = { 'variants' => variants }
+
+        expected_return = {
+          'critique' => 'Selected variant critique',
+          'score' => 9,
+          'meets_min_score' => true,
+          'selected_variant_index' => 1,
+          'selected_variant' => 'B',
+          'all_variants_critiques' => []
+        }
+
+        expect(critique_agent).to receive(:critique_and_select_variant).with(variants, nil, 'highest_overall_score', anything, anything).and_return(expected_return)
+
+        result = critique_agent.critique(article_with_variants)
+
+        expect(result).to eq(expected_return)
+      end
+    end
+
     it 'includes user role with only email content' do
       expect(described_class).to receive(:post) do |_, options|
         body = JSON.parse(options[:body])
@@ -577,6 +653,40 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         expect(result).to include('critique' => 'Valid critique with spaces')
         expect(result).to have_key('score')
         expect(result).to have_key('meets_min_score')
+      end
+    end
+
+    context 'variant selection logic' do
+      it 'selects the variant with the highest overall score' do
+        variants = ['Variant A', 'Variant B']
+
+        # Stub instance critique calls for variants
+        expect(critique_agent).to receive(:critique).with(hash_including('email_content' => 'Variant A'), config: nil).and_return({ 'critique' => 'Crit A', 'score' => 4, 'meets_min_score' => false })
+        expect(critique_agent).to receive(:critique).with(hash_including('email_content' => 'Variant B'), config: nil).and_return({ 'critique' => 'Crit B', 'score' => 7, 'meets_min_score' => true })
+
+        result = critique_agent.send(:critique_and_select_variant, variants, nil, 'highest_overall_score', 6, 'rewrite_if_bad')
+
+        expect(result['selected_variant_index']).to eq(1)
+        expect(result['selected_variant']).to eq('Variant B')
+        expect(result['score']).to eq(7)
+        expect(result['critique']).to eq('Crit B')
+        expect(result['all_variants_critiques'].length).to eq(2)
+        expect(result['all_variants_critiques'].first[:variant_index]).to eq(0)
+      end
+
+      it 'selects the best variant using highest_personalization_score strategy' do
+        variants = ['Variant X', 'Variant Y']
+
+        expect(critique_agent).to receive(:critique).with(hash_including('email_content' => 'Variant X'), config: nil).and_return({ 'critique' => nil, 'score' => 6, 'meets_min_score' => true })
+        expect(critique_agent).to receive(:critique).with(hash_including('email_content' => 'Variant Y'), config: nil).and_return({ 'critique' => 'A long critique to penalize personalization', 'score' => 9, 'meets_min_score' => true })
+
+        result = critique_agent.send(:critique_and_select_variant, variants, nil, 'highest_personalization_score', 6, 'rewrite_if_bad')
+
+        # Because Variant X had nil critique it should be favored by the personalization scoring
+        expect(result['selected_variant_index']).to eq(0)
+        expect(result['selected_variant']).to eq('Variant X')
+        expect(result['all_variants_critiques'].length).to eq(2)
+        expect(result['all_variants_critiques'][0][:variant]).to eq('Variant X')
       end
     end
   end
