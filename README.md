@@ -1,184 +1,375 @@
 # CampAIgn - AI-Powered Campaign Management Platform
+
+**Team:**
 - Konstantinos Anagnostopoulos (ka3037)
 - Riz Chen (sc5144)
 - Siying Ding (sd3609)
 - Aarushi Sharma (as6322)
 
-A modern SaaS application for managing AI-powered marketing campaigns with intelligent agent workflows. Built with Ruby on Rails and React, featuring automated lead processing through AI agents.
+A modern SaaS application for managing AI-powered marketing campaigns with intelligent agent workflows. Built with **Ruby on Rails 8.1**, **React 18**, **PostgreSQL**, and **TypeScript**.
 
-## Team members
+## Prerequisites
 
-- Konstantinos Anagnostopulos (ka3037)
-- Riz Chen (sc5144)
-- Siying Ding (sd3609)
-- Aarushi Sharma (as6322)
-
-## 🎯 Project Overview
-
-CampAIgn is a comprehensive campaign management platform that automates the entire lead processing pipeline using AI agents. Users can create campaigns, add leads, and let the AI system automatically research companies, generate personalized emails, and provide quality feedback.
-
-### AI Agent Pipeline
-1. **Search Agent** - Researches target companies using Tavily API for real-time news and information
-2. **Writer Agent** - Generates personalized B2B outreach emails using Google Gemini API
-3. **Design Agent** - Applies markdown formatting (bold, italic, links, etc.) to email content
-4. **Critique Agent** - Reviews email quality and provides improvement suggestions
-5. **Email Sender** - Sends formatted emails to leads after processing is complete
-6. **Orchestrator** - Coordinates the entire pipeline and manages agent execution
-
-### User Workflow
-1. **Create Campaign** - Set up campaign with base prompts and agent configurations
-2. **Add Leads** - Import or manually add lead information (name, email, company, title)
-3. **Run Agents** - Execute AI agents to process leads automatically (SEARCH → WRITER → DESIGN → CRITIQUE)
-4. **Review Outputs** - View and edit agent-generated content through the UI
-5. **Track Progress** - Monitor lead processing status and quality metrics
-6. **Send Emails** - Send formatted emails to ready leads with a single click
-
-## 📁 Codebase Structure
-
-```
-web/                          # Root directory (Rails application)
-├── app/
-│   ├── controllers/           # MVC controllers
-│   │   └── api/v1/           # RESTful API endpoints
-│   ├── models/                # ActiveRecord models
-│   │   ├── user.rb           # User authentication
-│   │   ├── campaign.rb       # Campaign management
-│   │   ├── lead.rb           # Lead information
-│   │   ├── agent_config.rb   # Agent configurations
-│   │   └── agent_output.rb   # Agent execution results
-│   ├── services/              # Business logic
-│   │   ├── orchestrator.rb   # Agent pipeline coordinator
-│   │   ├── search_agent.rb   # Company research agent
-│   │   ├── writer_agent.rb   # Email generation agent
-│   │   ├── design_agent.rb   # Email formatting agent
-│   │   ├── critique_agent.rb # Quality review agent
-│   │   ├── lead_agent_service.rb # Lead processing service
-│   │   └── email_sender_service.rb # Email sending service
-│   ├── mailers/               # Email templates
-│   │   └── campaign_mailer.rb # Campaign email mailer
-│   ├── javascript/            # React/TypeScript frontend
-│   │   ├── components/        # React components
-│   │   ├── hooks/             # Custom React hooks
-│   │   ├── libs/              # Utilities and API client
-│   │   └── types/             # TypeScript definitions
-│   └── views/                 # ERB templates
-├── config/                    # Rails configuration
-├── db/                        # Database migrations and seeds
-├── spec/                      # RSpec test suite (178 tests)
-├── public/                    # Static assets
-├── package.json               # Node.js dependencies
-├── tsconfig.json              # TypeScript configuration
-├── tailwind.config.js         # Tailwind CSS configuration
-└── README.md                  # This file
-```
-
-## 🚀 How to Run This Application
-
-### Prerequisites
-
-- **Ruby:** 3.3.9+ 
+- **Ruby:** 3.3.9+
 - **Rails:** 8.1
 - **PostgreSQL:** 12+
 - **Node.js:** 16.x (required for Webpacker compatibility)
 - **Yarn:** 1.22.x
 
-### Installation
+## Installation
 
 1. **Clone the repository**
    ```bash
    git clone <your-repo-url>
-   cd web
+   cd saas-proj
    ```
 
 2. **Install dependencies**
    ```bash
-   # Install Ruby gems
    bundle install
-   
-   # Install Node.js packages
    yarn install
    ```
 
 3. **Setup database**
    ```bash
-   # Create databases
    rails db:create
-   
-   # Run migrations
    rails db:migrate
-   
-   # Seed initial data
    rails db:seed
    ```
 
 4. **Start the application**
    ```bash
-   # Start Rails server (http://localhost:3000)
+   # Terminal 1: Rails server
    rails server
    
-   # In another terminal, start Webpack dev server (for hot reload)
+   # Terminal 2: Webpack dev server (for hot reload)
    ./bin/webpack-dev-server
    ```
 
 5. **Access the application**
-   - Open [http://localhost:3000](http://localhost:3000)
-   - **Development Mode**: You're automatically logged in as `admin@example.com`
-   - Create your first campaign
-   - Add leads and run the AI agents
+   - Open http://localhost:3000
+   - You're automatically logged in as `admin@example.com`
 
-### Environment Variables
+## Development Mode
 
-Create a `.env` file in the root directory:
+### Default User
+- **Email:** `admin@example.com`
+- **Password:** `password123`
+- Auto-login enabled (no authentication required)
 
+### Default API Keys
+API keys are automatically populated for the admin user:
+- **LLM_API_KEY:** `AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE`
+- **TAVILY_API_KEY:** `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`
+
+**Note:** Click on user profile to add/update API keys manually if needed.
+
+### Authentication
+- `DISABLE_AUTH` is automatically `true` in development
+- No login required - automatically logged in as admin user
+- Admin user is auto-created on first access
+
+## Production Mode
+
+### Authentication
+- Authentication is **required** by default
+- Set `DISABLE_AUTH=true` environment variable to disable auth (for testing/demos only)
+- Users must register/login to access the application
+
+### Required Environment Variables
 ```bash
-# Database
-POSTGRES_PASSWORD=your_password
-RAILS_MAX_THREADS=5
-
-# API Keys (for AI agents)
-GEMINI_API_KEY=your_gemini_api_key
+# API Keys
+GEMINI_API_KEY=your_gemini_api_key  # or LLM_API_KEY
 TAVILY_API_KEY=your_tavily_api_key
 
 # Email Configuration
-# Required: Sender email address
 MAILER_FROM="noreply@yourdomain.com"
-
-# Required: Mail server domain (for links in emails)
 MAILER_HOST="yourdomain.com"
 
-# SMTP Configuration (required to actually send emails)
-# For Gmail, see "Gmail Setup" section below
+# SMTP Configuration (required for sending emails)
 SMTP_ADDRESS="smtp.gmail.com"
 SMTP_PORT="587"
 SMTP_USER_NAME="your-email@gmail.com"
-SMTP_PASSWORD="your-app-password"  # For Gmail: use app-specific password
+SMTP_PASSWORD="your-app-password"
 SMTP_DOMAIN="gmail.com"
 SMTP_AUTHENTICATION="plain"
 SMTP_ENABLE_STARTTLS="true"
 
-# Optional: Disable authentication in development (default: true)
-# In development mode, you're automatically logged in as admin@example.com
+# Database
+POSTGRES_PASSWORD=your_password
+RAILS_MAX_THREADS=5
+
+# Optional: Disable authentication (production only)
 DISABLE_AUTH=true
 ```
 
-**Note**: The `.env` file is automatically loaded by `dotenv-rails` gem. After creating or modifying `.env`, **restart your Rails server** for changes to take effect.
+### Deployment
+- **Platform:** Heroku
+- **URL:** https://campaign-saas-7460a258bf90.herokuapp.com/
+- **Database:** PostgreSQL (Heroku Essential-0 plan)
+- **Node.js:** 16.x (pinned for Webpacker compatibility)
+- **Ruby:** 3.3.9
 
-## 🛠️ Development Mode
+Set environment variables via Heroku Config Vars:
+```bash
+heroku config:set GEMINI_API_KEY="your_key"
+heroku config:set TAVILY_API_KEY="your_key"
+heroku config:set SMTP_ADDRESS="smtp.gmail.com"
+# ... etc
+```
 
-In development mode, the application automatically:
-- **Disables authentication** - No need to register or login
-- **Creates admin user** - Automatically logs you in as `admin@example.com`
-- **Uses default password** - `password123` (if you need to login manually)
-- **Auto-creates user** - The admin user is created automatically on first access
-- *** Note: Click on the user profile to add the following API keys (setup just for mvp as a backup)
-  ```
-  LLM_API_KEY=AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE
-  TAVILY_API_KEY=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
-  ```
+## Environment Variables
 
-This makes it easy for anyone to clone and run the application without any setup.
+### Database
+- `POSTGRES_PASSWORD` - PostgreSQL password
+- `RAILS_MAX_THREADS` - Maximum threads (default: 5)
 
-## 🔧 Available Scripts
+### API Keys
+- `GEMINI_API_KEY` or `LLM_API_KEY` - Google Gemini API key for Writer/Design/Critique agents
+- `TAVILY_API_KEY` - Tavily API key for Search agent
+
+### Email Configuration
+- `MAILER_FROM` - Sender email address (required)
+- `MAILER_HOST` - Mail server domain for links (required)
+- `SMTP_ADDRESS` - SMTP server address
+- `SMTP_PORT` - SMTP server port (default: 587)
+- `SMTP_USER_NAME` - SMTP username
+- `SMTP_PASSWORD` - SMTP password (use app-specific password for Gmail)
+- `SMTP_DOMAIN` - SMTP domain
+- `SMTP_AUTHENTICATION` - Authentication method (default: plain)
+- `SMTP_ENABLE_STARTTLS` - Enable STARTTLS (default: true)
+- `MAIL_DELIVERY_METHOD` - Delivery method (file/test/smtp)
+
+### Authentication
+- `DISABLE_AUTH` - Disable authentication (development: auto-true, production: optional)
+
+**Note:** The `.env` file is automatically loaded by `dotenv-rails` gem. Restart Rails server after modifying `.env`.
+
+## Project Structure
+
+```
+saas-proj/
+├── app/
+│   ├── controllers/          # MVC controllers
+│   │   ├── api/v1/          # RESTful API endpoints
+│   │   └── campaigns_controller.rb
+│   ├── models/              # ActiveRecord models
+│   │   ├── user.rb          # User authentication
+│   │   ├── campaign.rb      # Campaign management
+│   │   ├── lead.rb          # Lead information
+│   │   ├── agent_config.rb  # Agent configurations
+│   │   └── agent_output.rb  # Agent execution results
+│   ├── services/            # Business logic
+│   │   ├── orchestrator.rb  # Agent pipeline coordinator
+│   │   ├── agents/          # AI agents
+│   │   │   ├── search_agent.rb
+│   │   │   ├── writer_agent.rb
+│   │   │   ├── design_agent.rb
+│   │   │   └── critique_agent.rb
+│   │   ├── lead_agent_service.rb    # Lead processing service
+│   │   ├── email_sender_service.rb  # Email sending service
+│   │   └── api_key_service.rb       # API key management
+│   ├── javascript/          # React/TypeScript frontend
+│   │   ├── components/      # React components
+│   │   │   ├── campaigns/   # Campaign components
+│   │   │   ├── leads/       # Lead components
+│   │   │   ├── agents/      # Agent components
+│   │   │   └── shared/      # Shared components
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── libs/            # API client and utilities
+│   │   └── types/           # TypeScript definitions
+│   └── views/               # ERB templates
+├── db/                      # Database migrations and seeds
+├── spec/                    # RSpec test suite (178 tests)
+├── features/                # Cucumber tests
+└── config/                  # Rails configuration
+```
+
+## AI Agent System
+
+### Agent Pipeline
+The system uses a multi-agent pipeline to process leads:
+
+1. **SearchAgent** - Researches companies using Tavily API
+   - Fetches recent news and information about target companies
+   - Returns sources, company data, and research results
+
+2. **WriterAgent** - Generates personalized emails using Gemini API
+   - Creates B2B outreach emails based on research
+   - Personalizes content for target company and recipient
+   - Generates subject lines and email body
+
+3. **DesignAgent** - Applies markdown formatting
+   - Adds bold, italic, links, and other formatting
+   - Enhances email readability and engagement
+   - Outputs formatted email content
+
+4. **CritiqueAgent** - Reviews email quality
+   - Evaluates email effectiveness and personalization
+   - Provides feedback and improvement suggestions
+   - Scores email quality
+
+### Orchestration
+- **Orchestrator** - Coordinates the full pipeline (SEARCH → WRITER → DESIGN → CRITIQUE)
+- **LeadAgentService** - Manages agent execution for individual leads
+- **Stage Progression:** `queued → searched → written → critiqued → completed`
+
+### Agent Configuration
+- Each campaign has agent configurations (AgentConfig)
+- Agents can be enabled/disabled per campaign
+- Custom settings per agent (search depth, email length, critique strictness, etc.)
+
+## Database Management
+
+### Models
+- **User** - User authentication and API key storage
+- **Campaign** - Marketing campaigns with shared settings
+- **Lead** - Lead information (name, email, company, title, stage, quality)
+- **AgentConfig** - Agent configuration per campaign
+- **AgentOutput** - Agent execution results and outputs
+
+### Migrations
+```bash
+rails db:migrate        # Run migrations
+rails db:rollback       # Rollback last migration
+rails db:schema:load    # Load schema from db/schema.rb
+```
+
+### Seeds
+```bash
+rails db:seed
+```
+
+Creates:
+- Admin user (`admin@example.com`)
+- Sample campaign with default agent configs
+- Sample leads
+- Agent configurations (SEARCH, WRITER, CRITIQUE)
+
+### Schema
+- PostgreSQL with JSONB for settings and output data
+- Foreign key constraints for data integrity
+- Indexes on frequently queried fields
+
+## UI Components
+
+### Main Components
+- **CampaignDashboard** - Main dashboard with campaigns and leads
+- **CampaignForm** - Create/edit campaigns
+- **CampaignSidebar** - Campaign list and navigation
+- **ProgressTable** - Lead status and progress tracking
+- **LeadForm** - Add/edit leads
+- **AgentDashboard** - Agent execution and outputs
+- **AgentOutputModal** - View agent outputs
+- **AgentSettingsModal** - Configure agent settings
+- **ApiKeyModal** - Manage API keys
+- **Navigation** - Main navigation bar
+- **EmptyState** - Empty state placeholder
+- **Background** - Animated background component
+
+### Technology
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **Webpacker** - Asset compilation
+
+## Testing
+
+The project includes comprehensive test coverage across three testing frameworks:
+
+### RSpec
+- **178 tests** with **90%+ line coverage**
+- Tests cover models, controllers, services, and integration scenarios
+- Run: `bundle exec rspec`
+- Coverage report: `coverage/index.html`
+
+### Jest
+- **106 tests** with **96.6% coverage**
+- Tests cover React components and hooks
+- Run: `yarn test`
+- Coverage: `yarn test:coverage`
+
+### Cucumber
+- **96 scenarios** with **497 steps** - **100% passing** ✅
+- **19/19 API endpoints** covered (100%)
+- User acceptance tests covering:
+  - Authentication and authorization (401 responses for unauthenticated API requests)
+  - Campaign CRUD operations (create, read, update, delete)
+  - Lead management (create, update, delete, validation)
+  - Agent workflows (run agents, retrieve outputs, update outputs, disabled agents)
+  - Lead stage progression (queued → searched → written → critiqued → completed)
+  - API key management (store and retrieve)
+  - UI layout and assets (title, meta, icons, React mount)
+  - Dashboard empty state
+  - Input validation and authorization boundaries
+  - Agent execution with error handling and disabled agent skipping
+
+Run: `bundle exec cucumber`
+
+**Code Coverage (SimpleCov):**
+- **63.85% line coverage** (664/1040 lines)
+- Run with coverage: `COVERAGE=true bundle exec cucumber`
+- View report: `coverage/index.html`
+- See `COVERAGE_REPORT.md` for detailed coverage analysis
+
+**Coverage Analysis:**
+- See `features/COVERAGE_ANALYSIS.md` for detailed coverage mapping and gap analysis
+- See `features/HOW_TO_CHECK_COVERAGE.md` for methods to verify test coverage
+- See `COVERAGE_REPORT.md` for SimpleCov coverage breakdown by file and category
+
+## API Endpoints
+
+### Campaigns
+- `GET /api/v1/campaigns` - List campaigns
+- `POST /api/v1/campaigns` - Create campaign
+- `PUT /api/v1/campaigns/:id` - Update campaign
+- `DELETE /api/v1/campaigns/:id` - Delete campaign
+- `POST /api/v1/campaigns/:id/send_emails` - Send emails to ready leads
+
+### Leads
+- `GET /api/v1/leads` - List leads
+- `POST /api/v1/leads` - Create lead
+- `PUT /api/v1/leads/:id` - Update lead
+- `DELETE /api/v1/leads/:id` - Delete lead
+- `POST /api/v1/leads/:id/run_agents` - Execute AI agents
+- `GET /api/v1/leads/:id/agent_outputs` - Retrieve agent outputs
+- `PATCH /api/v1/leads/:id/update_agent_output` - Update agent output (WRITER, SEARCH, DESIGN)
+
+### Agent Configs
+- `GET /api/v1/campaigns/:campaign_id/agent_configs` - List agent configs
+- `GET /api/v1/campaigns/:campaign_id/agent_configs/:id` - Get agent config
+- `POST /api/v1/campaigns/:campaign_id/agent_configs` - Create agent config
+- `PUT /api/v1/campaigns/:campaign_id/agent_configs/:id` - Update agent config
+- `DELETE /api/v1/campaigns/:campaign_id/agent_configs/:id` - Delete agent config
+
+### API Keys
+- `GET /api/v1/api_keys` - Get API keys
+- `PUT /api/v1/api_keys` - Update API keys
+
+## Key Features
+
+- **Campaign Management** - Create and manage marketing campaigns
+- **Lead Processing** - Add and track leads with automated AI processing
+- **AI Agent System** - Automated research, writing, design formatting, and critique
+- **Email Generation** - Personalized B2B outreach emails
+- **Email Sending** - Send formatted emails to leads with markdown support
+- **User Authentication** - Secure user registration and login (Devise)
+- **API Key Management** - Store and manage API keys per user
+- **Real-time Progress Tracking** - Monitor lead processing status and quality metrics
+- **Agent Configuration** - Customize agent settings per campaign
+- **Responsive Design** - Mobile-first UI with Tailwind CSS
+
+## Security
+
+- CSRF protection enabled
+- User authentication with Devise
+- Rate limiting with Rack::Attack
+- Content Security Policy (CSP)
+- User-scoped data access
+- SSL enforced in production
+- API key encryption (stored in database)
+
+## Available Scripts
 
 ```bash
 # Database
@@ -193,325 +384,34 @@ rails server                 # Start Rails server
 rails console                # Open Rails console
 
 # Testing
-bundle exec rspec            # Run RSpec tests (178 tests)
-yarn test                    # Run Jest tests (106 tests)
-yarn test:coverage           # Run tests with coverage
+bundle exec rspec            # Run RSpec tests (178 tests, 90%+ coverage)
+yarn test                    # Run Jest tests (106 tests, 96.6% coverage)
+yarn test:coverage           # Run Jest tests with coverage
+bundle exec cucumber         # Run Cucumber tests (96 scenarios, 497 steps, 100% passing)
+COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (63.85% line coverage)
 ```
 
-## 🎯 Key Features
-
-- **Campaign Management** - Create and manage marketing campaigns
-- **Lead Processing** - Add and track leads with automated AI processing
-- **AI Agent System** - Automated research, writing, design formatting, and critique
-- **Email Sending** - Send formatted emails to leads with markdown support (bold, italic, links, etc.)
-- **User Authentication** - Secure user registration and login
-- **API Management** - RESTful API for all operations
-- **Responsive Design** - Mobile-first UI with Tailwind CSS
-- **Real-time Updates** - Live progress tracking and status updates
-
-## 🔐 Security
-
-- CSRF protection enabled
-- User authentication with Devise
-- Rate limiting with Rack::Attack
-- Content Security Policy (CSP)
-- User-scoped data access
-- SSL enforced in production
-
-## 📊 Testing
-
-- **178 RSpec tests** - 90%+ line coverage
-![Rspec Coverage](./rspec_coverage.png)
-- **106 Jest tests** - 96.6% coverage
-- Integration tests for complete workflows
-- Component tests for UI elements
-- API endpoint testing
-
-## User Stories in Cucumber
-![Cucumber Pass](./cucumber_pass.png)
-The Cucumber suite validates the app from a user’s perspective across UI and API. It confirms authenticated access to the dashboard (including empty state and React mount), basic layout integrity (title, meta, icons, pack tags), and full campaign/lead workflows: listing, creating, updating, and deleting resources restricted to the owner. It checks input validation (e.g., missing titles/emails) and authorization boundaries (preventing edits to others’ campaigns). For agent workflows, it verifies error handling when running agents on nonexistent leads, retrieving agent outputs for a lead, and updating outputs for WRITER and SEARCH. It also ensures API keys can be stored and read from session. Together, these scenarios cover the core journeys—UI access, data CRUD, guardrails (auth/validation), and integrations—with all tests passing.
-
-## 📧 Email Configuration
-
-The application includes an email sending feature that allows you to send formatted emails to leads after they've been processed by the AI agents.
-
-### Setting Up Email in .env File
-
-#### Step 1: Create .env File
-
-Create a `.env` file in the project root directory (if it doesn't exist):
-
-```bash
-touch .env
-```
-
-#### Step 2: Add Email Configuration
-
-Add the following to your `.env` file:
-
-```bash
-# Required: Sender email address
-MAILER_FROM="your-email@gmail.com"
-
-# Required: Mail server domain (for links in emails)
-MAILER_HOST="localhost"  # Use your domain in production
-
-# SMTP Configuration (required to actually send emails)
-SMTP_ADDRESS="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USER_NAME="your-email@gmail.com"
-SMTP_PASSWORD="your-app-password"  # See Gmail setup below
-SMTP_DOMAIN="gmail.com"
-SMTP_AUTHENTICATION="plain"
-SMTP_ENABLE_STARTTLS="true"
-```
-
-#### Step 3: Restart Rails Server
-
-**Important**: After creating or modifying `.env`, you must restart your Rails server:
-
-```bash
-# Stop the server (Ctrl+C)
-# Then restart:
-rails server
-```
-
-### Gmail Setup
-
-To use Gmail for sending emails, you need to generate an **App-Specific Password**:
-
-#### 1. Enable Two-Factor Authentication
-
-1. Go to [Google Account Security](https://myaccount.google.com/security)
-2. Enable **2-Step Verification** (if not already enabled)
-
-#### 2. Generate App-Specific Password
-
-1. Visit [Google App Passwords](https://myaccount.google.com/apppasswords)
-2. Select **Mail** as the app
-3. Select **Other (Custom name)** as the device, enter "Campaign SaaS"
-4. Click **Generate**
-5. **Copy the 16-character password** (remove spaces when using it)
-
-#### 3. Add to .env File
-
-Add the app-specific password to your `.env` file:
-
-```bash
-SMTP_USER_NAME="your-email@gmail.com"
-SMTP_PASSWORD="your-16-character-app-password"  # No spaces
-```
-
-**Important**: 
-- Use the **app-specific password**, not your regular Gmail password
-- The password should be 16 characters with no spaces
-- Keep this password secure and never commit it to Git
-
-### Development Environment Modes
-
-The development environment supports three modes:
-
-**Mode 1: File Storage (Default)**
-- Don't set `SMTP_ADDRESS` in `.env`
-- Emails are saved to `tmp/mail` directory
-- Emails are not actually sent
-- Useful for development without sending real emails
-
-**Mode 2: Test Mode**
-Add to `.env`:
-```bash
-MAIL_DELIVERY_METHOD="test"
-```
-- Emails are stored in `ActionMailer::Base.deliveries` array
-- Useful for automated testing
-
-**Mode 3: Real Sending (Gmail)**
-- Set all SMTP variables in `.env` (as shown above)
-- Emails will actually be sent through Gmail SMTP
-- **Remember to restart Rails server after updating `.env`**
-
-### Production Environment
-
-In production, **you must configure SMTP** to send emails. Set these as environment variables in your hosting platform (e.g., Heroku Config Vars):
-
-```bash
-SMTP_ADDRESS="smtp.your-provider.com"
-SMTP_PORT="587"
-SMTP_USER_NAME="your-username"
-SMTP_PASSWORD="your-password"
-MAILER_FROM="noreply@yourdomain.com"
-MAILER_HOST="yourdomain.com"
-```
-
-**For Heroku**:
-```bash
-heroku config:set SMTP_ADDRESS="smtp.gmail.com"
-heroku config:set SMTP_PORT="587"
-heroku config:set SMTP_USER_NAME="your-email@gmail.com"
-heroku config:set SMTP_PASSWORD="your-app-password"
-heroku config:set MAILER_FROM="your-email@gmail.com"
-heroku config:set MAILER_HOST="yourdomain.com"
-```
-
-If SMTP is not configured, emails will be saved to `tmp/mail` directory (not recommended for production).
-
-### Common Email Provider Configurations
-
-#### Gmail
-
-```bash
-export SMTP_ADDRESS="smtp.gmail.com"
-export SMTP_PORT="587"
-export SMTP_USER_NAME="your-email@gmail.com"
-export SMTP_PASSWORD="your-app-password"  # Must use app-specific password
-export SMTP_DOMAIN="gmail.com"
-export SMTP_AUTHENTICATION="plain"
-export SMTP_ENABLE_STARTTLS="true"
-```
-
-**Note**: Gmail requires an [app-specific password](https://support.google.com/accounts/answer/185833), not your regular password.
-
-#### SendGrid
-
-```bash
-export SMTP_ADDRESS="smtp.sendgrid.net"
-export SMTP_PORT="587"
-export SMTP_USER_NAME="apikey"
-export SMTP_PASSWORD="your-sendgrid-api-key"
-export SMTP_DOMAIN="yourdomain.com"
-export SMTP_AUTHENTICATION="plain"
-export SMTP_ENABLE_STARTTLS="true"
-```
-
-#### Mailgun
-
-```bash
-export SMTP_ADDRESS="smtp.mailgun.org"
-export SMTP_PORT="587"
-export SMTP_USER_NAME="your-mailgun-username"
-export SMTP_PASSWORD="your-mailgun-password"
-export SMTP_DOMAIN="yourdomain.com"
-export SMTP_AUTHENTICATION="plain"
-export SMTP_ENABLE_STARTTLS="true"
-```
-
-#### AWS SES
-
-```bash
-export SMTP_ADDRESS="email-smtp.us-east-1.amazonaws.com"  # Adjust for your region
-export SMTP_PORT="587"
-export SMTP_USER_NAME="your-aws-ses-smtp-username"
-export SMTP_PASSWORD="your-aws-ses-smtp-password"
-export SMTP_DOMAIN="yourdomain.com"
-export SMTP_AUTHENTICATION="plain"
-export SMTP_ENABLE_STARTTLS="true"
-```
-
-### Email Sending Conditions
-
-Only leads that meet the following conditions will have their emails sent:
-
-1. **Stage Status**: The lead's `stage` must be `'critiqued'` or `'completed'`
-2. **Email Content**: The lead must have a completed DESIGN agent output (preferred) or WRITER agent output (fallback)
-
-### Viewing Sent Emails
-
-**Development Environment (File Mode)**
-- Emails are saved in: `tmp/mail/` directory, each email is a file
-
-**Development Environment (Test Mode)**
-- View in Rails console:
-  ```ruby
-  ActionMailer::Base.deliveries
-  ```
-
-**Production Environment**
-- Emails are actually sent to recipients' email addresses
-
-### Verifying Email Configuration
-
-To check if your email configuration is working:
-
-1. **Check Rails logs** when clicking "Send":
-   - **Success (SMTP)**: `Delivered mail to recipient@email.com (xxxms)`
-   - **File mode**: `Delivered mail [random-filename]@localhost.mail`
-
-2. **Verify configuration**:
-   ```bash
-   rails runner "puts Rails.application.config.action_mailer.delivery_method"
-   # Should return: smtp
-   ```
-
-3. **Test in Rails console**:
-   ```ruby
-   require_relative 'app/mailers/campaign_mailer'
-   CampaignMailer.send_email(
-     to: "your-test-email@gmail.com",
-     recipient_name: "Test",
-     email_content: "Subject: Test\n\nTest email",
-     campaign_title: "Test Campaign"
-   ).deliver_now
-   ```
-
-### Troubleshooting
-
-1. **Emails not sending / Still in file mode**:
-   - ✅ Check if `.env` file exists in project root
-   - ✅ Verify `SMTP_ADDRESS` is set in `.env`
-   - ✅ **Restart Rails server** after modifying `.env`
-   - ✅ Check if `dotenv-rails` gem is installed: `bundle list | grep dotenv`
-   - ✅ Verify environment variables are loaded: `rails runner "puts ENV['SMTP_ADDRESS']"`
-
-2. **SMTP authentication failed**:
-   - For Gmail: Ensure you're using an **app-specific password**, not your regular password
-   - Verify the password is 16 characters with no spaces
-   - Regenerate app-specific password if needed: https://myaccount.google.com/apppasswords
-
-3. **SSL certificate error**:
-   - Already handled in development environment (SSL verification disabled)
-   - In production, ensure your SMTP provider's SSL certificates are valid
-
-4. **Emails going to spam**:
-   - Check spam/junk folder
-   - Configure SPF, DKIM, and DMARC records for your domain
-   - Consider using professional email services (SendGrid, Mailgun) for production
-   - Ensure sender address is from a verified domain
-
-## 🚀 Deployment
-
-### Live Application
-The application is currently deployed and running on Heroku:
-**🌐 https://campaign-saas-7460a258bf90.herokuapp.com/**
-
-### Production Features
-- **Heroku PostgreSQL** - Managed database with automatic backups
-- **Redis** - Caching and rate limiting
-- **Asset Pipeline** - Optimized CSS and JavaScript compilation
-- **SSL/HTTPS** - Secure connections enforced
-- **Environment Variables** - Secure API key management
-- **Comprehensive Error Handling** - Production-ready error management
-- **Security Best Practices** - CSRF protection, rate limiting, and more
-
-### Deployment Configuration
-- **Node.js 16.x** - Pinned for Webpacker compatibility
-- **Ruby 3.3.9** - Latest stable Ruby version
-- **PostgreSQL** - Essential-0 plan on Heroku
-- **Buildpacks** - Node.js and Ruby buildpacks configured
-- **Asset Precompilation** - Optimized for production performance
-
-## 📝 API Documentation
-
-API endpoints are available at `/api/v1/`:
-
-- `GET/POST/PUT/DELETE /api/v1/campaigns` - Campaign management
-- `POST /api/v1/campaigns/:id/send_emails` - Send emails to all ready leads in a campaign
-- `GET/POST/PUT/DELETE /api/v1/leads` - Lead management
-- `GET/POST/PUT/DELETE /api/v1/campaigns/:id/agent_configs` - Agent configuration
-- `POST /api/v1/leads/:id/run_agents` - Execute AI agents
-- `GET /api/v1/leads/:id/agent_outputs` - Retrieve agent outputs
-- `PATCH /api/v1/leads/:id/update_agent_output` - Update agent output (WRITER, SEARCH, DESIGN)
-
-## 🤝 Contributing
+## Deployment
+
+### Heroku
+- **Database:** PostgreSQL (Heroku Essential-0 plan)
+- **Redis:** Caching and rate limiting
+- **Asset Pipeline:** Optimized CSS and JavaScript compilation
+- **SSL/HTTPS:** Secure connections enforced
+- **Environment Variables:** Secure API key management via Heroku Config Vars
+- **Buildpacks:** Node.js and Ruby buildpacks configured
+- **Asset Precompilation:** Optimized for production performance
+
+### Production Checklist
+- [ ] Set all required environment variables
+- [ ] Configure SMTP for email sending
+- [ ] Set `DISABLE_AUTH=false` or remove it (auth required by default)
+- [ ] Configure `MAILER_HOST` with production domain
+- [ ] Set up SSL/HTTPS
+- [ ] Configure database backups
+- [ ] Set up monitoring and error tracking
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -519,10 +419,10 @@ API endpoints are available at `/api/v1/`:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License.
 
 ---
 
-**Built with ❤️ using Rails, React, TypeScript, and Tailwind CSS**
+**Built with Rails, React, TypeScript, and Tailwind CSS**

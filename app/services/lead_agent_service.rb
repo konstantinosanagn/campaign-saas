@@ -106,29 +106,35 @@ class LeadAgentService
           result = execute_design_agent(design_agent, lead, agent_config, previous_outputs["WRITER"])
         end
 
-        # Store output
-        save_agent_output(lead, next_agent, result, "completed")
-        outputs[next_agent] = result
-        completed_agents << next_agent
+          # Store output
+          save_agent_output(lead, next_agent, result, "completed")
+          outputs[next_agent] = result
+          completed_agents << next_agent
 
-        # Advance to next stage
-        advance_stage(lead, next_agent)
+          # Advance to next stage
+          advance_stage(lead, next_agent)
 
-        # Update lead quality if CRITIQUE completed successfully
-        if next_agent == "CRITIQUE" && result
-          update_lead_quality(lead, result)
+          # Update lead quality if CRITIQUE completed successfully
+          if next_agent == "CRITIQUE" && result
+            update_lead_quality(lead, result)
+          end
+
+          # Mark that we've executed an agent and break
+          agent_executed = true
+          lead.reload
+
+        rescue => e
+          # Store error output
+          error_output = { error: e.message, agent: next_agent }
+          save_agent_output(lead, next_agent, error_output, "failed")
+          outputs[next_agent] = error_output
+          failed_agents << next_agent
+
+          # DO NOT advance stage if agent failed
+          # Lead stays at current stage for retry
+          # Mark as executed and break
+          agent_executed = true
         end
-
-      rescue => e
-
-        # Store error output
-        error_output = { error: e.message, agent: next_agent }
-        save_agent_output(lead, next_agent, error_output, "failed")
-        outputs[next_agent] = error_output
-        failed_agents << next_agent
-
-        # DO NOT advance stage if agent failed
-        # Lead stays at current stage for retry
       end
 
       # Determine overall status
