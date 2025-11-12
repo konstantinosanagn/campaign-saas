@@ -9,6 +9,7 @@ import AgentDashboard from '@/components/agents/AgentDashboard'
 import EmptyState from '@/components/shared/EmptyState'
 import AgentOutputModal from '@/components/agents/AgentOutputModal'
 import AgentSettingsModal from '@/components/agents/AgentSettingsModal'
+import EmailConfigModal from '@/components/shared/EmailConfigModal'
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useLeads } from '@/hooks/useLeads'
 import { useSelection } from '@/hooks/useSelection'
@@ -43,6 +44,7 @@ export default function CampaignDashboard() {
   const [outputModalLead, setOutputModalLead] = useState<Lead | null>(null)
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [settingsModalAgent, setSettingsModalAgent] = useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | null>(null)
+  const [isEmailConfigModalOpen, setIsEmailConfigModalOpen] = useState(false)
 
   const { campaigns, createCampaign, updateCampaign, deleteCampaign } = useCampaigns()
   const { leads, createLead, updateLead, deleteLeads, findLead, refreshLeads } = useLeads()
@@ -185,7 +187,7 @@ export default function CampaignDashboard() {
     }
   }, [campaignObj, createLead, refreshLeads, selectedCampaign])
 
-  const handleLeadClick = useCallback((lead: { id: number }) => {
+  const handleLeadClick = useCallback((lead: Lead) => {
     toggleSelection(lead.id)
   }, [toggleSelection])
 
@@ -286,15 +288,22 @@ export default function CampaignDashboard() {
     setIsSettingsModalOpen(true)
   }, [])
 
-  // Check if a lead is ready to send (has reached critiqued or completed stage)
+  // Check if a lead is ready to send (has reached designed or completed stage)
   const isLeadReady = useCallback((lead: Lead) => {
-    return lead.stage === 'critiqued' || lead.stage === 'completed'
+    return lead.stage === 'designed' || lead.stage === 'completed'
   }, [])
 
   // Count ready leads
   const readyLeadsCount = React.useMemo(() => {
     return filteredLeads.filter(isLeadReady).length
   }, [filteredLeads, isLeadReady])
+
+  // Get selected ready leads (only designed/completed)
+  const selectedReadyLeads = React.useMemo(() => {
+    return filteredLeads.filter(lead => 
+      selectedLeads.includes(lead.id) && isLeadReady(lead)
+    )
+  }, [filteredLeads, selectedLeads, isLeadReady])
 
   const handleSendEmails = useCallback(async () => {
     if (!campaignObj?.id || readyLeadsCount === 0) {
@@ -327,6 +336,7 @@ export default function CampaignDashboard() {
         alert(`Emails sent successfully!\nSent: ${sent}\nFailed: ${failed}${errorDetails}`)
         // Refresh leads to get updated status
         await refreshLeads()
+        clearSelection()
       } else {
         alert(`Failed to send emails: ${data.error || 'Unknown error'}`)
       }
@@ -336,7 +346,73 @@ export default function CampaignDashboard() {
     } finally {
       setSendingEmails(false)
     }
-  }, [campaignObj, readyLeadsCount, refreshLeads])
+  }, [campaignObj, readyLeadsCount, refreshLeads, clearSelection])
+
+  // Send emails to selected leads
+  const handleSendSelectedEmails = useCallback(async () => {
+    if (selectedReadyLeads.length === 0) {
+      alert('Please select at least one lead in "designed" or "completed" stage to send emails.')
+      return
+    }
+
+    if (!confirm(`Send emails to ${selectedReadyLeads.length} selected lead(s)?`)) {
+      return
+    }
+
+    try {
+      setSendingEmails(true)
+      const results = {
+        sent: 0,
+        failed: 0,
+        errors: [] as Array<{ lead_email: string; error: string }>
+      }
+
+      // Send emails to each selected lead
+      for (const lead of selectedReadyLeads) {
+        try {
+          const response = await fetch(`/api/v1/leads/${lead.id}/send_email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
+          })
+
+          const data = await response.json()
+          if (response.ok && data.success) {
+            results.sent += 1
+          } else {
+            results.failed += 1
+            results.errors.push({
+              lead_email: lead.email,
+              error: data.error || 'Unknown error'
+            })
+          }
+        } catch (error) {
+          results.failed += 1
+          results.errors.push({
+            lead_email: lead.email,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          })
+        }
+      }
+
+      const errorDetails = results.errors.length > 0
+        ? `\n\nErrors:\n${results.errors.map((e) => `- ${e.lead_email}: ${e.error}`).join('\n')}`
+        : ''
+      alert(`Emails sent!\nSent: ${results.sent}\nFailed: ${results.failed}${errorDetails}`)
+      
+      // Refresh leads and clear selection
+      await refreshLeads()
+      clearSelection()
+    } catch (error) {
+      console.error('Error sending selected emails:', error)
+      alert(`Error sending emails: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setSendingEmails(false)
+    }
+  }, [selectedReadyLeads, refreshLeads, clearSelection])
 
   const handleSaveAgentConfig = async (config: AgentConfig) => {
     try {
@@ -415,13 +491,31 @@ export default function CampaignDashboard() {
                       >
                         {agentExecLoading ? 'Running...' : 'Run Agents'}
                       </button>
+                      {selectedReadyLeads.length > 0 ? (
+                        <button 
+                          onClick={handleSendSelectedEmails}
+                          disabled={sendingEmails || !campaignObj}
+                          className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-full hover:text-green-600 hover:bg-transparent hover:border-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={`Send emails to ${selectedReadyLeads.length} selected lead(s)`}
+                        >
+                          {sendingEmails ? 'Sending...' : `Send Selected (${selectedReadyLeads.length})`}
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={handleSendEmails}
+                          disabled={sendingEmails || !campaignObj || readyLeadsCount === 0}
+                          className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-full hover:text-green-600 hover:bg-transparent hover:border-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={readyLeadsCount === 0 ? 'No ready leads to send' : `Send emails to ${readyLeadsCount} ready lead(s)`}
+                        >
+                          {sendingEmails ? 'Sending...' : `Send All${readyLeadsCount > 0 ? ` (${readyLeadsCount})` : ''}`}
+                        </button>
+                      )}
                       <button 
-                        onClick={handleSendEmails}
-                        disabled={sendingEmails || !campaignObj || readyLeadsCount === 0}
-                        className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-full hover:text-green-600 hover:bg-transparent hover:border-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={readyLeadsCount === 0 ? 'No ready leads to send' : `Send emails to ${readyLeadsCount} ready lead(s)`}
+                        onClick={() => setIsEmailConfigModalOpen(true)}
+                        className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 transition-colors duration-200"
+                        title="Configure email settings"
                       >
-                        {sendingEmails ? 'Sending...' : `Send${readyLeadsCount > 0 ? ` (${readyLeadsCount})` : ''}`}
+                        Email Settings
                       </button>
                     </div>
                   </div>
@@ -434,7 +528,7 @@ export default function CampaignDashboard() {
                   leads={filteredLeads}
                 />
 
-                <div className="h-full">
+                <div className="h-full overflow-y-auto">
                   {selectedCampaign !== null ? (
                     <div className="p-4">
                       {filteredLeads.length === 0 ? (
@@ -453,6 +547,7 @@ export default function CampaignDashboard() {
                           onLeadClick={handleLeadClick} 
                           onStageClick={handleStageClick}
                           selectedLeads={selectedLeads}
+                          onToggleSelection={toggleSelection}
                           runningLeadIds={Array.from(runningLeadIds)}
                         />
                       )}
@@ -571,6 +666,11 @@ export default function CampaignDashboard() {
           loading={configsLoading}
         />
       )}
+
+      <EmailConfigModal
+        isOpen={isEmailConfigModalOpen}
+        onClose={() => setIsEmailConfigModalOpen(false)}
+      />
       </main>
     </>
   )

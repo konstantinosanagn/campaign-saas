@@ -179,6 +179,44 @@ module Api
       end
 
       ##
+      # POST /api/v1/leads/:id/send_email
+      # Sends email to a single lead
+      def send_email
+        # Find lead and verify ownership
+        # Use includes to prevent N+1 queries and eager load agent_outputs
+        lead = Lead.includes(:campaign, :agent_outputs)
+                   .joins(:campaign)
+                   .where(campaigns: { user_id: current_user.id })
+                   .find_by(id: params[:id])
+
+        unless lead
+          render json: { errors: [ "Lead not found or unauthorized" ] }, status: :not_found
+          return
+        end
+
+        begin
+          result = EmailSenderService.send_email_for_lead(lead)
+
+          if result[:success]
+            render json: {
+              success: true,
+              message: result[:message]
+            }, status: :ok
+          else
+            render json: {
+              success: false,
+              error: result[:error]
+            }, status: :unprocessable_entity
+          end
+        rescue => e
+          render json: {
+            success: false,
+            error: e.message
+          }, status: :internal_server_error
+        end
+      end
+
+      ##
       # PATCH /api/v1/leads/:id/update_agent_output
       # Updates a specific agent output (supports WRITER and SEARCH)
       def update_agent_output
