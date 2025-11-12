@@ -47,7 +47,7 @@
     </style>
   </head>
   <body>
-    <div style="white-space: pre-wrap;"><%= @email_content.html_safe %></div>
+    <%= markdown_to_html(@email_content) %>
   </body>
 </html>
 
