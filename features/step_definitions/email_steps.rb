@@ -270,7 +270,7 @@ Given('CampaignMailer delivery will fail for lead {string}') do |email|
     to_email = kwargs[:to] || kwargs['to']
     mail_double = double('Mail::Message')
     allow(mail_double).to receive(:encoded).and_return("Subject: Test\n\nHello")
-    
+
     if to_email == email
       allow(mail_double).to receive(:deliver_now).and_raise(StandardError.new("Delivery failed for #{email}"))
     else
@@ -314,12 +314,12 @@ Given('CampaignMailer delivery will raise exception for lead {string}') do |emai
   # Track which emails should fail
   @failing_emails ||= []
   @failing_emails << email
-  
+
   allow(CampaignMailer).to receive(:send_email) do |**kwargs|
     to_email = kwargs[:to] || kwargs['to']
     mail_double = double('Mail::Message')
     allow(mail_double).to receive(:encoded).and_return("Subject: Test\n\nHello")
-    
+
     if @failing_emails.include?(to_email)
       allow(mail_double).to receive(:deliver_now).and_raise(StandardError.new("Unexpected exception for #{to_email}"))
     else
@@ -388,15 +388,15 @@ end
 Given('CampaignMailer delivery will raise SMTP authentication error with response') do
   mail_double = double('Mail::Message')
   allow(mail_double).to receive(:encoded).and_return("Subject: Test\n\nHello")
-  
+
   # Create a mock response object
   response_double = double('SMTPResponse')
   allow(response_double).to receive(:code).and_return('535')
   allow(response_double).to receive(:message).and_return('Authentication failed')
-  
+
   error = Net::SMTPAuthenticationError.new('Authentication failed')
   allow(error).to receive(:response).and_return(response_double)
-  
+
   allow(mail_double).to receive(:deliver_now).and_raise(error)
   allow(CampaignMailer).to receive(:send_email).and_return(mail_double)
 end
@@ -404,14 +404,14 @@ end
 Given('CampaignMailer delivery will raise Net::SMTPError') do
   mail_double = double('Mail::Message')
   allow(mail_double).to receive(:encoded).and_return("Subject: Test\n\nHello")
-  
+
   error = Net::SMTPServerBusy.new('450 Temporary failure')
-  
+
   # Create a mock response object
   response_double = double('SMTPResponse')
   allow(response_double).to receive(:inspect).and_return('SMTP error response')
   allow(error).to receive(:response).and_return(response_double)
-  
+
   allow(mail_double).to receive(:deliver_now).and_raise(error)
   allow(CampaignMailer).to receive(:send_email).and_return(mail_double)
 end
@@ -433,14 +433,14 @@ end
 Given('ActionMailer delivery_method will change after mail creation') do
   # Mock ActionMailer to change delivery_method after mail is created
   original_delivery_method = ActionMailer::Base.delivery_method
-  
+
   allow(CampaignMailer).to receive(:send_email) do |**kwargs|
     mail_double = double('Mail::Message')
     allow(mail_double).to receive(:encoded).and_return("Subject: Test\n\nHello")
-    
+
     # Change delivery method to simulate the issue
     ActionMailer::Base.delivery_method = :file
-    
+
     allow(mail_double).to receive(:deliver_now) do
       # Reset it back during delivery
       ActionMailer::Base.delivery_method = :smtp
@@ -456,11 +456,11 @@ end
 Given('Gmail API will be disabled') do
   # Mock the service to skip Gmail API and go straight to SMTP
   original_valid_token = GmailOauthService.method(:valid_access_token) rescue nil
-  
+
   # Keep oauth_configured as true, but return nil for valid_access_token
   # This forces the SMTP path
   allow(GmailOauthService).to receive(:valid_access_token).and_return(nil)
-  
+
   # Mock successful SMTP delivery
   allow(CampaignMailer).to receive(:send_email) do |**kwargs|
     mail_double = double('Mail::Message')
