@@ -10,10 +10,17 @@ interface ProgressTableProps {
   onLeadClick: (lead: Lead) => void
   onStageClick: (lead: Lead) => void
   selectedLeads: number[]
+  onToggleSelection?: (leadId: number) => void
   runningLeadIds?: number[]
 }
 
-function ProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLeads, runningLeadIds = [] }: ProgressTableProps) {
+function ProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLeads, onToggleSelection, runningLeadIds = [] }: ProgressTableProps) {
+  
+  // Check if a lead can be selected (only designed/completed stage)
+  const canSelect = (lead: Lead): boolean => {
+    return lead.stage === 'designed' || lead.stage === 'completed'
+  }
+  
   return (
     <div 
       className="rounded-2xl overflow-hidden"
@@ -27,9 +34,37 @@ function ProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLe
       }}
     >
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-blue-500 bg-gray-50">
+              {onToggleSelection && (
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 w-12">
+                  <input
+                    type="checkbox"
+                    checked={leads.filter(canSelect).length > 0 && leads.filter(canSelect).every(lead => selectedLeads.includes(lead.id))}
+                    onChange={(e) => {
+                      e.stopPropagation()
+                      const selectableLeads = leads.filter(canSelect)
+                      if (e.target.checked) {
+                        selectableLeads.forEach(lead => {
+                          if (!selectedLeads.includes(lead.id) && onToggleSelection) {
+                            onToggleSelection(lead.id)
+                          }
+                        })
+                      } else {
+                        selectableLeads.forEach(lead => {
+                          if (selectedLeads.includes(lead.id) && onToggleSelection) {
+                            onToggleSelection(lead.id)
+                          }
+                        })
+                      }
+                    }}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 focus:ring-offset-0"
+                    style={{ borderColor: leads.filter(canSelect).length > 0 && leads.filter(canSelect).every(lead => selectedLeads.includes(lead.id)) ? '#2563eb' : '#d1d5db' }}
+                    title="Select all ready leads"
+                  />
+                </th>
+              )}
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Lead</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Company</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Stage</th>
@@ -38,11 +73,33 @@ function ProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLe
             </tr>
           </thead>
           <tbody>
-            {leads.map((lead) => (
+            {leads.map((lead) => {
+              const isSelectable = canSelect(lead)
+              const isSelected = selectedLeads.includes(lead.id)
+              
+              return (
               <tr 
                 key={lead.id} 
-                className="border-b border-gray-200 hover:bg-blue-100 transition-colors duration-200"
+                className={`border-b border-gray-200 hover:bg-blue-100 transition-colors duration-200 ${isSelected ? 'bg-blue-50' : ''}`}
               >
+                {onToggleSelection && (
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      disabled={!isSelectable}
+                      onChange={(e) => {
+                        e.stopPropagation()
+                        if (isSelectable && onToggleSelection) {
+                          onToggleSelection(lead.id)
+                        }
+                      }}
+                      className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 focus:ring-offset-0 ${!isSelectable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      style={{ borderColor: isSelected ? '#2563eb' : '#d1d5db' }}
+                      title={isSelectable ? "Select lead for email sending" : "Lead must be in 'designed' or 'completed' stage to send email"}
+                    />
+                  </td>
+                )}
                 <td className="px-4 py-3 cursor-pointer" onClick={() => onLeadClick(lead)}>
                   <div>
                     <div className={`font-medium ${selectedLeads.includes(lead.id) ? 'text-blue-600' : 'text-gray-900'}`}>{lead.name}</div>
@@ -84,7 +141,7 @@ function ProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLe
                   )}
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>

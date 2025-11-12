@@ -49,6 +49,47 @@ class EmailSenderService
     end
 
     ##
+    # Sends email to a single lead
+    # This is a public method that can be called directly
+    #
+    # @param lead [Lead] The lead to send email to
+    # @return [Hash] Result with success status and any error message
+    def send_email_for_lead(lead)
+      # Verify lead belongs to a campaign owned by a user
+      unless lead.campaign&.user
+        return {
+          success: false,
+          error: "Lead does not belong to a valid campaign"
+        }
+      end
+
+      # Check if lead is ready
+      unless lead_ready?(lead)
+        return {
+          success: false,
+          error: "Lead is not ready to send. Lead must be at 'designed' or 'completed' stage with email content available."
+        }
+      end
+
+      begin
+        Rails.logger.info("[EmailSender] Attempting to send email to lead #{lead.id} (#{lead.email})")
+        send_email_to_lead(lead)
+        Rails.logger.info("[EmailSender] Successfully sent email to lead #{lead.id}")
+        {
+          success: true,
+          message: "Email sent successfully to #{lead.email}"
+        }
+      rescue => e
+        Rails.logger.error("[EmailSender] Failed to send email to lead #{lead.id}: #{e.class} #{e.message}")
+        Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
+        {
+          success: false,
+          error: e.message
+        }
+      end
+    end
+
+    ##
     # Checks if a lead is ready to have its email sent
     # A lead is ready if:
     # 1. It has reached 'designed' or 'completed' stage

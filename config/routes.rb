@@ -20,6 +20,7 @@ Rails.application.routes.draw do
           post :run_agents
           get :agent_outputs
           patch :update_agent_output
+          post :send_email
         end
       end
 
