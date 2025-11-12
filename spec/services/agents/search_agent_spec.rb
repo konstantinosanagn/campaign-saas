@@ -78,6 +78,20 @@ RSpec.describe Agents::SearchAgent, type: :service do
       expect(result[:personalization_signals][:recipient]).to eq(mock_recipient_results)
       expect(result[:personalization_signals][:company]).to eq(mock_company_results)
     end
+
+    it "logs and returns empty inferred_focus_areas when Gemini returns invalid JSON" do
+      allow(HTTParty).to receive(:post)
+        .with(/generativelanguage/, anything)
+        .and_return(double(parsed_response: { "candidates" => [ { "content" => { "parts" => [ { "text" => 'not-a-json' } ] } } ] }))
+
+      logger = double("logger")
+      allow(logger).to receive(:info)
+      expect(logger).to receive(:error).with(/Gemini inference failed:/)
+          agent.instance_variable_set(:@logger, logger)
+
+      result = agent.run(company: "ABC", recipient_name: "DEF HIJ", job_title: "CEO", email: "defhij@abc.com")
+      expect(result[:inferred_focus_areas]).to eq([])
+    end
   end
 
   describe "#run_tavily_search" do
@@ -94,6 +108,16 @@ RSpec.describe Agents::SearchAgent, type: :service do
       expect(agent.send(:run_tavily_search, "query")).to eq([
         { title: "News", url: nil, content: nil }
       ])
+    end
+
+    it "returns empty array and logs an error when parsing fails" do
+      allow(described_class).to receive(:post).and_return(double(parsed_response: nil))
+
+      logger = double("logger")
+      expect(logger).to receive(:error).with(/Tavily batch search failed:/)
+      agent.instance_variable_set(:@logger, logger)
+
+      expect(agent.send(:run_tavily_search, "bad-query")).to eq([])
     end
   end
 end
