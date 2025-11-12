@@ -1,7 +1,6 @@
 require "rails_helper"
 
 RSpec.describe Api::V1::ApiKeysController, type: :controller do
-  include Devise::Test::ControllerHelpers
   before do
     allow_any_instance_of(Api::V1::BaseController).to receive(:skip_auth?).and_return(true)
   end
