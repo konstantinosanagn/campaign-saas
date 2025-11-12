@@ -1,4 +1,7 @@
 Feature: Campaign mailer email formatting
+  As an authenticated user
+  I want to send personalized well-formatted campaign emails
+  So that I can effectively reach out to leads with customized messaging
 
   Background:
     Given a user exists

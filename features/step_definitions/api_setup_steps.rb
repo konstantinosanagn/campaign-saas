@@ -752,6 +752,38 @@ Then('the CRITIQUE output should handle empty critique') do
   expect(output.output_data).to have_key('score')
 end
 
+Then('the CRITIQUE agent should use lenient strictness') do
+  @agent_config.reload
+  expect(@agent_config.settings['strictness']).to eq('lenient')
+  @lead.reload
+  output = @lead.agent_outputs.find_by(agent_name: 'CRITIQUE', status: 'completed')
+  expect(output).to be_present
+end
+
+Then('the CRITIQUE agent should use moderate strictness') do
+  @agent_config.reload
+  expect(@agent_config.settings['strictness']).to eq('moderate')
+  @lead.reload
+  output = @lead.agent_outputs.find_by(agent_name: 'CRITIQUE', status: 'completed')
+  expect(output).to be_present
+end
+
+Then('the CRITIQUE agent should use strict strictness') do
+  @agent_config.reload
+  expect(@agent_config.settings['strictness']).to eq('strict')
+  @lead.reload
+  output = @lead.agent_outputs.find_by(agent_name: 'CRITIQUE', status: 'completed')
+  expect(output).to be_present
+end
+
+Then('the CRITIQUE agent should use default strictness') do
+  @agent_config.reload
+  expect(@agent_config.settings['strictness']).to be_nil
+  @lead.reload
+  output = @lead.agent_outputs.find_by(agent_name: 'CRITIQUE', status: 'completed')
+  expect(output).to be_present
+end
+
 Given('the lead has a {string} agent output with variants') do |agent_name|
   @lead ||= begin
     step 'a lead exists for my campaign'

@@ -1,4 +1,7 @@
 Feature: Gmail OAuth authorization and token management
+  As an authenticated user
+  I want to authorize Gmail access and manage OAuth tokens
+  So that I can securely send emails through my Gmail account
 
   Background:
     Given a user exists

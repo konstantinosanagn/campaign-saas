@@ -1,4 +1,7 @@
 Feature: EmailSenderService behavior with handling multiple leads and batch operations
+  As an authenticated user
+  I want to send emails to multiple leads in a single batch operation
+  So that I can efficiently execute campaigns at scale with proper error handling
 
   Background:
     Given a user exists

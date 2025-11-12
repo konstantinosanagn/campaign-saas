@@ -1,4 +1,7 @@
 Feature: Email sender service SMTP configuration including OAuth2 and password-based authentication
+  As an authenticated user
+  I want to configure SMTP delivery with multiple authentication methods
+  So that I can send emails securely using either OAuth2 or password-based authentication
 
   Background:
     Given a user exists

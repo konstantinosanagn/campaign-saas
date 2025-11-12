@@ -1,4 +1,7 @@
 Feature: Gmail OAuth configuration and status checks
+  As an authenticated user
+  I want to check my Gmail OAuth configuration status
+  So that I can verify my email sending setup and manage my email settings
 
   Background:
     Given a user exists

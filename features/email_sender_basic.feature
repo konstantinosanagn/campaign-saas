@@ -1,4 +1,7 @@
 Feature: EmailSenderService basic operations including lead readiness checks and basic sending
+  As an authenticated user
+  I want to send emails to ready leads through various delivery methods
+  So that I can execute my outreach campaigns reliably with proper validation
 
   Background:
     Given a user exists

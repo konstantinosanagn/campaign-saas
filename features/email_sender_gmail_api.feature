@@ -1,4 +1,7 @@
 Feature: Email sender service Gmail API integration and environment handling
+  As an authenticated user
+  I want to ensure that emails can be sent through Gmail API
+  So that I can reach out to leads
 
   Background:
     Given a user exists

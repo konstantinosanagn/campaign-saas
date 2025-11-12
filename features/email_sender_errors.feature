@@ -1,4 +1,7 @@
 Feature: EmailSenderService error handling for various failure scenarios
+  As an authenticated user
+  I want the email sender to gracefully handle delivery errors
+  So that I can understand failures and maintain system stability
 
   Background:
     Given a user exists

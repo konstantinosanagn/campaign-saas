@@ -1,5 +1,8 @@
 Feature: Email sender service OAuth integration
-  Tests EmailSenderService OAuth user lookup and token handling
+  As an authenticated user
+  I want to be able to use OAuth with flexible user lookup and token handling
+  So that I can securely authenticate with Gmail and support multiple sender addresses
+
 
   Background:
     Given a user exists

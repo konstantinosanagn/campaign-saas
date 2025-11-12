@@ -96,3 +96,39 @@ Feature: CritiqueAgent Configuration Variations
     Then the lead should have a "CRITIQUE" agent output
     And the CRITIQUE output should handle empty critique
 
+  Scenario: CritiqueAgent with strictness level lenient
+    Given the campaign has a "CRITIQUE" agent config with settings:
+      """
+      {"strictness": "lenient", "min_score": 6}
+      """
+    When I run the "CRITIQUE" agent on the lead
+    Then the lead should have a "CRITIQUE" agent output
+    And the CRITIQUE agent should use lenient strictness
+
+  Scenario: CritiqueAgent with strictness level moderate
+    Given the campaign has a "CRITIQUE" agent config with settings:
+      """
+      {"strictness": "moderate", "min_score": 6}
+      """
+    When I run the "CRITIQUE" agent on the lead
+    Then the lead should have a "CRITIQUE" agent output
+    And the CRITIQUE agent should use moderate strictness
+
+  Scenario: CritiqueAgent with strictness level strict
+    Given the campaign has a "CRITIQUE" agent config with settings:
+      """
+      {"strictness": "strict", "min_score": 6}
+      """
+    When I run the "CRITIQUE" agent on the lead
+    Then the lead should have a "CRITIQUE" agent output
+    And the CRITIQUE agent should use strict strictness
+
+  Scenario: CritiqueAgent with default strictness (no setting)
+    Given the campaign has a "CRITIQUE" agent config with settings:
+      """
+      {"min_score": 6}
+      """
+    When I run the "CRITIQUE" agent on the lead
+    Then the lead should have a "CRITIQUE" agent output
+    And the CRITIQUE agent should use default strictness
+
