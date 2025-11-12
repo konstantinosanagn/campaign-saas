@@ -11,7 +11,7 @@ def parse_simplecov_result
   # Try coverage directory first, then root
   result_file = Pathname.new('coverage/.resultset.json')
   result_file = Pathname.new('.resultset.json') unless result_file.exist?
-  
+
   unless result_file.exist?
     puts "❌ Coverage result file not found."
     puts "   Run: COVERAGE=true bundle exec cucumber"
@@ -26,18 +26,18 @@ end
 
 def extract_uncovered_lines(coverage_data)
   uncovered_files = []
-  
+
   coverage_data.each do |command_name, command_data|
     next unless command_data['coverage']
-    
+
     command_data['coverage'].each do |file_path, file_data|
       # file_data is a hash with 'lines' key
       lines = file_data.is_a?(Hash) && file_data.key?('lines') ? file_data['lines'] : file_data
       lines = [] unless lines.is_a?(Array)
-      
+
       # Normalize path (handle both relative and absolute paths)
       normalized_path = file_path.gsub(/^.*?([\/\\]app[\/\\])/, 'app/')
-      
+
       # Skip test files, migrations, and config
       next if file_path.include?('/spec/') ||
               file_path.include?('/features/') ||
@@ -51,10 +51,10 @@ def extract_uncovered_lines(coverage_data)
               file_path.include?('\\vendor\\') ||
               file_path.include?('/bin/') ||
               file_path.include?('\\bin\\')
-      
+
       # Only show app/ files
       next unless file_path.include?('app/') || file_path.include?('app\\')
-      
+
       uncovered = []
       lines.each_with_index do |count, line_num|
         # Line numbers are 1-indexed in SimpleCov
@@ -66,15 +66,15 @@ def extract_uncovered_lines(coverage_data)
           uncovered << line_number
         end
       end
-      
+
       # Always add files, but only show uncovered lines if they exist
       coverage_percent = calculate_coverage(lines)
-      
+
       # Only include files with uncovered lines OR files below threshold
       if uncovered.any? || coverage_percent < 80.0
         # Use relative path for display
         display_path = file_path.gsub(/^.*?([\/\\]app[\/\\])/, 'app/').gsub(/\\/, '/')
-        
+
         uncovered_files << {
           file: display_path,
           coverage: coverage_percent,
@@ -84,19 +84,19 @@ def extract_uncovered_lines(coverage_data)
       end
     end
   end
-  
-  uncovered_files.sort_by { |f| [f[:coverage], -f[:total_uncovered]] }
+
+  uncovered_files.sort_by { |f| [ f[:coverage], -f[:total_uncovered] ] }
 end
 
 def calculate_coverage(lines)
   # Ensure lines is an array
   lines = lines.is_a?(Array) ? lines : []
-  
+
   relevant_lines = lines.count { |count| !count.nil? }
   covered_lines = lines.count { |count| count.is_a?(Numeric) && count > 0 }
-  
+
   return 100.0 if relevant_lines == 0
-  
+
   (covered_lines.to_f / relevant_lines * 100).round(2)
 end
 
@@ -107,9 +107,9 @@ def show_uncovered_lines(uncovered_files, min_coverage: 80.0)
   puts
   puts "Files with coverage below #{min_coverage}% or with uncovered lines:"
   puts
-  
+
   files_below_threshold = uncovered_files.select { |f| f[:coverage] < min_coverage }
-  
+
   if files_below_threshold.empty?
     puts "✅ All files have #{min_coverage}%+ coverage!"
     puts
@@ -121,11 +121,11 @@ def show_uncovered_lines(uncovered_files, min_coverage: 80.0)
       puts
     end
   end
-  
+
   # Show summary
   total_uncovered = uncovered_files.sum { |f| f[:total_uncovered] }
   avg_coverage = uncovered_files.empty? ? 100.0 : (uncovered_files.sum { |f| f[:coverage] } / uncovered_files.length).round(2)
-  
+
   puts "=" * 100
   puts "SUMMARY"
   puts "=" * 100
@@ -134,7 +134,7 @@ def show_uncovered_lines(uncovered_files, min_coverage: 80.0)
   puts "Average coverage: #{avg_coverage}%"
   puts "Files below #{min_coverage}%: #{files_below_threshold.length}"
   puts
-  
+
   # Group by category
   categories = {
     'Controllers' => uncovered_files.select { |f| f[:file].include?('app/controllers') },
@@ -144,23 +144,23 @@ def show_uncovered_lines(uncovered_files, min_coverage: 80.0)
     'Mailers' => uncovered_files.select { |f| f[:file].include?('app/mailers') },
     'Helpers' => uncovered_files.select { |f| f[:file].include?('app/helpers') }
   }
-  
+
   puts "=" * 100
   puts "BY CATEGORY"
   puts "=" * 100
   categories.each do |category, files|
     next if files.empty?
-    
+
     total_lines = files.sum { |f| f[:total_uncovered] }
     avg_cov = (files.sum { |f| f[:coverage] } / files.length).round(2)
-    
+
     puts "#{category}:"
     puts "  Files: #{files.length}"
     puts "  Uncovered lines: #{total_lines}"
     puts "  Average coverage: #{avg_cov}%"
     puts
   end
-  
+
   # Show priority files (lowest coverage)
   puts "=" * 100
   puts "PRIORITY FILES (Lowest Coverage)"
@@ -169,7 +169,7 @@ def show_uncovered_lines(uncovered_files, min_coverage: 80.0)
     puts "#{file_info[:file]}: #{file_info[:coverage]}% (#{file_info[:total_uncovered]} uncovered lines)"
   end
   puts
-  
+
   puts "💡 Tip: Open coverage/index.html in your browser for detailed line-by-line coverage"
   puts "   Run: start coverage/index.html (Windows) or open coverage/index.html (Mac/Linux)"
 end
@@ -177,16 +177,15 @@ end
 def main
   coverage_data = parse_simplecov_result
   return unless coverage_data
-  
+
   uncovered_files = extract_uncovered_lines(coverage_data)
-  
+
   if uncovered_files.empty?
     puts "✅ No uncovered lines found!"
     return
   end
-  
+
   show_uncovered_lines(uncovered_files, min_coverage: 80.0)
 end
 
 main if __FILE__ == $PROGRAM_NAME
-

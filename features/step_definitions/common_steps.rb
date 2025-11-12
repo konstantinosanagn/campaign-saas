@@ -5,7 +5,7 @@ end
 Given('I am logged in') do
   step 'a user exists'
   user = @user || User.find_by(email: 'admin@example.com')
-  
+
   # If authentication is enabled, sign in the user
   unless ENV['DISABLE_AUTH'] == 'true'
     # Use Warden test helpers to sign in the user
@@ -40,7 +40,7 @@ end
 When('I send a {word} request to {string} with JSON:') do |method, path, json|
   payload_str = resolved_path(json)
   path_resolved = resolved_path(path)
-  
+
   # Evaluate Ruby expressions in JSON string (e.g., "A" * 255)
   # This is safe because it only evaluates in the test environment
   payload_str = payload_str.gsub(/"([^"]*)"\s*\*\s*(\d+)/) do |match|
@@ -48,10 +48,10 @@ When('I send a {word} request to {string} with JSON:') do |method, path, json|
     count = $2.to_i
     '"' + (str * count) + '"'
   end
-  
+
   # Parse JSON to hash for Rails to process (for GET/POST which can use params)
   payload_hash = JSON.parse(payload_str)
-  
+
   case method.downcase
   when 'get'
     headers = { 'Accept' => 'application/json' }
@@ -95,14 +95,14 @@ When('I send a {word} request to {string} with JSON:') do |method, path, json|
   else
     raise "Unsupported HTTP method: #{method}"
   end
-  
+
   @last_response = page.driver.response
 end
 
 When('I send a {word} request to {string}') do |method, path|
   path_resolved = resolved_path(path)
   headers = { 'Accept' => 'application/json' }
-  
+
   case method.downcase
   when 'get'
     page.driver.get(path_resolved, {}, headers)
@@ -111,7 +111,7 @@ When('I send a {word} request to {string}') do |method, path|
   else
     page.driver.browser.process(method.downcase.to_sym, path_resolved)
   end
-  
+
   @last_response = page.driver.response
 end
 

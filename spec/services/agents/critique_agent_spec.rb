@@ -180,7 +180,7 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
 
     context 'when article contains variants' do
       it 'delegates to critique_and_select_variant when variants present and selection not none' do
-        variants = ['A', 'B']
+        variants = [ 'A', 'B' ]
         article_with_variants = { 'variants' => variants }
 
         expected_return = {
@@ -658,7 +658,7 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
 
     context 'variant selection logic' do
       it 'selects the variant with the highest overall score' do
-        variants = ['Variant A', 'Variant B']
+        variants = [ 'Variant A', 'Variant B' ]
 
         # Stub instance critique calls for variants
         expect(critique_agent).to receive(:critique).with(hash_including('email_content' => 'Variant A'), config: nil).and_return({ 'critique' => 'Crit A', 'score' => 4, 'meets_min_score' => false })
@@ -675,7 +675,7 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       end
 
       it 'selects the best variant using highest_personalization_score strategy' do
-        variants = ['Variant X', 'Variant Y']
+        variants = [ 'Variant X', 'Variant Y' ]
 
         expect(critique_agent).to receive(:critique).with(hash_including('email_content' => 'Variant X'), config: nil).and_return({ 'critique' => nil, 'score' => 6, 'meets_min_score' => true })
         expect(critique_agent).to receive(:critique).with(hash_including('email_content' => 'Variant Y'), config: nil).and_return({ 'critique' => 'A long critique to penalize personalization', 'score' => 9, 'meets_min_score' => true })

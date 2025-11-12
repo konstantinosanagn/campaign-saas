@@ -9,7 +9,7 @@ The WriterAgent uses Google's Gemini AI to generate personalized, contextually-a
 for target companies. It transforms research data from SearchAgent into compelling, human-like outreach emails.
 
 HOW IT WORKS:
-1. Receives search results from SearchAgent containing company news, articles, and images
+1. Receives search results from SearchAgent containing company news
 2. Receives target company name (and optional recipient name)
 3. Builds a comprehensive prompt that includes:
    - Research sources (title, URL, content) obtained from SearchAgent
@@ -61,7 +61,7 @@ module Agents
     def run(search_results, recipient: nil, company: nil, product_info: nil, sender_company: nil, config: nil, shared_settings: nil)
       company_name = company || search_results[:company]
       sources = search_results[:sources]
-      image = search_results[:image]
+      focus_areas = search_results[:inferred_focus_areas] || []
 
       # Get settings from config or use defaults
       settings = config&.dig("settings") || config&.dig(:settings) || {}
@@ -85,9 +85,9 @@ module Agents
       variants = []
       num_variants.times do |variant_index|
         prompt = build_prompt(
-          company_name, sources, image, recipient, company_name,
+          company_name, sources, recipient, company_name,
           product_info, sender_company, tone, sender_persona, email_length,
-          personalization_level, primary_cta_type, cta_softness, variant_index, num_variants
+          personalization_level, primary_cta_type, cta_softness, variant_index, num_variants, focus_areas
         )
 
         # Build full prompt with system instructions
@@ -136,17 +136,15 @@ module Agents
         variants: variants,
         recipient: recipient,
         sources: sources,
-        image: image,
         product_info: product_info,
         sender_company: sender_company
       }
     rescue => e
       {
         company: company || search_results[:company],
-        email: "",
+        email: "Error generating email: #{e.message}",
         recipient: recipient,
-        sources: search_results[:sources] || [],
-        image: search_results[:image],
+        sources: search_results[:sources],
         product_info: product_info,
         sender_company: sender_company,
         error: "WriterAgent LLM error: #{e.class}: #{e.message}"
@@ -155,7 +153,7 @@ module Agents
 
     private
 
-    def build_prompt(company_name, sources, image, recipient, company, product_info, sender_company, tone, sender_persona, email_length, personalization_level, primary_cta_type, cta_softness, variant_index = 0, total_variants = 1)
+    def build_prompt(company_name, sources, recipient, company, product_info, sender_company, tone, sender_persona, email_length, personalization_level, primary_cta_type, cta_softness, variant_index = 0, total_variants = 1, focus_areas = [])
       prompt = "Write a personalized B2B marketing outreach email"
       prompt += " to #{recipient}" if recipient
       prompt += " at #{company}"
@@ -181,8 +179,8 @@ module Agents
         prompt += "Note: Limited sources found. Craft a compelling email that addresses key pain points.\n\n"
       end
 
-      if image
-        prompt += "Consider incorporating visual elements. Image URL: #{image}\n\n"
+      if focus_areas.any?
+        prompt += "The recipient's technical focus areas include: #{focus_areas.join(', ')}\n\n"
       end
 
       prompt += "CRITICAL REQUIREMENTS:\n"

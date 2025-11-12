@@ -32,13 +32,13 @@ def coverage_summary
   # Read detailed coverage if available
   if json_file.exist?
     coverage_data = JSON.parse(File.read(json_file))
-    
+
     # Find Cucumber coverage
     cucumber_key = coverage_data.keys.find { |k| k.include?('Cucumber') || k.include?('cucumber') }
-    
+
     if cucumber_key
       cucumber_coverage = coverage_data[cucumber_key]['coverage']
-      
+
       # Group by directory
       groups = {
         'Controllers' => [],
@@ -47,15 +47,15 @@ def coverage_summary
         'Mailers' => [],
         'Helpers' => []
       }
-      
+
       cucumber_coverage.each do |file_path, file_data|
         next unless file_data && file_data['lines']
-        
+
         lines = file_data['lines']
         total_lines = lines.count { |l| l != nil }
         covered_lines = lines.count { |l| l && l > 0 }
         coverage_pct = total_lines > 0 ? (covered_lines.to_f / total_lines * 100).round(2) : 0
-        
+
         file_info = {
           file: File.basename(file_path),
           path: file_path,
@@ -63,7 +63,7 @@ def coverage_summary
           covered: covered_lines,
           total: total_lines
         }
-        
+
         # Categorize file
         if file_path.include?('/controllers/')
           groups['Controllers'] << file_info
@@ -77,19 +77,19 @@ def coverage_summary
           groups['Helpers'] << file_info
         end
       end
-      
+
       # Display by group
       groups.each do |group_name, files|
         next if files.empty?
-        
+
         total_covered = files.sum { |f| f[:covered] }
         total_lines = files.sum { |f| f[:total] }
         group_coverage = total_lines > 0 ? (total_covered.to_f / total_lines * 100).round(2) : 0
-        
+
         puts "#{group_name}:"
         puts "  Coverage: #{group_coverage}% (#{total_covered}/#{total_lines} lines)"
         puts "  Files: #{files.count}"
-        
+
         # Show individual files with low coverage
         low_coverage = files.select { |f| f[:coverage] < 80 && f[:total] > 10 }
         if low_coverage.any?
@@ -118,4 +118,3 @@ if __FILE__ == $0
   Dir.chdir(File.join(File.dirname(__FILE__), '..'))
   coverage_summary
 end
-

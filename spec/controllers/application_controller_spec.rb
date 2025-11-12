@@ -68,4 +68,32 @@ RSpec.describe ApplicationController, type: :controller do
       expect { get :index }.not_to raise_error
     end
   end
+
+  describe '#normalize_user' do
+    it 'returns the user when passed a User instance' do
+      u = create(:user)
+      expect(controller.send(:normalize_user, u)).to eq(u)
+    end
+
+    it 'returns nil when passed nil' do
+      expect(controller.send(:normalize_user, nil)).to be_nil
+    end
+
+    it 'finds user when passed a hash with symbol id' do
+      u = create(:user)
+      result = controller.send(:normalize_user, { id: u.id })
+      expect(result).to eq(u)
+    end
+
+    it 'finds user when passed a hash with string id' do
+      u = create(:user)
+      result = controller.send(:normalize_user, { 'id' => u.id })
+      expect(result).to eq(u)
+    end
+
+    it 'returns the original object when hash has no id' do
+      h = { name: 'no-id' }
+      expect(controller.send(:normalize_user, h)).to eq(h)
+    end
+  end
 end

@@ -96,4 +96,36 @@ RSpec.describe Campaign, type: :model do
       expect(AgentConfig.find_by(id: config_id)).to be_nil
     end
   end
+
+  describe 'shared_settings edge cases' do
+    let(:user) { create(:user) }
+    it 'falls back to defaults when stored value is nil or empty and provides helpers' do
+      campaign = create(:campaign, user: user, shared_settings: { 'primary_goal' => 'generate_leads' })
+
+      allow(campaign).to receive(:read_attribute).with(:shared_settings).and_return(nil)
+      expect(campaign.shared_settings).to be_a(Hash)
+      expect(campaign.primary_goal).to eq('book_call')
+      expect(campaign.brand_voice).to include('tone' => 'professional')
+
+      allow(campaign).to receive(:read_attribute).and_call_original
+      campaign.update_column(:shared_settings, {})
+      expect(campaign.read_attribute(:shared_settings)).to eq({})
+      expect(campaign.shared_settings).to be_a(Hash)
+      expect(campaign.primary_goal).to eq('book_call')
+    end
+
+    it 'respects persisted custom shared_settings' do
+      custom = { 'brand_voice' => { 'tone' => 'casual' }, 'primary_goal' => 'book_call' }
+      campaign = create(:campaign, user: user, shared_settings: custom)
+
+      reloaded = Campaign.find(campaign.id)
+      expect(reloaded.read_attribute(:shared_settings)).to eq(custom)
+      expect(reloaded.shared_settings).to eq(custom)
+
+      json = campaign.as_json
+      expect(json).to have_key('sharedSettings')
+      expect(json['sharedSettings']).to eq(custom)
+      expect(json).not_to have_key('shared_settings')
+    end
+  end
 end

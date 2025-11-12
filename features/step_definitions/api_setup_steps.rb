@@ -206,11 +206,11 @@ Then('the email should have content from {string} output') do |agent_name|
   expect(emails).not_to be_empty
   # Find the email for the lead we're testing
   mail = emails.find { |m| m.to && m.to.include?(@lead&.email) } || emails.last
-  
+
   # Verify the email was sent (which means EmailSenderService found content)
   expect(mail).to be_present
   expect(mail.to).to include(@lead&.email)
-  
+
   # Check that the agent output exists with content
   @lead ||= begin
     step 'a lead exists for my campaign'
@@ -218,13 +218,13 @@ Then('the email should have content from {string} output') do |agent_name|
   end
   output = @lead.agent_outputs.find_by(agent_name: agent_name, status: 'completed')
   expect(output).to be_present
-  
+
   if agent_name == 'DESIGN'
     content = output.output_data['formatted_email']
   else
     content = output.output_data['email']
   end
-  
+
   # Verify the output has content (which EmailSenderService would have used)
   expect(content).to be_present
   # The fact that an email was delivered means EmailSenderService successfully
@@ -761,7 +761,7 @@ Given('the lead has a {string} agent output with variants') do |agent_name|
   @lead.agent_outputs.where(agent_name: agent_name).destroy_all
   output_data = {
     email: 'Subject: Test\n\nHello World',
-    variants: ['Variant 1', 'Variant 2', 'Variant 3']
+    variants: [ 'Variant 1', 'Variant 2', 'Variant 3' ]
   }
   AgentOutput.create!(lead: @lead, agent_name: agent_name, status: 'completed', output_data: output_data)
 end
@@ -955,12 +955,12 @@ When('I run the {string} agent on the lead') do |agent_name|
   end
   @campaign ||= @lead.campaign
   step 'I have API keys configured' unless @user&.llm_api_key.present?
-  
+
   # Ensure agent config exists for the agent we're trying to run
   unless @campaign.agent_configs.exists?(agent_name: agent_name)
     @campaign.agent_configs.create!(agent_name: agent_name, enabled: true, settings: {})
   end
-  
+
   # Mock agents that may run before the target agent (they may have already been mocked)
   # These mocks will be overridden by explicit mocks set up in Given steps
   allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return({
@@ -968,17 +968,17 @@ When('I run the {string} agent on the lead') do |agent_name|
     recipient: { name: @lead.name, sources: [] },
     sources: []
   }) if agent_name != 'SEARCH'
-  
+
   allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return({
     company: @lead.company,
     email: "Subject: Test\n\nHello World",
     recipient: @lead.name
   }) if agent_name != 'WRITER'
-  
+
   allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
     'critique' => nil
   }) if agent_name != 'CRITIQUE'
-  
+
   allow_any_instance_of(Agents::DesignAgent).to receive(:run).and_return({
     email: "Subject: Test\n\nHello World",
     formatted_email: "Subject: Test\n\nHello World",
@@ -986,7 +986,7 @@ When('I run the {string} agent on the lead') do |agent_name|
     recipient: @lead.name,
     original_email: "Subject: Test\n\nHello World"
   }) if agent_name != 'DESIGN'
-  
+
   # Simulate running the agent by calling the service
   result = LeadAgentService.run_agents_for_lead(@lead, @campaign, @user || User.find_by(email: 'admin@example.com'))
   @lead.reload
@@ -999,7 +999,7 @@ When('I run agents on the lead') do
   end
   @campaign ||= @lead.campaign
   step 'I have API keys configured' unless @user&.llm_api_key.present?
-  
+
   result = LeadAgentService.run_agents_for_lead(@lead, @campaign, @user || User.find_by(email: 'admin@example.com'))
   @lead.reload
 end
@@ -1141,7 +1141,7 @@ end
 
 Then('the lead stage should advance past {string}') do |stage|
   @lead.reload
-  stages = ['queued', 'searched', 'written', 'critiqued', 'completed']
+  stages = [ 'queued', 'searched', 'written', 'critiqued', 'completed' ]
   current_index = stages.index(@lead.stage)
   past_index = stages.index(stage)
   expect(current_index).to be > past_index
@@ -1289,7 +1289,7 @@ When('I run the Orchestrator with company name {string}') do |company_name|
   user = @user || User.find_by(email: 'admin@example.com')
   gemini_key = user.llm_api_key || 'test-gemini-key'
   tavily_key = user.tavily_api_key || 'test-tavily-key'
-  
+
   begin
     @orchestrator_result = Orchestrator.run(
       company_name,
@@ -1307,7 +1307,7 @@ When('I run the Orchestrator with company name {string} and recipient {string}')
   user = @user || User.find_by(email: 'admin@example.com')
   gemini_key = user.llm_api_key || 'test-gemini-key'
   tavily_key = user.tavily_api_key || 'test-tavily-key'
-  
+
   begin
     @orchestrator_result = Orchestrator.run(
       company_name,
@@ -1326,7 +1326,7 @@ When('I run the Orchestrator with company name {string}, product_info {string}, 
   user = @user || User.find_by(email: 'admin@example.com')
   gemini_key = user.llm_api_key || 'test-gemini-key'
   tavily_key = user.tavily_api_key || 'test-tavily-key'
-  
+
   begin
     @orchestrator_result = Orchestrator.run(
       company_name,

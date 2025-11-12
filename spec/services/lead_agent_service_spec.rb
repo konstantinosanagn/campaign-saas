@@ -9,6 +9,29 @@ RSpec.describe LeadAgentService, type: :service do
       user.update!(llm_api_key: 'test-gemini-key', tavily_api_key: 'test-tavily-key')
     end
 
+    context 'extract_domain_from_lead' do
+      it 'returns domain part of email when email is present' do
+        lead_with_email = build(:lead, campaign: campaign, email: 'alice@example.org', company: 'Example Org')
+        result = described_class.send(:extract_domain_from_lead, lead_with_email)
+
+        expect(result).to eq('example.org')
+      end
+
+      it 'returns company when email is blank' do
+        lead_without_email = build(:lead, campaign: campaign, email: nil, company: 'example.com')
+        result = described_class.send(:extract_domain_from_lead, lead_without_email)
+
+        expect(result).to eq('example.com')
+      end
+    end
+
+    context 'default_settings_for_agent' do
+      it 'returns empty hash for unknown agent name' do
+        result = described_class.send(:default_settings_for_agent, 'UNKNOWN_AGENT')
+        expect(result).to eq({})
+      end
+    end
+
     context 'with valid API keys and successful agent execution' do
       before do
         # Mock agent services to return expected outputs
@@ -102,22 +125,41 @@ RSpec.describe LeadAgentService, type: :service do
 
       it 'passes search output to writer agent' do
         lead.update!(stage: 'searched')
+
         search_result = {
-          sources: [ { title: 'Article', url: 'http://test.com' } ]
+          company: lead.company,
+          inferred_focus_areas: [ "cloud architecture", "scalability" ],
+          personalization_signals: {
+            recipient: [ { title: "Article", url: "http://test.com" } ],
+            company:   [ { title: "Company News", url: "http://company.com" } ]
+          }
         }
-        create(:agent_output, lead: lead, agent_name: 'SEARCH', status: 'completed', output_data: search_result)
-        create(:agent_config, campaign: campaign, agent_name: 'WRITER', enabled: true)
 
-        writer_expectation = nil
-        allow_any_instance_of(Agents::WriterAgent).to receive(:run) do |instance, *args|
-          writer_expectation = args
-          { company: 'Test Corp', email: 'Test', recipient: lead.name }
-        end
+        create(:agent_output,
+          lead: lead,
+          agent_name: 'SEARCH',
+          status: 'completed',
+          output_data: search_result.deep_symbolize_keys
+        )
 
-        described_class.run_agents_for_lead(lead, campaign, user)
+        expected_sources = (search_result[:personalization_signals][:recipient] +
+                      search_result[:personalization_signals][:company]).uniq
 
-        # Writer should receive search results as first argument
-        expect(writer_expectation.first).to include(sources: search_result[:sources])
+        writer_output = {
+          company: lead.company,
+          email: "Subject: Test Email\n\nBody text",
+          recipient: lead.name,
+          variants: [ "Subject: Test Email\n\nBody text" ]
+        }
+
+        expect_any_instance_of(Agents::WriterAgent).to receive(:run) do |_, passed_search_results, **|
+          expect(passed_search_results[:company]).to eq(lead.company)
+          expect(passed_search_results[:sources]).to eq(expected_sources)
+          expect(passed_search_results[:inferred_focus_areas]).to eq(search_result[:inferred_focus_areas])
+        end.and_return(writer_output)
+
+        result = described_class.run_agents_for_lead(lead, campaign, user)
+        expect(result[:status]).to eq("completed")
       end
 
       it 'passes writer output to critique agent' do
@@ -201,6 +243,30 @@ RSpec.describe LeadAgentService, type: :service do
           company: lead.company,
           recipient: lead.name
         )
+      end
+
+      it 'falls back to WRITER output when CRITIQUE output has no email for DESIGN' do
+        lead.update!(stage: 'critiqued')
+        create(:agent_output, lead: lead, agent_name: 'CRITIQUE', status: 'completed', output_data: { 'critique' => nil }.with_indifferent_access)
+        create(:agent_output, lead: lead, agent_name: 'WRITER', status: 'completed', output_data: { 'email' => 'Writer fallback email' }.with_indifferent_access)
+        create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: true)
+
+        design_args = nil
+        allow_any_instance_of(Agents::DesignAgent).to receive(:run) do |_, *args|
+          design_args = args
+          {
+            email: 'Subject: formatted',
+            formatted_email: '**formatted** email',
+            company: lead.company,
+            recipient: lead.name
+          }
+        end
+
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        first_arg = design_args.first
+        email_val = first_arg[:email] || first_arg['email']
+        expect(email_val).to eq('Writer fallback email')
       end
 
       it 'prefers selected_variant from critique output when available' do
@@ -409,6 +475,46 @@ RSpec.describe LeadAgentService, type: :service do
         lead.reload
         # Stage should remain at queued
         expect(lead.stage).to eq('queued')
+      end
+
+      it 'stores writer-specific fields when WRITER fails' do
+        lead.update!(stage: 'searched')
+        create(:agent_output, lead: lead, agent_name: 'SEARCH', status: 'completed', output_data: { sources: [] })
+        create(:agent_config, campaign: campaign, agent_name: 'WRITER', enabled: true)
+
+        allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_raise(StandardError, 'Writer failed')
+
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        writer_output = lead.agent_outputs.find_by(agent_name: 'WRITER')
+        expect(writer_output).to be_present
+        expect(writer_output.status).to eq('failed')
+        expect(writer_output.output_data).to include('company' => lead.company)
+        expect(writer_output.output_data).to include('recipient' => lead.name)
+        expect(writer_output.output_data).to include('email' => "")
+        expect(writer_output.error_message).to match(/Writer failed/)
+      end
+
+      it 'stores critique-specific fields when CRITIQUE fails' do
+        allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return({
+          domain: { domain: lead.company, sources: [] },
+          recipient: { name: lead.name, sources: [] },
+          sources: []
+        })
+
+        lead.update!(stage: 'written')
+        create(:agent_output, lead: lead, agent_name: 'WRITER', status: 'completed', output_data: { email: 'Some email' })
+        create(:agent_config, campaign: campaign, agent_name: 'CRITIQUE', enabled: true)
+
+        allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_raise(StandardError, 'Critique failed')
+
+        described_class.run_agents_for_lead(lead, campaign, user)
+
+        critique_output = lead.agent_outputs.find_by(agent_name: 'CRITIQUE')
+        expect(critique_output).to be_present
+        expect(critique_output.status).to eq('failed')
+        expect(critique_output.output_data).to include('critique' => nil)
+        expect(critique_output.error_message).to match(/Critique failed/)
       end
     end
 

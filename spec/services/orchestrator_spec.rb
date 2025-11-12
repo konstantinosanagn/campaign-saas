@@ -7,38 +7,40 @@ RSpec.describe Orchestrator, type: :service do
 
   let(:mock_search_results) do
     {
-      domain: {
-        domain: 'Test Corp',
-        sources: [
+      target_identity: {
+        name: 'John Doe',
+        company: 'Test Corp',
+        job_title: 'Head of Engineering',
+        email: 'john@example.com'
+      },
+      inferred_focus_areas: [ "cloud architecture", "scalability" ],
+      personalization_signals: {
+        recipient: [],
+        company: [
           {
-            'title' => 'Test Article',
-            'url' => 'https://test.com/article',
-            'content' => 'Test content'
+            title: "Test Article",
+            url: "https://test.com/article",
+            content: "Test content"
           }
         ]
-      },
-      recipient: {
-        name: 'John Doe',
-        sources: []
-      },
-      sources: [
-        {
-          'title' => 'Test Article',
-          'url' => 'https://test.com/article',
-          'content' => 'Test content'
-        }
-      ]
+      }
     }
   end
+
 
   let(:mock_writer_output) do
     {
       company: 'Test Corp',
       email: 'Subject: Test Subject\n\nTest email body',
+      variants: [ 'Subject: Test Subject\n\nTest email body' ],
       recipient: 'John Doe',
-      sources: mock_search_results[:sources]
+      sources: mock_search_results[:personalization_signals][:company],
+      inferred_focus_areas: mock_search_results[:inferred_focus_areas],
+      product_info: nil,
+      sender_company: nil
     }
   end
+
 
   let(:mock_critique_result) do
     { 'critique' => nil }
@@ -87,22 +89,36 @@ RSpec.describe Orchestrator, type: :service do
         company: company_name,
         recipient: recipient,
         email: 'Subject: Test Subject\n\nTest email body',
+        variants: [ 'Subject: Test Subject\n\nTest email body' ],
         critique: nil,
-        sources: mock_search_results[:sources],
+        sources: mock_search_results[:personalization_signals][:company],
+        inferred_focus_areas: mock_search_results[:inferred_focus_areas],
         product_info: product_info,
         sender_company: sender_company
       )
     end
 
     it 'calls SearchAgent with company name' do
-      expect_any_instance_of(Agents::SearchAgent).to receive(:run).with(company_name, recipient: nil)
+      expect_any_instance_of(Agents::SearchAgent).to receive(:run).with(
+        company: company_name,
+        recipient_name: nil,
+        job_title: nil,
+        email: nil,
+        tone: nil,
+        persona: nil,
+        goal: nil
+      )
 
       orchestrator.run(company_name)
     end
 
     it 'calls WriterAgent with search results and parameters' do
       expect_any_instance_of(Agents::WriterAgent).to receive(:run).with(
-        mock_search_results,
+        {
+          company: company_name,
+          sources: mock_search_results[:personalization_signals][:company],
+          inferred_focus_areas: mock_search_results[:inferred_focus_areas]
+        },
         recipient: recipient,
         company: company_name,
         product_info: product_info,
@@ -271,7 +287,7 @@ RSpec.describe Orchestrator, type: :service do
 
   describe 'agent initialization' do
     it 'initializes SearchAgent with tavily API key' do
-      expect(Agents::SearchAgent).to receive(:new).with(api_key: tavily_api_key)
+      expect(Agents::SearchAgent).to receive(:new).with(tavily_key: tavily_api_key, gemini_key: gemini_api_key)
 
       described_class.new(gemini_api_key: gemini_api_key, tavily_api_key: tavily_api_key)
     end

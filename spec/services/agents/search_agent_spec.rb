@@ -1,205 +1,123 @@
 require 'rails_helper'
 
 RSpec.describe Agents::SearchAgent, type: :service do
-  let(:api_key) { "test-tavily-key" }
-  let(:logger) { instance_double(::Logger, info: nil, error: nil) }
-  let(:search_agent) { described_class.new(api_key: api_key, logger: logger) }
+  let(:tavily_key) { "test-tavily-key" }
+  let(:gemini_key) { "test-gemini-key" }
+  let(:agent) { described_class.new(tavily_key: tavily_key, gemini_key: gemini_key) }
 
-  describe '#initialize' do
-    context 'with valid API key' do
-      it 'initializes successfully' do
-        expect(search_agent).to be_a(described_class)
-      end
+  describe "#initialize" do
+    it "initializes with valid keys" do
+      expect(agent).to be_a(described_class)
     end
 
-    context 'with blank API key' do
-      it 'raises ArgumentError' do
-        expect {
-          described_class.new(api_key: '', logger: logger)
-        }.to raise_error(ArgumentError, 'Tavily API key is required')
-      end
+    it "raises if tavily key missing" do
+      expect { described_class.new(tavily_key: "", gemini_key: gemini_key) }
+        .to raise_error(ArgumentError, "Tavily API key is required")
     end
 
-    context 'with nil API key' do
-      it 'raises ArgumentError' do
-        expect {
-          described_class.new(api_key: nil, logger: logger)
-        }.to raise_error(ArgumentError, 'Tavily API key is required')
-      end
+    it "raises if gemini key missing" do
+      expect { described_class.new(tavily_key: tavily_key, gemini_key: nil) }
+        .to raise_error(ArgumentError, "Gemini API key is required")
     end
   end
 
-  describe '#run' do
-    let(:domain) { 'example.com' }
-    let(:recipient) { 'Jane Doe' }
-    let(:mock_response) do
+  describe "#run" do
+    let(:mock_gemini_response) do
       {
-        'results' => [
-          {
-            'title' => 'Example News Article',
-            'url' => 'https://example.com/news',
-            'content' => 'This is example content'
-          },
-          {
-            'title' => 'Another Article',
-            'url' => 'https://example.com/article',
-            'content' => 'More example content'
-          }
-        ]
-      }
-    end
-    let(:recipient_response) do
-      {
-        'results' => [
-          {
-            'title' => 'Recipient Insight',
-            'url' => 'https://example.com/profile',
-            'content' => 'Recipient background'
-          }
+        "candidates" => [
+          { "content" => { "parts" => [ { "text" => '["AI Safety", "Scaling", "Partnerships"]' } ] } }
         ]
       }
     end
 
+    let(:mock_recipient_results_raw) do
+      [
+        { "title" => "Profile", "url" => "https://example.com", "content" => "Bio" }
+      ]
+    end
+
+    let(:mock_company_results_raw) do
+      [ { "title" => "Company News", "url" => "https://example-news.com", "content" => "Update" } ]
+    end
+
+    let(:mock_recipient_results) do
+      [
+        { title: "Profile", url: "https://example.com", content: "Bio" }
+      ]
+    end
+
+    let(:mock_company_results) do
+      [ { title: "Company News", url: "https://example-news.com", content: "Update" } ]
+    end
+
+
+
     before do
-      allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'general')).and_return(recipient_response)
-      allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'news')).and_return(mock_response)
+      allow(HTTParty).to receive(:post)
+        .with(/generativelanguage/, anything)
+        .and_return(double(parsed_response: mock_gemini_response))
+
+      allow(described_class).to receive(:post)
+        .with("/search", anything)
+        .and_return(
+          double(parsed_response: { "results" => mock_recipient_results_raw }),
+          double(parsed_response: { "results" => mock_company_results_raw })
+        )
     end
 
-    it 'returns domain, recipient, and combined sources' do
-      allow(search_agent).to receive(:tavily_search).with("latest news about #{domain}", hash_including(topic: 'news')).and_return(mock_response)
-      allow(search_agent).to receive(:tavily_search).with("#{recipient} LinkedIn", hash_including(topic: 'general')).and_return(recipient_response)
-
-      result = search_agent.run(domain, recipient: recipient)
-
-      expect(result).to include(
-        domain: {
-          domain: domain,
-          sources: mock_response['results']
-        },
-        recipient: {
-          name: recipient,
-          sources: recipient_response['results']
-        },
-        sources: array_including(*mock_response['results'], *recipient_response['results'])
+    it "returns structured personalization data" do
+      result = agent.run(
+        company: "OpenAI",
+        recipient_name: "Sam Altman",
+        job_title: "CEO",
+        email: "sam@openai.com"
       )
-      expect(logger).to have_received(:info).with(/domain=#{domain.inspect}, recipient=#{recipient.inspect}/)
+
+      expect(result[:target_identity][:name]).to eq("Sam Altman")
+      expect(result[:inferred_focus_areas]).to eq([ "AI Safety", "Scaling", "Partnerships" ])
+      expect(result[:personalization_signals][:recipient]).to eq(mock_recipient_results)
+      expect(result[:personalization_signals][:company]).to eq(mock_company_results)
     end
 
-    it 'calls search with correct parameters' do
-      expect(search_agent).to receive(:tavily_search).with("latest news about #{domain}", hash_including(topic: 'news')).and_return(mock_response)
-      allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'general')).and_return(recipient_response)
-      search_agent.run(domain, recipient: recipient)
-    end
+    it "logs and returns empty inferred_focus_areas when Gemini returns invalid JSON" do
+      allow(HTTParty).to receive(:post)
+        .with(/generativelanguage/, anything)
+        .and_return(double(parsed_response: { "candidates" => [ { "content" => { "parts" => [ { "text" => 'not-a-json' } ] } } ] }))
 
-    it 'queries recipient-focused searches when recipient provided' do
-      allow(search_agent).to receive(:tavily_search).with("latest news about #{domain}", hash_including(topic: 'news')).and_return(mock_response)
-      expect(search_agent).to receive(:tavily_search).with("#{recipient} LinkedIn", hash_including(topic: 'general')).and_return(recipient_response)
-      search_agent.run(domain, recipient: recipient)
-    end
+      logger = double("logger")
+      allow(logger).to receive(:info)
+      expect(logger).to receive(:error).with(/Gemini inference failed:/)
+          agent.instance_variable_set(:@logger, logger)
 
-    context 'when API returns empty results' do
-      let(:empty_response) { {} }
-
-      before do
-        allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'news')).and_return(empty_response)
-        allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'general')).and_return(empty_response)
-      end
-
-      it 'returns empty sources array' do
-        result = search_agent.run(domain, recipient: recipient)
-
-        expect(result[:sources]).to eq([])
-        expect(result[:domain][:sources]).to eq([])
-        expect(result[:recipient][:sources]).to eq([])
-      end
-    end
-
-    context 'when API returns nil results' do
-      let(:nil_response) { { 'results' => nil } }
-
-      before do
-        allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'news')).and_return(nil_response)
-        allow(search_agent).to receive(:tavily_search).with(anything, hash_including(topic: 'general')).and_return(nil_response)
-      end
-
-      it 'returns empty sources array' do
-        result = search_agent.run(domain, recipient: recipient)
-
-        expect(result[:sources]).to eq([])
-        expect(result[:domain][:sources]).to eq([])
-        expect(result[:recipient][:sources]).to eq([])
-      end
+      result = agent.run(company: "ABC", recipient_name: "DEF HIJ", job_title: "CEO", email: "defhij@abc.com")
+      expect(result[:inferred_focus_areas]).to eq([])
     end
   end
 
-  describe '#tavily_search' do
-    let(:query) { 'test query' }
-    let(:topic) { 'news' }
-    let(:mock_response) { double('response', body: '{"results": []}') }
+  describe "#run_tavily_search" do
+    let(:response) do
+      { "results" => [ { "title" => "News", "url" => nil, "content" => nil } ] }
+    end
 
     before do
-      allow(described_class).to receive(:post).and_return(mock_response)
-      allow(JSON).to receive(:parse).and_return({ 'results' => [] })
+      allow(described_class).to receive(:post)
+        .and_return(double(parsed_response: response))
     end
 
-    it 'makes POST request to correct endpoint' do
-      expect(described_class).to receive(:post).with(
-        '/search',
-        headers: {
-          'Content-Type' => 'application/json',
-          'Authorization' => "Bearer #{api_key}"
-        },
-        body: {
-          query: query,
-          topic: topic,
-          max_results: 5,
-          include_images: false
-        }.to_json
-      )
-
-      search_agent.send(:tavily_search, query, topic: topic)
+    it "returns mapped results" do
+      expect(agent.send(:run_tavily_search, "query")).to eq([
+        { title: "News", url: nil, content: nil }
+      ])
     end
 
-    it 'parses JSON response' do
-      expect(JSON).to receive(:parse).with('{"results": []}')
+    it "returns empty array and logs an error when parsing fails" do
+      allow(described_class).to receive(:post).and_return(double(parsed_response: nil))
 
-      search_agent.send(:tavily_search, query, topic: topic)
-    end
+      logger = double("logger")
+      expect(logger).to receive(:error).with(/Tavily batch search failed:/)
+      agent.instance_variable_set(:@logger, logger)
 
-    it 'returns parsed response' do
-      result = search_agent.send(:tavily_search, query, topic: topic)
-
-      expect(result).to eq({ 'results' => [] })
-    end
-
-    context 'when API call raises an error' do
-      before do
-        allow(described_class).to receive(:post).and_raise(StandardError, 'Network error')
-        allow(JSON).to receive(:parse).and_raise(StandardError, 'JSON parse error')
-      end
-
-      it 'handles error gracefully and returns empty hash' do
-        expect {
-          result = search_agent.send(:tavily_search, query, topic: topic)
-          expect(result).to eq({})
-        }.not_to raise_error
-      end
-
-      it 'logs error message' do
-        expect(logger).to receive(:error).with(/Tavily error: Network error/)
-
-        search_agent.send(:tavily_search, query, topic: topic)
-      end
-    end
-  end
-
-  describe 'HTTParty configuration' do
-    it 'includes HTTParty module' do
-      expect(described_class.included_modules).to include(HTTParty)
-    end
-
-    it 'sets correct base_uri' do
-      expect(described_class.base_uri).to eq('https://api.tavily.com')
+      expect(agent.send(:run_tavily_search, "bad-query")).to eq([])
     end
   end
 end

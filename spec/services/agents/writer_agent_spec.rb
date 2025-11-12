@@ -47,18 +47,19 @@ RSpec.describe Agents::WriterAgent, type: :service do
         company: 'Test Corp',
         sources: [
           {
-            'title' => 'Test Article',
-            'url' => 'https://test.com/article',
-            'content' => 'Test content'
+            "title" => "Test Article",
+            "url" => "https://test.com/article",
+            "content" => "Test content"
           }
         ],
-        image: 'https://test.com/image.jpg'
+        inferred_focus_areas: []
       }
     end
     let(:recipient) { 'John Doe' }
     let(:company) { 'Test Corp' }
     let(:product_info) { 'Our amazing product' }
     let(:sender_company) { 'My Company' }
+    let(:focus_areas) { [] }
 
     let(:mock_response) do
       double('response', body: {
@@ -93,9 +94,9 @@ RSpec.describe Agents::WriterAgent, type: :service do
       expect(result).to include(
         company: company,
         email: 'Subject: Test Subject\n\nTest email body',
+        variants: array_including('Subject: Test Subject\n\nTest email body'),
         recipient: recipient,
         sources: search_results[:sources],
-        image: search_results[:image],
         product_info: product_info,
         sender_company: sender_company
       )
@@ -112,7 +113,6 @@ RSpec.describe Agents::WriterAgent, type: :service do
       expect(writer_agent).to receive(:build_prompt).at_least(:once).with(
         company,
         search_results[:sources],
-        search_results[:image],
         recipient,
         company,
         product_info,
@@ -124,7 +124,8 @@ RSpec.describe Agents::WriterAgent, type: :service do
         "book_call",
         "balanced",
         anything, # variant_index can be 0, 1, or 2
-        2 # num_variants
+        2, # num_variants
+        search_results[:inferred_focus_areas] || []
       )
 
       writer_agent.run(
@@ -201,41 +202,41 @@ RSpec.describe Agents::WriterAgent, type: :service do
         }
       ]
     end
-    let(:image) { 'https://test.com/image.jpg' }
     let(:recipient) { 'John Doe' }
     let(:company) { 'Test Corp' }
     let(:product_info) { 'Our amazing product' }
     let(:sender_company) { 'My Company' }
+    let(:focus_areas) { [] }
 
     it 'builds prompt with recipient' do
-      prompt = writer_agent.send(:build_prompt, company_name, sources, image, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1)
+      prompt = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, focus_areas)
 
       expect(prompt).to include("to #{recipient}")
       expect(prompt).to include("at #{company}")
     end
 
     it 'builds prompt without recipient when nil' do
-      prompt = writer_agent.send(:build_prompt, company_name, sources, image, nil, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1)
+      prompt = writer_agent.send(:build_prompt, company_name, sources, nil, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, focus_areas)
 
       expect(prompt).to include("at #{company}")
       expect(prompt).not_to include("to #{recipient}")
     end
 
     it 'includes sender company context when provided' do
-      prompt = writer_agent.send(:build_prompt, company_name, sources, image, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1)
+      prompt = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, focus_areas)
 
       expect(prompt).to include("CONTEXT ABOUT YOUR COMPANY AND PRODUCT:")
       expect(prompt).to include(sender_company)
     end
 
     it 'includes product info context when provided' do
-      prompt = writer_agent.send(:build_prompt, company_name, sources, image, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1)
+      prompt = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, focus_areas)
 
       expect(prompt).to include(product_info)
     end
 
     it 'includes sources when available' do
-      prompt = writer_agent.send(:build_prompt, company_name, sources, image, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1)
+      prompt = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, focus_areas)
 
       expect(prompt).to include("Use the following real-time research sources")
       expect(prompt).to include("Source 1:")
@@ -245,21 +246,14 @@ RSpec.describe Agents::WriterAgent, type: :service do
     end
 
     it 'handles empty sources gracefully' do
-      prompt = writer_agent.send(:build_prompt, company_name, [], image, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1)
+      prompt = writer_agent.send(:build_prompt, company_name, [], recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, focus_areas)
 
       expect(prompt).to include("Limited sources found")
       expect(prompt).not_to include("Use the following real-time research sources")
     end
 
-    it 'includes image when provided' do
-      prompt = writer_agent.send(:build_prompt, company_name, sources, image, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1)
-
-      expect(prompt).to include("Consider incorporating visual elements")
-      expect(prompt).to include(image)
-    end
-
     it 'includes critical requirements' do
-      prompt = writer_agent.send(:build_prompt, company_name, sources, image, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1)
+      prompt = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
 
       expect(prompt).to include("CRITICAL REQUIREMENTS:")
       expect(prompt).to include("Subject Line:")
@@ -273,8 +267,7 @@ RSpec.describe Agents::WriterAgent, type: :service do
     end
 
     it 'includes output format instructions' do
-      prompt = writer_agent.send(:build_prompt, company_name, sources, image, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1)
-
+      prompt = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, focus_areas)
       expect(prompt).to include("Format the output as:")
       expect(prompt).to include("Subject: [email subject]")
       expect(prompt).to include("[email body]")
@@ -287,11 +280,70 @@ RSpec.describe Agents::WriterAgent, type: :service do
         { 'content' => 'Test content' }
       ]
 
-      prompt = writer_agent.send(:build_prompt, company_name, incomplete_sources, image, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1)
+      prompt = writer_agent.send(:build_prompt, company_name, incomplete_sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, focus_areas)
 
       expect(prompt).to include("Title: Test Article")
       expect(prompt).to include("URL: https://test.com")
       expect(prompt).to include("Content: Test content")
+    end
+
+    it 'includes focus areas when provided' do
+      fas = [ 'AI', 'Cloud' ]
+      prompt = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, fas)
+
+      expect(prompt).to include("The recipient's technical focus areas include: AI, Cloud")
+    end
+
+    it 'applies personalization level guidance for low/medium/high/unknown' do
+      low = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "low", "book_call", "balanced", 0, 1, [])
+      mid = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+      high = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "high", "book_call", "balanced", 0, 1, [])
+      unk = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "unknown", "book_call", "balanced", 0, 1, [])
+
+      expect(low).to include("- Opening: Light references to industry or company only")
+      expect(mid).to include("Create emotional connection by referencing recent company news or industry developments")
+      expect(high).to include("Heavily tailored opener that demonstrates deep research")
+      expect(unk).to include("Create emotional connection by referencing recent company news or industry developments")
+    end
+
+    it 'includes tone guidance branches' do
+      formal = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "formal", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+      prof = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+      friendly = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "friendly", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+      unk = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "weird", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+
+      expect(formal).to include("Formal, respectful, and business-appropriate")
+      expect(prof).to include("Professional yet warm, empathetic, and human-like (not robotic or spammy)")
+      expect(friendly).to include("Friendly and approachable while maintaining professionalism")
+      expect(unk).to include("Professional yet warm, empathetic, and human-like")
+    end
+
+    it 'includes length guidance branches' do
+      vs = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "very_short", "medium", "book_call", "balanced", 0, 1, [])
+      sh = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+      st = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "standard", "medium", "book_call", "balanced", 0, 1, [])
+      unk = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "loopy", "medium", "book_call", "balanced", 0, 1, [])
+
+      expect(vs).to include("Very Short: 50-100 words")
+      expect(sh).to include("Short: 100-200 words")
+      expect(st).to include("Standard: 200-300 words")
+      expect(unk).to include("Concise and scannable (150-300 words ideal for B2B outreach)")
+    end
+
+    it 'includes CTA guidance branches and softness' do
+      book = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "soft", 0, 1, [])
+      reply = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "get_reply", "balanced", 0, 1, [])
+      click = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "get_click", "direct", 0, 1, [])
+      unk = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "other", "weird", 0, 1, [])
+
+      expect(book).to include("Propose a short intro meeting (15-30 minutes)")
+      expect(book).to include("Use gentle, non-pushy language")
+      expect(reply).to include("Ask for a quick email response")
+      expect(reply).to include("Use moderate assertiveness")
+      expect(click).to include("Drive to a link/demo/landing page")
+      expect(click).to include("Use clear and assertive language")
+      expect(unk).to include("Clear, compelling CTA that provides next steps")
+      expect(unk).to include("Use balanced approach")
     end
   end
 

@@ -7,7 +7,7 @@ require 'pathname'
 
 def parse_coverage_html
   coverage_file = Pathname.new('coverage/index.html')
-  
+
   unless coverage_file.exist?
     puts "❌ Coverage report not found. Run tests with COVERAGE=true first."
     return
@@ -15,14 +15,14 @@ def parse_coverage_html
 
   html = File.read(coverage_file)
   doc = Nokogiri::HTML(html)
-  
+
   # Extract overall coverage
   covered_percent = doc.at_css('.covered_percent')&.text&.strip
   total_files = doc.at_css('#AllFiles .file_list_container b')&.text&.to_i
   total_lines = doc.css('.t-line-summary b').first&.text&.to_i
   covered_lines = doc.css('.t-line-summary .green b').first&.text&.to_i
   missed_lines = doc.css('.t-line-summary .red b').first&.text&.to_i
-  
+
   puts "=" * 80
   puts "Cucumber Test Coverage Report (SimpleCov)"
   puts "=" * 80
@@ -31,16 +31,16 @@ def parse_coverage_html
   puts "Total Files: #{total_files}"
   puts "Total Lines: #{total_lines} (#{covered_lines} covered, #{missed_lines} missed)"
   puts
-  
+
   # Extract file coverage
   files = []
   doc.css('tr.t-file').each do |row|
     file_name = row.at_css('.t-file__name a')&.[]('title')
     coverage = row.at_css('.t-file__coverage')&.text&.strip
     lines = row.css('td.cell--number').map(&:text)
-    
+
     next unless file_name && coverage
-    
+
     files << {
       file: file_name,
       coverage: coverage.to_f,
@@ -50,7 +50,7 @@ def parse_coverage_html
       missed_lines: lines[4].to_i
     }
   end
-  
+
   # Group by directory
   groups = {
     'Controllers' => [],
@@ -60,7 +60,7 @@ def parse_coverage_html
     'Helpers' => [],
     'Jobs' => []
   }
-  
+
   files.each do |file|
     path = file[:file]
     if path.include?('/controllers/')
@@ -77,19 +77,19 @@ def parse_coverage_html
       groups['Jobs'] << file
     end
   end
-  
+
   # Display by group
   groups.each do |group_name, group_files|
     next if group_files.empty?
-    
+
     total_covered = group_files.sum { |f| f[:covered_lines] }
     total_relevant = group_files.sum { |f| f[:relevant_lines] }
     group_coverage = total_relevant > 0 ? (total_covered.to_f / total_relevant * 100).round(2) : 0
-    
+
     puts "#{group_name}:"
     puts "  Coverage: #{group_coverage}% (#{total_covered}/#{total_relevant} lines)"
     puts "  Files: #{group_files.count}"
-    
+
     # Show files with coverage
     group_files.sort_by { |f| -f[:coverage] }.each do |f|
       status = f[:coverage] >= 80 ? "✅" : f[:coverage] >= 60 ? "⚠️" : "❌"
@@ -97,7 +97,7 @@ def parse_coverage_html
     end
     puts
   end
-  
+
   # Show files with low coverage
   low_coverage = files.select { |f| f[:coverage] < 80 && f[:relevant_lines] > 5 }
   if low_coverage.any?
@@ -107,7 +107,7 @@ def parse_coverage_html
     end
     puts
   end
-  
+
   puts "=" * 80
   puts "Full Report: coverage/index.html"
   puts "=" * 80
@@ -121,8 +121,7 @@ if __FILE__ == $0
     puts "❌ Nokogiri not found. Install it with: gem install nokogiri"
     exit 1
   end
-  
+
   Dir.chdir(File.join(File.dirname(__FILE__), '..'))
   parse_coverage_html
 end
-
