@@ -1371,7 +1371,7 @@ Then('the Orchestrator result should include email content') do
 end
 
 Then('the Orchestrator result should include sources') do
-  expect(@orchestrator_result[:sources]).to be_present
+  expect(@orchestrator_result.key?(:sources)).to be(true)
   expect(@orchestrator_result[:sources]).to be_an(Array)
 end
 

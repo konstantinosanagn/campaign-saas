@@ -10,7 +10,9 @@ Feature: Orchestrator Execution
   Scenario: Orchestrator.run executes full pipeline (Search → Writer → Critique)
     Given the Orchestrator is configured
     When I run the Orchestrator with company name "Microsoft"
-    Then the Orchestrator should return complete email with critique and sources
+    Then the Orchestrator result should include email content
+    And the Orchestrator result should include sources
+    And the Orchestrator result should include critique
 
   Scenario: Orchestrator handles company name input
     Given the Orchestrator is configured

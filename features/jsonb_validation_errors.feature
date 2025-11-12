@@ -38,7 +38,7 @@ Feature: JsonbValidator Error Paths
     And any existing "CRITIQUE" agent config is deleted
     When I send a POST request to "/api/v1/campaigns/#{@campaign.id}/agent_configs" with JSON:
       """
-      {"agentConfig": {"agentName": "CRITIQUE", "enabled": true, "settings": {}}}
+        {"agent_config": {"agent_name": "CRITIQUE", "enabled": true, "settings": {}}}
       """
     Then the response status should be 201
     # Empty settings should be allowed
@@ -55,7 +55,7 @@ Feature: JsonbValidator Error Paths
     And any existing "WRITER" agent config is deleted
     When I send a POST request to "/api/v1/campaigns/#{@campaign.id}/agent_configs" with JSON:
       """
-      {"agentConfig": {"agentName": "WRITER", "enabled": true, "settings": {"tone": "professional", "email_length": "short"}}}
+      {"agent_config": {"agent_name": "WRITER", "enabled": true, "settings": {"tone": "professional", "email_length": "short"}}}
       """
     Then the response status should be 201
     And the JSON response should include "settings"
@@ -67,7 +67,7 @@ Feature: JsonbValidator Error Paths
     And any existing "SEARCH" agent config is deleted
     When I send a POST request to "/api/v1/campaigns/#{@campaign.id}/agent_configs" with JSON:
       """
-      {"agentConfig": {"agentName": "SEARCH", "enabled": true, "settings": {"extracted_fields": ["urls", "titles"]}}}
+        {"agent_config": {"agent_name": "SEARCH", "enabled": true, "settings": {"extracted_fields": ["urls", "titles"]}}}
       """
     Then the response status should be 201
     And the JSON response should include "settings"
