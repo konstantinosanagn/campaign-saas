@@ -90,30 +90,27 @@ API keys are automatically populated for the admin user:
 
 ### Required Environment Variables
 ```bash
-# API Keys
-GEMINI_API_KEY=your_gemini_api_key  # or LLM_API_KEY
-TAVILY_API_KEY=your_tavily_api_key
-
-# Email Configuration
-MAILER_FROM="noreply@yourdomain.com"
-MAILER_HOST="yourdomain.com"
-
-# SMTP Configuration (required for sending emails)
-SMTP_ADDRESS="smtp.gmail.com"
-SMTP_PORT="587"
-SMTP_USER_NAME="your-email@gmail.com"
-SMTP_PASSWORD="your-app-password"
-SMTP_DOMAIN="gmail.com"
-SMTP_AUTHENTICATION="plain"
-SMTP_ENABLE_STARTTLS="true"
-
-# Database
-POSTGRES_PASSWORD=your_password
-RAILS_MAX_THREADS=5
+GMAIL_CLIENT_ID=your_gmail_client_id
+GMAIL_CLIENT_SECRET=your_gmail_client_secret
 
 # Optional: Disable authentication (production only)
 DISABLE_AUTH=true
 ```
+
+### Gmail OAuth Test Mode
+
+⚠️ The app is currently in **Google OAuth Test Mode** ("In testing"), which means Google restricts OAuth access to protect user data. Only accounts listed as Test users in the Google Cloud Console are allowed to authorize the app, and all other Google accounts will be blocked with a 403 error.
+
+Because the Gmail OAuth scope (`gmail.send`) is considered sensitive, the unverified app can only be used with approved test accounts. 
+
+**For this iteration, only `campaignsaastester@gmail.com` is authorized**, so Gmail OAuth will only work when this address is entered as the "Send From Email Address" in Email Settings.
+
+![Gmail OAuth Test Mode](docs/gmail-oauth-test-mode.png)
+
+**To use Gmail OAuth:**
+1. Navigate to Email Settings in the application
+2. Enter `campaignsaastester@gmail.com` as the "Send From Email Address"
+3. Complete the OAuth flow with this authorized test account
 
 ### Deployment
 - **Platform:** Heroku
@@ -126,34 +123,8 @@ Set environment variables via Heroku Config Vars:
 ```bash
 heroku config:set GEMINI_API_KEY="your_key"
 heroku config:set TAVILY_API_KEY="your_key"
-heroku config:set SMTP_ADDRESS="smtp.gmail.com"
 # ... etc
 ```
-
-## Environment Variables
-
-### Database
-- `POSTGRES_PASSWORD` - PostgreSQL password
-- `RAILS_MAX_THREADS` - Maximum threads (default: 5)
-
-### API Keys
-- `GEMINI_API_KEY` or `LLM_API_KEY` - Google Gemini API key for Writer/Design/Critique agents
-- `TAVILY_API_KEY` - Tavily API key for Search agent
-
-### Email Configuration
-- `MAILER_FROM` - Sender email address (required)
-- `MAILER_HOST` - Mail server domain for links (required)
-- `SMTP_ADDRESS` - SMTP server address
-- `SMTP_PORT` - SMTP server port (default: 587)
-- `SMTP_USER_NAME` - SMTP username
-- `SMTP_PASSWORD` - SMTP password (use app-specific password for Gmail)
-- `SMTP_DOMAIN` - SMTP domain
-- `SMTP_AUTHENTICATION` - Authentication method (default: plain)
-- `SMTP_ENABLE_STARTTLS` - Enable STARTTLS (default: true)
-- `MAIL_DELIVERY_METHOD` - Delivery method (file/test/smtp)
-
-### Authentication
-- `DISABLE_AUTH` - Disable authentication (development: auto-true, production: optional)
 
 **Note:** The `.env` file is automatically loaded by `dotenv-rails` gem. Restart Rails server after modifying `.env`.
 
