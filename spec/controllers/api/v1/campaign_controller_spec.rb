@@ -97,6 +97,20 @@ RSpec.describe Api::V1::CampaignsController, type: :controller do
 
       expect(response).to have_http_status(:ok)
     end
+
+    it "uses sharedSettings as-is when campaign not found during update" do
+      shared_settings_param = { "x" => 2 }
+      params_with_shared = { id: id, campaign: { sharedSettings: shared_settings_param } }
+
+      campaigns = double(find_by: nil)
+      allow(user).to receive(:campaigns).and_return(campaigns)
+
+      patch :update, params: params_with_shared
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      body = JSON.parse(response.body)
+      expect(body["errors"]).to include(/Not found or unauthorized/)
+    end
   end
 
   describe "DELETE #destroy" do

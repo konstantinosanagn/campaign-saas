@@ -221,6 +221,56 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
   end
 
+  describe "POST #send_email" do
+    let(:lead) { double(id: 5) }
+
+    it "returns 404 when lead missing" do
+      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(nil)
+
+      post :send_email, params: { id: 1 }
+
+      expect(response).to have_http_status(:not_found)
+      body = JSON.parse(response.body)
+      expect(body["errors"]).to include(/Lead not found or unauthorized/)
+    end
+
+    it "returns success when EmailSenderService succeeds" do
+      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
+      allow(EmailSenderService).to receive(:send_email_for_lead).with(lead).and_return({ success: true, message: "Email sent" })
+
+      post :send_email, params: { id: 1 }
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body["success"]).to be true
+      expect(body["message"]).to eq("Email sent")
+    end
+
+    it "returns error when EmailSenderService fails" do
+      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
+      allow(EmailSenderService).to receive(:send_email_for_lead).with(lead).and_return({ success: false, error: "Lead not ready" })
+
+      post :send_email, params: { id: 1 }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      body = JSON.parse(response.body)
+      expect(body["success"]).to be false
+      expect(body["error"]).to eq("Lead not ready")
+    end
+
+    it "handles exceptions raised by EmailSenderService" do
+      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
+      allow(EmailSenderService).to receive(:send_email_for_lead).and_raise(StandardError, "Network error")
+
+      post :send_email, params: { id: 1 }
+
+      expect(response).to have_http_status(:internal_server_error)
+      body = JSON.parse(response.body)
+      expect(body["success"]).to be false
+      expect(body["error"]).to eq("Network error")
+    end
+  end
+
   describe "PATCH #update_agent_output" do
     let(:lead) { double(id: 4, agent_outputs: double(find_by: nil)) }
 
@@ -277,6 +327,20 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
         expect(response).to have_http_status(:ok)
       end
 
+      it "accepts email param as alternative to content" do
+        ao = double(agent_name: AgentConstants::AGENT_WRITER, status: "ok", output_data: {}, updated_at: Time.now)
+        outputs = double(find_by: ao)
+        lead_with_ao = double(agent_outputs: outputs)
+        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+
+        expect(ao).to receive(:output_data).and_return({})
+        expect(ao).to receive(:update!).with(output_data: hash_including(email: "email-content")).and_return(true)
+
+        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_WRITER, email: "email-content" }
+
+        expect(response).to have_http_status(:ok)
+      end
+
       it "returns unprocessable when content missing for WRITER" do
         ao = double(agent_name: AgentConstants::AGENT_WRITER, status: "ok", output_data: {}, updated_at: Time.now)
         outputs = double(find_by: ao)
@@ -306,6 +370,34 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
         expect(response).to have_http_status(:ok)
       end
 
+      it "accepts email param as alternative to content" do
+        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "ok", output_data: {}, updated_at: Time.now)
+        outputs = double(find_by: ao)
+        lead_with_ao = double(agent_outputs: outputs)
+        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+
+        expect(ao).to receive(:output_data).and_return({})
+        expect(ao).to receive(:update!).with(output_data: hash_including(email: "email-content", formatted_email: "email-content")).and_return(true)
+
+        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_DESIGN, email: "email-content" }
+
+        expect(response).to have_http_status(:ok)
+      end
+
+      it "accepts formatted_email param as alternative to content" do
+        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "ok", output_data: {}, updated_at: Time.now)
+        outputs = double(find_by: ao)
+        lead_with_ao = double(agent_outputs: outputs)
+        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+
+        expect(ao).to receive(:output_data).and_return({})
+        expect(ao).to receive(:update!).with(output_data: hash_including(email: "formatted-content", formatted_email: "formatted-content")).and_return(true)
+
+        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_DESIGN, formatted_email: "formatted-content" }
+
+        expect(response).to have_http_status(:ok)
+      end
+
       it "returns unprocessable when content missing for DESIGN" do
         ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "ok", output_data: {}, updated_at: Time.now)
         outputs = double(find_by: ao)
@@ -329,6 +421,18 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
         expect(ao).to receive(:update!).with(output_data: kind_of(ActionController::Parameters)).and_return(true)
 
         patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_SEARCH, updatedData: { foo: "bar" } }
+
+        expect(response).to have_http_status(:ok)
+      end
+
+      it "accepts updated_data (snake_case) as alternative to updatedData" do
+        ao = double(agent_name: AgentConstants::AGENT_SEARCH, status: "ok", output_data: {}, updated_at: Time.now)
+        outputs = double(find_by: ao)
+        lead_with_ao = double(agent_outputs: outputs)
+        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+        expect(ao).to receive(:update!).with(output_data: kind_of(ActionController::Parameters)).and_return(true)
+
+        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_SEARCH, updated_data: { baz: "qux" } }
 
         expect(response).to have_http_status(:ok)
       end

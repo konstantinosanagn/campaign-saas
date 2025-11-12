@@ -14,6 +14,10 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 - **Rails:** 8.1
 - **PostgreSQL:** 12+
 - **Node.js:** 16.x (required for Webpacker compatibility)
+  - ⚠️ **Important:** Node.js 17+ uses OpenSSL 3.0 which is incompatible with Webpack 4
+  - **Recommended:** Use Node.js 16.20.2 (specified in `.nvmrc`)
+  - If using Node.js 17+, the scripts automatically use `--openssl-legacy-provider` flag
+  - Use `nvm use` (if you have nvm) or install Node.js 16.x manually
 - **Yarn:** 1.22.x
 
 ## Installation
@@ -24,20 +28,26 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
    cd saas-proj
    ```
 
-2. **Install dependencies**
+2. **Set up Node.js version (if using nvm)**
+   ```bash
+   nvm use  # Uses version from .nvmrc (16.20.2)
+   # or manually: nvm install 16.20.2 && nvm use 16.20.2
+   ```
+
+3. **Install dependencies**
    ```bash
    bundle install
    yarn install
    ```
 
-3. **Setup database**
+4. **Setup database**
    ```bash
    rails db:create
    rails db:migrate
    rails db:seed
    ```
 
-4. **Start the application**
+5. **Start the application**
    ```bash
    # Terminal 1: Rails server
    rails server
@@ -46,9 +56,11 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
    ./bin/webpack-dev-server
    ```
 
-5. **Access the application**
+6. **Access the application**
    - Open http://localhost:3000
    - You're automatically logged in as `admin@example.com`
+   
+   **Note:** If you encounter OpenSSL errors with webpack-dev-server, see the [Troubleshooting](#troubleshooting) section below.
 
 ## Development Mode
 
@@ -443,6 +455,51 @@ COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (76.
 - [ ] Set up SSL/HTTPS
 - [ ] Configure database backups
 - [ ] Set up monitoring and error tracking
+
+## Troubleshooting
+
+### Webpack/OpenSSL Errors
+
+**Error:** `Error: error:0308010C:digital envelope routines::unsupported`
+
+**Cause:** Node.js 17+ uses OpenSSL 3.0 which is incompatible with Webpack 4.
+
+**Solutions:**
+
+1. **Recommended:** Use Node.js 16.x
+   ```bash
+   # If using nvm (Node Version Manager)
+   nvm use
+   # or
+   nvm install 16.20.2
+   nvm use 16.20.2
+   ```
+
+2. **Automatic Fix:** The project scripts (`bin/webpack` and `bin/webpack-dev-server`) automatically set `NODE_OPTIONS=--openssl-legacy-provider` for Node.js 17+. This should work automatically, but if you still see errors, you can manually set:
+   ```bash
+   export NODE_OPTIONS=--openssl-legacy-provider  # Linux/Mac
+   $env:NODE_OPTIONS="--openssl-legacy-provider"  # Windows PowerShell
+   ```
+
+3. **Verify Node.js version:**
+   ```bash
+   node --version  # Should be 16.x for best compatibility
+   ```
+
+### Database Connection Issues
+
+If you see PostgreSQL connection errors:
+- Ensure PostgreSQL is running: `pg_isready` or check your PostgreSQL service
+- Verify database credentials in `config/database.yml`
+- Check that the database exists: `rails db:create`
+
+### Port Already in Use
+
+If port 3000 is already in use:
+```bash
+# Use a different port
+rails server -p 3001
+```
 
 ## Contributing
 

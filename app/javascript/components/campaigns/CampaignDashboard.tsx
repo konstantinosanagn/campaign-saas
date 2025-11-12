@@ -487,7 +487,7 @@ export default function CampaignDashboard() {
                       <button 
                         onClick={handleRunAllAgents}
                         disabled={agentExecLoading || filteredLeads.filter(l => l.stage !== 'completed').length === 0}
-                        className="px-3 py-1.5 text-sm font-medium text-white bg-black border border-black rounded-full hover:text-black hover:bg-transparent hover:border-black transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1.5 text-sm font-medium text-white bg-black border border-black rounded-full hover:text-black hover:bg-transparent hover:border-black transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-white disabled:hover:bg-black disabled:hover:border-black"
                       >
                         {agentExecLoading ? 'Running...' : 'Run Agents'}
                       </button>
@@ -495,7 +495,7 @@ export default function CampaignDashboard() {
                         <button 
                           onClick={handleSendSelectedEmails}
                           disabled={sendingEmails || !campaignObj}
-                          className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-full hover:text-green-600 hover:bg-transparent hover:border-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-full hover:text-green-600 hover:bg-transparent hover:border-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-white disabled:hover:bg-green-600 disabled:hover:border-green-600"
                           title={`Send emails to ${selectedReadyLeads.length} selected lead(s)`}
                         >
                           {sendingEmails ? 'Sending...' : `Send Selected (${selectedReadyLeads.length})`}
@@ -504,7 +504,7 @@ export default function CampaignDashboard() {
                         <button 
                           onClick={handleSendEmails}
                           disabled={sendingEmails || !campaignObj || readyLeadsCount === 0}
-                          className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-full hover:text-green-600 hover:bg-transparent hover:border-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 border border-green-600 rounded-full hover:text-green-600 hover:bg-transparent hover:border-green-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-white disabled:hover:bg-green-600 disabled:hover:border-green-600"
                           title={readyLeadsCount === 0 ? 'No ready leads to send' : `Send emails to ${readyLeadsCount} ready lead(s)`}
                         >
                           {sendingEmails ? 'Sending...' : `Send All${readyLeadsCount > 0 ? ` (${readyLeadsCount})` : ''}`}
