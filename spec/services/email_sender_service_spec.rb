@@ -324,6 +324,23 @@ RSpec.describe EmailSenderService, type: :service do
         described_class.send(:send_email_to_lead, lead)
       end
 
+      context 'when OAuth is configured but valid_access_token returns nil' do
+        before do
+          allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(true)
+          allow(GmailOauthService).to receive(:valid_access_token).with(user).and_return(nil)
+          allow(described_class).to receive(:configure_delivery_method).with(user)
+          allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return('smtp.gmail.com')
+          allow(ENV).to receive(:[]).with('SMTP_PASSWORD').and_return('password')
+        end
+
+        it 'logs a warning and falls back to SMTP' do
+          expect(Rails.logger).to receive(:warn).with(/OAuth configured but valid_access_token returned nil for user #{user.id}/)
+          expect(described_class).to receive(:configure_delivery_method).with(user)
+
+          described_class.send(:send_email_to_lead, lead)
+        end
+      end
+
       context 'when send_from_email user has OAuth' do
         let(:other_user) { create(:user, email: 'other@example.com') }
 
@@ -348,6 +365,43 @@ RSpec.describe EmailSenderService, type: :service do
             other_user,
             anything
           )
+
+          described_class.send(:send_email_to_lead, lead)
+        end
+      end
+
+      context 'when send_from_email equals user.email but user has no OAuth, and another user with that email has OAuth' do
+        let(:other_user) { build_stubbed(:user, email: user.email, id: user.id + 1) }
+
+        before do
+          # user.email == send_from_email, but user has no OAuth
+          # other_user has the same email and has OAuth
+          user.update(send_from_email: nil) # Will default to user.email
+          allow(other_user).to receive(:gmail_refresh_token).and_return('refresh-token')
+          allow(other_user).to receive(:gmail_access_token).and_return('access-token')
+          allow(other_user).to receive(:gmail_token_expires_at).and_return(1.hour.from_now)
+          allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(false)
+          allow(GmailOauthService).to receive(:oauth_configured?).with(other_user).and_return(true)
+          allow(GmailOauthService).to receive(:valid_access_token).with(other_user).and_return('access-token')
+          allow(User).to receive(:find_by).with(email: user.email).and_return(other_user)
+          allow(described_class).to receive(:send_via_gmail_api).and_return(true)
+        end
+
+        it 'uses OAuth from the other user with the same email' do
+          expect(described_class).to receive(:send_via_gmail_api).with(
+            lead,
+            anything,
+            anything,
+            other_user,
+            'access-token'
+          )
+
+          described_class.send(:send_email_to_lead, lead)
+        end
+
+        it 'logs that it is using OAuth from email_user' do
+          expect(Rails.logger).to receive(:info).with(/User #{user.id} doesn't have OAuth, using OAuth from email_user #{other_user.id}/).at_least(:once)
+          allow(Rails.logger).to receive(:info) # Allow other info logs
 
           described_class.send(:send_email_to_lead, lead)
         end
@@ -576,6 +630,176 @@ RSpec.describe EmailSenderService, type: :service do
         }.to raise_error(StandardError, 'Network error')
       end
     end
+
+  end
+
+  describe '.send_email_to_lead error handling' do
+    let(:design_output) do
+      create(:agent_output,
+        lead: lead,
+        agent_name: AgentConstants::AGENT_DESIGN,
+        status: AgentConstants::STATUS_COMPLETED,
+        output_data: { 'formatted_email' => 'Formatted email content' }
+      )
+    end
+
+    before do
+      design_output
+      allow(GmailOauthService).to receive(:oauth_configured?).and_return(false)
+      allow(described_class).to receive(:configure_delivery_method).with(user)
+      allow(ActionMailer::Base).to receive(:delivery_method=)
+      allow(ActionMailer::Base).to receive(:perform_deliveries=)
+      allow(ActionMailer::Base).to receive(:smtp_settings).and_return({})
+      allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return('smtp.gmail.com')
+      allow(ENV).to receive(:[]).with('SMTP_PASSWORD').and_return('password')
+    end
+
+    context 'when mail.deliver_now raises Net::SMTPAuthenticationError' do
+      let(:mock_mail) { double }
+      let(:smtp_error) do
+        error = Net::SMTPAuthenticationError.new('Authentication failed')
+        allow(error).to receive(:response).and_return(double(code: '535', message: 'Invalid credentials'))
+        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        error
+      end
+
+      before do
+        allow(CampaignMailer).to receive(:send_email).and_return(mock_mail)
+        allow(mock_mail).to receive(:deliver_now).and_raise(smtp_error)
+      end
+
+      it 'logs SMTP authentication error details and raises' do
+        expect(Rails.logger).to receive(:error).with(/SMTP Authentication Error/).at_least(:once)
+        expect(Rails.logger).to receive(:error).with(/Response code: 535/).at_least(:once)
+        expect(Rails.logger).to receive(:error).with(/Response message: Invalid credentials/).at_least(:once)
+        allow(Rails.logger).to receive(:error) # Allow other error logs
+
+        expect {
+          described_class.send(:send_email_to_lead, lead)
+        }.to raise_error(Net::SMTPAuthenticationError)
+      end
+    end
+
+    context 'when mail.deliver_now raises Net::SMTPError' do
+      let(:mock_mail) { double }
+      let(:smtp_error) do
+        error = StandardError.new('SMTP error')
+        error.extend(Net::SMTPError)
+        allow(error).to receive(:response).and_return(double(inspect: 'response details'))
+        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(error).to receive(:message).and_return('SMTP error')
+        allow(error).to receive(:class).and_return(StandardError)
+        error
+      end
+
+      before do
+        allow(CampaignMailer).to receive(:send_email).and_return(mock_mail)
+        allow(mock_mail).to receive(:deliver_now).and_raise(smtp_error)
+      end
+
+      it 'logs SMTP error details and raises' do
+        expect(Rails.logger).to receive(:error).with(/SMTP Error/).at_least(:once)
+        expect(Rails.logger).to receive(:error).with(/Response: response details/).at_least(:once)
+        allow(Rails.logger).to receive(:error) # Allow other error logs
+
+        expect {
+          described_class.send(:send_email_to_lead, lead)
+        }.to raise_error(StandardError, 'SMTP error')
+      end
+    end
+
+    context 'when mail.deliver_now raises OpenSSL::SSL::SSLError' do
+      let(:mock_mail) { double }
+      let(:ssl_error) do
+        error = OpenSSL::SSL::SSLError.new('SSL error')
+        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        error
+      end
+
+      before do
+        allow(CampaignMailer).to receive(:send_email).and_return(mock_mail)
+        allow(mock_mail).to receive(:deliver_now).and_raise(ssl_error)
+      end
+
+      it 'logs SSL error details and raises' do
+        expect(Rails.logger).to receive(:error).with(/SSL Error/).at_least(:once)
+        allow(Rails.logger).to receive(:error) # Allow other error logs
+
+        expect {
+          described_class.send(:send_email_to_lead, lead)
+        }.to raise_error(OpenSSL::SSL::SSLError)
+      end
+    end
+
+    context 'when mail.deliver_now raises connection errors' do
+      let(:mock_mail) { double }
+
+      before do
+        allow(CampaignMailer).to receive(:send_email).and_return(mock_mail)
+      end
+
+      it 'logs connection error for Errno::ECONNREFUSED and raises' do
+        error = Errno::ECONNREFUSED.new('Connection refused')
+        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(mock_mail).to receive(:deliver_now).and_raise(error)
+
+        expect(Rails.logger).to receive(:error).with(/Connection Error/).at_least(:once)
+        allow(Rails.logger).to receive(:error) # Allow other error logs
+
+        expect {
+          described_class.send(:send_email_to_lead, lead)
+        }.to raise_error(Errno::ECONNREFUSED)
+      end
+
+      it 'logs connection error for Errno::ETIMEDOUT and raises' do
+        error = Errno::ETIMEDOUT.new('Connection timed out')
+        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(mock_mail).to receive(:deliver_now).and_raise(error)
+
+        expect(Rails.logger).to receive(:error).with(/Connection Error/).at_least(:once)
+        allow(Rails.logger).to receive(:error) # Allow other error logs
+
+        expect {
+          described_class.send(:send_email_to_lead, lead)
+        }.to raise_error(Errno::ETIMEDOUT)
+      end
+
+      it 'logs connection error for Timeout::Error and raises' do
+        error = Timeout::Error.new('Timeout')
+        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(mock_mail).to receive(:deliver_now).and_raise(error)
+
+        expect(Rails.logger).to receive(:error).with(/Connection Error/).at_least(:once)
+        allow(Rails.logger).to receive(:error) # Allow other error logs
+
+        expect {
+          described_class.send(:send_email_to_lead, lead)
+        }.to raise_error(Timeout::Error)
+      end
+    end
+
+    context 'when mail.deliver_now raises unexpected error' do
+      let(:mock_mail) { double }
+      let(:unexpected_error) do
+        error = RuntimeError.new('Unexpected error')
+        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        error
+      end
+
+      before do
+        allow(CampaignMailer).to receive(:send_email).and_return(mock_mail)
+        allow(mock_mail).to receive(:deliver_now).and_raise(unexpected_error)
+      end
+
+      it 'logs unexpected error details and raises' do
+        expect(Rails.logger).to receive(:error).with(/Unexpected error delivering mail/).at_least(:once)
+        allow(Rails.logger).to receive(:error) # Allow other error logs
+
+        expect {
+          described_class.send(:send_email_to_lead, lead)
+        }.to raise_error(RuntimeError)
+      end
+    end
   end
 
   describe '.configure_delivery_method' do
@@ -615,6 +839,39 @@ RSpec.describe EmailSenderService, type: :service do
 
         described_class.send(:configure_delivery_method, user)
       end
+
+      context 'when send_from_email differs from user email and another user with that email has OAuth' do
+        let(:other_user) { create(:user, email: 'other@example.com') }
+
+        before do
+          user.update(send_from_email: 'other@example.com')
+          other_user.update(
+            gmail_refresh_token: 'refresh-token',
+            gmail_access_token: 'access-token',
+            gmail_token_expires_at: 1.hour.from_now
+          )
+          allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(false)
+          allow(GmailOauthService).to receive(:oauth_configured?).with(other_user).and_return(true)
+          allow(GmailOauthService).to receive(:valid_access_token).with(other_user).and_return('access-token')
+          allow(User).to receive(:find_by).with(email: 'other@example.com').and_return(other_user)
+          allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return('smtp.gmail.com')
+          allow(ENV).to receive(:[]).with('SMTP_PORT').and_return('587')
+          allow(ENV).to receive(:[]).with('SMTP_DOMAIN').and_return(nil)
+          allow(ENV).to receive(:[]).with('MAILER_HOST').and_return('example.com')
+          allow(ENV).to receive(:[]).with('SMTP_ENABLE_STARTTLS').and_return('true')
+        end
+
+        it 'uses OAuth from the other user' do
+          expect(Rails.logger).to receive(:info).with(/Found OAuth for send_from_email user \(#{other_user.id}\), using their token/).at_least(:once)
+          allow(Rails.logger).to receive(:info) # Allow other info logs
+          expect(ActionMailer::Base).to receive(:delivery_method=).with(:smtp)
+          expect(ActionMailer::Base).to receive(:smtp_settings=).with(hash_including(
+            user_name: 'other@example.com'
+          ))
+
+          described_class.send(:configure_delivery_method, user)
+        end
+      end
     end
 
     context 'when OAuth is not configured but SMTP password is set' do
@@ -645,6 +902,26 @@ RSpec.describe EmailSenderService, type: :service do
           user_name: 'user@example.com',
           password: 'password'
         ))
+
+        described_class.send(:configure_delivery_method, user)
+      end
+    end
+
+    context 'when OAuth is configured but valid_access_token returns nil' do
+      before do
+        user.update(
+          gmail_refresh_token: 'refresh-token',
+          gmail_access_token: 'access-token',
+          gmail_token_expires_at: 1.hour.from_now
+        )
+        allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(true)
+        allow(GmailOauthService).to receive(:valid_access_token).with(user).and_return(nil)
+        allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return(nil)
+        allow(ENV).to receive(:[]).with('SMTP_PASSWORD').and_return(nil)
+      end
+
+      it 'logs a warning' do
+        expect(Rails.logger).to receive(:warn).with(/OAuth configured but no valid access token available/)
 
         described_class.send(:configure_delivery_method, user)
       end

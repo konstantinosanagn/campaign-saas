@@ -104,12 +104,32 @@ RSpec.describe Api::V1::CampaignsController, type: :controller do
 
       campaigns = double(find_by: nil)
       allow(user).to receive(:campaigns).and_return(campaigns)
+      # Need to allow campaigns to be called twice - once in update action, once in campaign_params
+      allow(user).to receive(:campaigns).and_return(campaigns)
 
       patch :update, params: params_with_shared
 
       expect(response).to have_http_status(:unprocessable_entity)
       body = JSON.parse(response.body)
       expect(body["errors"]).to include(/Not found or unauthorized/)
+    end
+
+    it "campaign_params sets shared_settings when campaign not found but id exists" do
+      shared_settings_param = { "x" => 2 }
+      params_with_shared = { id: id, campaign: { sharedSettings: shared_settings_param } }
+
+      # Mock the controller to allow accessing campaign_params
+      campaigns = double(find_by: nil)
+      allow(user).to receive(:campaigns).and_return(campaigns)
+      
+      # Set up params in the controller
+      controller.params = ActionController::Parameters.new(params_with_shared)
+      
+      # Call campaign_params directly to test the else branch on line 87
+      result = controller.send(:campaign_params)
+      
+      # Verify that shared_settings was set (line 87 executed)
+      expect(result[:shared_settings]).to eq(shared_settings_param)
     end
   end
 
