@@ -26,6 +26,8 @@ Before do
   # Clear enqueued jobs before each scenario
   ActiveJob::Base.queue_adapter.enqueued_jobs.clear
   ActiveJob::Base.queue_adapter.performed_jobs.clear
+  # Clear failing emails tracking
+  @failing_emails = []
 end
 
 After do
