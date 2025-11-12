@@ -9,7 +9,7 @@ module Api
                          .where(campaigns: { user_id: current_user.id })
       end
 
-      
+
 
       def create
         # Verify the campaign belongs to current user before creating lead

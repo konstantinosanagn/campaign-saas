@@ -18,14 +18,14 @@ class OauthController < ApplicationController
         redirect_to root_path
         return
       end
-      
+
       Rails.logger.info("[Gmail OAuth] Starting authorization for user #{current_user.id} (#{current_user.email})")
       authorization_url = GmailOauthService.authorization_url(current_user)
-      
+
       # Store state in session for security
       session[:oauth_state] = SecureRandom.hex(16)
       session[:oauth_user_id] = current_user.id  # Store user ID to verify on callback
-      
+
       Rails.logger.info("[Gmail OAuth] Redirecting to: #{authorization_url}")
       redirect_to authorization_url, allow_other_host: true
     rescue => e
@@ -42,7 +42,7 @@ class OauthController < ApplicationController
   # Handles OAuth callback from Google
   def gmail_callback
     Rails.logger.info("[Gmail OAuth] Callback received for user #{current_user.id} (#{current_user.email})")
-    
+
     if params[:error].present?
       error_msg = "OAuth authorization failed: #{params[:error]}"
       Rails.logger.error("[Gmail OAuth] Callback error: #{error_msg}")
@@ -94,9 +94,8 @@ class OauthController < ApplicationController
       gmail_refresh_token: nil,
       gmail_token_expires_at: nil
     )
-    
+
     flash[:success] = "Gmail OAuth revoked successfully."
     redirect_to root_path
   end
 end
-

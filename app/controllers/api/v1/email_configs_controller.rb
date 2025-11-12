@@ -6,12 +6,12 @@ module Api
       # Returns current user's email configuration
       def show
         send_from_email = current_user.send_from_email.presence || current_user.email
-        
+
         # Check OAuth for current user
         oauth_configured = false
         begin
           oauth_configured = GmailOauthService.oauth_configured?(current_user)
-          
+
           # If send_from_email is different and current user doesn't have OAuth,
           # check if the send_from_email user has OAuth
           if !oauth_configured && send_from_email != current_user.email
@@ -26,7 +26,7 @@ module Api
           Rails.logger.warn("Gmail OAuth service error: #{e.message}")
           oauth_configured = false
         end
-        
+
         render json: {
           email: send_from_email,
           oauth_configured: oauth_configured
@@ -41,12 +41,12 @@ module Api
         if email.present?
           if current_user.update(send_from_email: email)
             send_from_email = current_user.send_from_email.presence || current_user.email
-            
+
             # Check OAuth for current user or send_from_email user
             oauth_configured = false
             begin
               oauth_configured = GmailOauthService.oauth_configured?(current_user)
-              
+
               # If send_from_email is different and current user doesn't have OAuth,
               # check if the send_from_email user has OAuth
               if !oauth_configured && send_from_email != current_user.email
@@ -60,7 +60,7 @@ module Api
               Rails.logger.warn("Gmail OAuth service error: #{e.message}")
               oauth_configured = false
             end
-            
+
             render json: {
               email: send_from_email,
               oauth_configured: oauth_configured
@@ -79,4 +79,3 @@ module Api
     end
   end
 end
-

@@ -148,7 +148,7 @@ class EmailSenderService
       oauth_user = user
       send_from_email = user.send_from_email.presence || user.email
       Rails.logger.info("[EmailSender] Checking OAuth - user: #{user.id} (#{user.email}), send_from_email: #{send_from_email}")
-      
+
       # If send_from_email is different from user email, try to find a user with that email who has OAuth
       if send_from_email != user.email
         email_user = User.find_by(email: send_from_email)
@@ -187,7 +187,7 @@ class EmailSenderService
       # Force SMTP delivery method (override development file delivery)
       ActionMailer::Base.delivery_method = :smtp
       ActionMailer::Base.perform_deliveries = true
-      
+
       Rails.logger.info("[EmailSender] Pre-mail config - delivery_method: #{ActionMailer::Base.delivery_method}")
       Rails.logger.info("[EmailSender] Pre-mail config - smtp_settings address: #{ActionMailer::Base.smtp_settings[:address]}")
 
@@ -199,18 +199,18 @@ class EmailSenderService
         campaign_title: lead.campaign.title,
         from_email: from_email
       )
-      
+
       # Final verification - delivery_method should still be :smtp
       if ActionMailer::Base.delivery_method != :smtp
         Rails.logger.error("[EmailSender] CRITICAL: Delivery method changed to #{ActionMailer::Base.delivery_method} after mail creation!")
         ActionMailer::Base.delivery_method = :smtp
         configure_delivery_method(user) if user
       end
-      
+
       Rails.logger.info("[EmailSender] Mail object created, delivery_method: #{ActionMailer::Base.delivery_method}")
       Rails.logger.info("[EmailSender] SMTP address: #{ActionMailer::Base.smtp_settings[:address]}")
       Rails.logger.info("[EmailSender] SMTP user_name: #{ActionMailer::Base.smtp_settings[:user_name]}")
-      
+
       begin
         Rails.logger.info("[EmailSender] Attempting to deliver mail via #{ActionMailer::Base.delivery_method}...")
         mail.deliver_now
@@ -247,7 +247,7 @@ class EmailSenderService
       require 'net/http'
       require 'uri'
       require 'base64'
-      
+
       # Build email message in RFC 2822 format
       mail = CampaignMailer.send_email(
         to: lead.email,
@@ -256,27 +256,27 @@ class EmailSenderService
         campaign_title: lead.campaign.title,
         from_email: from_email
       )
-      
+
       # Get the raw email content
       raw_email = mail.encoded
-      
+
       # Encode to base64url (Gmail API requirement)
       raw_email_base64 = Base64.urlsafe_encode64(raw_email)
-      
+
       # Send via Gmail API
       uri = URI('https://gmail.googleapis.com/gmail/v1/users/me/messages/send')
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE if Rails.env.development?
-      
+
       request = Net::HTTP::Post.new(uri)
       request['Authorization'] = "Bearer #{access_token}"
       request['Content-Type'] = 'application/json'
       request.body = { raw: raw_email_base64 }.to_json
-      
+
       Rails.logger.info("[EmailSender] Sending email via Gmail API to #{lead.email}")
       response = http.request(request)
-      
+
       if response.code == '200'
         Rails.logger.info("[EmailSender] Email sent successfully via Gmail API")
         result = JSON.parse(response.body)
@@ -296,11 +296,11 @@ class EmailSenderService
     # Configures ActionMailer delivery method for OAuth2 or fallback to password
     def configure_delivery_method(user)
       Rails.logger.info("[EmailSender] Configuring delivery method for user #{user.id} (#{user.email})")
-      
+
       # Determine which email will be used for sending
       send_from_email = user.send_from_email.presence || user.email
       Rails.logger.info("[EmailSender] Will send from: #{send_from_email}")
-      
+
       # If send_from_email is different from user email, try to find a user with that email who has OAuth
       oauth_user = user
       if send_from_email != user.email
@@ -310,15 +310,15 @@ class EmailSenderService
           oauth_user = email_user
         end
       end
-      
+
       # Try OAuth2 first if oauth_user has OAuth configured
       oauth_configured = GmailOauthService.oauth_configured?(oauth_user)
       Rails.logger.info("[EmailSender] OAuth configured for user #{oauth_user.id}: #{oauth_configured}")
-      
+
       if oauth_configured
         access_token = GmailOauthService.valid_access_token(oauth_user)
         Rails.logger.info("[EmailSender] Access token available: #{access_token.present?}")
-        
+
         if access_token
           ActionMailer::Base.delivery_method = :smtp
           smtp_settings = build_oauth2_smtp_settings(oauth_user, access_token, send_from_email)
@@ -352,22 +352,22 @@ class EmailSenderService
     # @param send_from_email [String] The email address to send from (may differ from user.email)
     def build_oauth2_smtp_settings(user, access_token, send_from_email = nil)
       require "gmail_xoauth"
-      
+
       # Use provided send_from_email, or user's send_from_email, or user email
       smtp_user = send_from_email || user.send_from_email.presence || user.email
-      
+
       # The email in the OAuth string should match the email that was authorized
       # For Gmail, the token is tied to the authorized email, so we use user.email (the authorized email)
       oauth_email = user.email  # Use the email that was actually authorized
-      
+
       # Generate XOAUTH2 string
       # Gmail XOAUTH2 format: user=email\1auth=Bearer token\1\1
       # Note: Use plain format (not Base64) - ActionMailer's Net::SMTP handles encoding
       oauth_string = "user=#{oauth_email}\x01auth=Bearer #{access_token}\x01\x01"
-      
+
       Rails.logger.info("[EmailSender] Generated OAuth string for authorized email: #{oauth_email}, sending from: #{smtp_user}")
       Rails.logger.debug("[EmailSender] OAuth string length: #{oauth_string.length}")
-      
+
       {
         address: ENV.fetch("SMTP_ADDRESS", "smtp.gmail.com"),
         port: ENV.fetch("SMTP_PORT", "587").to_i,

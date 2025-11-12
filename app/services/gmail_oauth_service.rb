@@ -37,10 +37,10 @@ class GmailOauthService
     def exchange_code_for_tokens(user, code)
       client = build_authorization_client
       client.code = code
-      
+
       begin
         client.fetch_access_token!
-        
+
         # Calculate expiration time (expires_at is in seconds since epoch)
         expires_at = if client.expires_at
           Time.at(client.expires_at.to_i)
@@ -50,19 +50,19 @@ class GmailOauthService
           # Default to 1 hour if not specified
           Time.current + 1.hour
         end
-        
+
         update_params = {
           gmail_access_token: client.access_token,
           gmail_token_expires_at: expires_at
         }
-        
+
         # Only update refresh_token if we got one (it's only returned on first authorization)
         if client.refresh_token.present?
           update_params[:gmail_refresh_token] = client.refresh_token
         end
-        
+
         user.update!(update_params)
-        
+
         Rails.logger.info("[Gmail OAuth] Tokens saved for user #{user.id}, expires at #{expires_at}")
         true
       rescue => e
@@ -97,10 +97,10 @@ class GmailOauthService
       return false unless user.gmail_refresh_token.present?
 
       client = build_refresh_client(user)
-      
+
       begin
         client.refresh!
-        
+
         # Calculate expiration time
         expires_at = if client.expires_at
           Time.at(client.expires_at.to_i)
@@ -110,12 +110,12 @@ class GmailOauthService
           # Default to 1 hour if not specified
           Time.current + 1.hour
         end
-        
+
         user.update!(
           gmail_access_token: client.access_token,
           gmail_token_expires_at: expires_at
         )
-        
+
         Rails.logger.info("[Gmail OAuth] Token refreshed for user #{user.id}, expires at #{expires_at}")
         true
       rescue => e
@@ -141,11 +141,11 @@ class GmailOauthService
     def build_authorization_client
       client_id = ENV["GMAIL_CLIENT_ID"]
       client_secret = ENV["GMAIL_CLIENT_SECRET"]
-      
+
       unless client_id.present? && client_secret.present?
         raise "Gmail OAuth not configured. Please set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET environment variables."
       end
-      
+
       # Construct redirect URI - must match exactly what's in Google Console
       # Priority: 1) GMAIL_REDIRECT_URI env var, 2) Construct from MAILER_HOST, 3) Default to localhost
       redirect_uri = if ENV["GMAIL_REDIRECT_URI"].present?
@@ -156,7 +156,7 @@ class GmailOauthService
         base_url = "http://#{base_url}" unless base_url.start_with?("http")
         "#{base_url}/oauth/gmail/callback"
       end
-      
+
       Rails.logger.info("[Gmail OAuth] Using redirect_uri: #{redirect_uri}")
 
       client = Signet::OAuth2::Client.new(
@@ -176,7 +176,7 @@ class GmailOauthService
     def build_refresh_client(user)
       client_id = ENV["GMAIL_CLIENT_ID"]
       client_secret = ENV["GMAIL_CLIENT_SECRET"]
-      
+
       unless client_id.present? && client_secret.present?
         raise "Gmail OAuth not configured. Please set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET environment variables."
       end
@@ -190,4 +190,3 @@ class GmailOauthService
     end
   end
 end
-

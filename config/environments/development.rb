@@ -47,13 +47,13 @@ Rails.application.configure do
   # Option 2: Use file delivery (default) - saves emails to tmp/mail for testing
   # Raise delivery errors in development to help debug email sending issues
   config.action_mailer.raise_delivery_errors = true
-  
+
   # Option 3: Use test delivery - accumulates emails in ActionMailer::Base.deliveries
   # Note: OAuth email sending is configured dynamically in EmailSenderService
   # This default config is only used if SMTP_ADDRESS env var is set
   if ENV["SMTP_ADDRESS"].present?
     use_oauth = ENV["OAUTH_ACCESS_TOKEN"].present?
-  
+
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.smtp_settings = {
       address:              ENV.fetch("SMTP_ADDRESS"),
