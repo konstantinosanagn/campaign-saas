@@ -9,7 +9,9 @@ require_relative '../config/environment'
 # Prevent database truncation if the environment is production
 abort("The Rails environment is running in production mode!") if Rails.env.production?
 require 'rspec/rails'
-# Add additional requires below this line. Rails is not loaded until this point!
+
+Rails.application.reload_routes!
+Devise.mappings
 
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are
@@ -70,6 +72,10 @@ RSpec.configure do |config|
 
   # Include FactoryBot methods
   config.include FactoryBot::Syntax::Methods
+
+  # Include Devise helpers for request specs
+  config.include Devise::Test::IntegrationHelpers, type: :request
+
 
   # Global cleanup to prevent test leakage
   config.after(:each) do
