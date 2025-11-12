@@ -286,6 +286,65 @@ RSpec.describe Agents::WriterAgent, type: :service do
       expect(prompt).to include("URL: https://test.com")
       expect(prompt).to include("Content: Test content")
     end
+
+    it 'includes focus areas when provided' do
+      fas = [ 'AI', 'Cloud' ]
+      prompt = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, fas)
+
+      expect(prompt).to include("The recipient's technical focus areas include: AI, Cloud")
+    end
+
+    it 'applies personalization level guidance for low/medium/high/unknown' do
+      low = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "low", "book_call", "balanced", 0, 1, [])
+      mid = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+      high = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "high", "book_call", "balanced", 0, 1, [])
+      unk = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "unknown", "book_call", "balanced", 0, 1, [])
+
+      expect(low).to include("- Opening: Light references to industry or company only")
+      expect(mid).to include("Create emotional connection by referencing recent company news or industry developments")
+      expect(high).to include("Heavily tailored opener that demonstrates deep research")
+      expect(unk).to include("Create emotional connection by referencing recent company news or industry developments")
+    end
+
+    it 'includes tone guidance branches' do
+      formal = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "formal", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+      prof = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+      friendly = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "friendly", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+      unk = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "weird", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+
+      expect(formal).to include("Formal, respectful, and business-appropriate")
+      expect(prof).to include("Professional yet warm, empathetic, and human-like (not robotic or spammy)")
+      expect(friendly).to include("Friendly and approachable while maintaining professionalism")
+      expect(unk).to include("Professional yet warm, empathetic, and human-like")
+    end
+
+    it 'includes length guidance branches' do
+      vs = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "very_short", "medium", "book_call", "balanced", 0, 1, [])
+      sh = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "balanced", 0, 1, [])
+      st = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "standard", "medium", "book_call", "balanced", 0, 1, [])
+      unk = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "loopy", "medium", "book_call", "balanced", 0, 1, [])
+
+      expect(vs).to include("Very Short: 50-100 words")
+      expect(sh).to include("Short: 100-200 words")
+      expect(st).to include("Standard: 200-300 words")
+      expect(unk).to include("Concise and scannable (150-300 words ideal for B2B outreach)")
+    end
+
+    it 'includes CTA guidance branches and softness' do
+      book = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "book_call", "soft", 0, 1, [])
+      reply = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "get_reply", "balanced", 0, 1, [])
+      click = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "get_click", "direct", 0, 1, [])
+      unk = writer_agent.send(:build_prompt, company_name, sources, recipient, company, product_info, sender_company, "professional", "founder", "short", "medium", "other", "weird", 0, 1, [])
+
+      expect(book).to include("Propose a short intro meeting (15-30 minutes)")
+      expect(book).to include("Use gentle, non-pushy language")
+      expect(reply).to include("Ask for a quick email response")
+      expect(reply).to include("Use moderate assertiveness")
+      expect(click).to include("Drive to a link/demo/landing page")
+      expect(click).to include("Use clear and assertive language")
+      expect(unk).to include("Clear, compelling CTA that provides next steps")
+      expect(unk).to include("Use balanced approach")
+    end
   end
 
   describe 'HTTParty configuration' do

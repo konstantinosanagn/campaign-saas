@@ -38,6 +38,12 @@ RSpec.describe AgentConfig, type: :model do
       expect(config).not_to be_valid
       expect(config.errors[:settings]).to be_present
     end
+
+    it 'rejects non-Hash settings with a JSON object error' do
+      config = build(:agent_config, campaign: campaign, settings: 'not a hash')
+      config.valid?
+      expect(config.errors[:settings]).to include('must be a JSON object')
+    end
   end
 
   describe 'status query methods' do
