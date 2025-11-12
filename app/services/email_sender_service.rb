@@ -244,9 +244,9 @@ class EmailSenderService
     ##
     # Sends email via Gmail API (more reliable than SMTP XOAUTH2)
     def send_via_gmail_api(lead, email_content, from_email, oauth_user, access_token)
-      require 'net/http'
-      require 'uri'
-      require 'base64'
+      require "net/http"
+      require "uri"
+      require "base64"
 
       # Build email message in RFC 2822 format
       mail = CampaignMailer.send_email(
@@ -264,20 +264,20 @@ class EmailSenderService
       raw_email_base64 = Base64.urlsafe_encode64(raw_email)
 
       # Send via Gmail API
-      uri = URI('https://gmail.googleapis.com/gmail/v1/users/me/messages/send')
+      uri = URI("https://gmail.googleapis.com/gmail/v1/users/me/messages/send")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       http.verify_mode = OpenSSL::SSL::VERIFY_NONE if Rails.env.development?
 
       request = Net::HTTP::Post.new(uri)
-      request['Authorization'] = "Bearer #{access_token}"
-      request['Content-Type'] = 'application/json'
+      request["Authorization"] = "Bearer #{access_token}"
+      request["Content-Type"] = "application/json"
       request.body = { raw: raw_email_base64 }.to_json
 
       Rails.logger.info("[EmailSender] Sending email via Gmail API to #{lead.email}")
       response = http.request(request)
 
-      if response.code == '200'
+      if response.code == "200"
         Rails.logger.info("[EmailSender] Email sent successfully via Gmail API")
         result = JSON.parse(response.body)
         Rails.logger.info("[EmailSender] Gmail message ID: #{result['id']}")

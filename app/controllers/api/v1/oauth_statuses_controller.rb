@@ -16,7 +16,7 @@ module Api
           oauth_configured: oauth_configured,
           client_id_set: client_id_present,
           client_secret_set: client_secret_present,
-          message: oauth_configured ? "OAuth is configured" : "OAuth is not configured. Missing: #{[!client_id_present && 'GMAIL_CLIENT_ID', !client_secret_present && 'GMAIL_CLIENT_SECRET'].compact.join(', ')}"
+          message: oauth_configured ? "OAuth is configured" : "OAuth is not configured. Missing: #{[ !client_id_present && 'GMAIL_CLIENT_ID', !client_secret_present && 'GMAIL_CLIENT_SECRET' ].compact.join(', ')}"
         }
 
         render json: status
