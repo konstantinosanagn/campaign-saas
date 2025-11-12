@@ -82,8 +82,9 @@ export function useLeads() {
         quality: '-',
         campaignId,
       }
-
-      const response = await apiClient.create<Lead>('leads', payload)
+      console.log("📦 [createLead] Sending payload to backend:", JSON.stringify(payload, null, 2))
+      const response = await apiClient.create<Lead>('leads', payload )
+      console.log("📬 [createLead] Response from backend:", response)
 
       if (response.error) {
         const errors = response.data?.errors ?? response.errors ?? []
@@ -142,10 +143,14 @@ export function useLeads() {
             ? `https://${data.email.split('@')[1]}`.replace('https://https://', 'https://')
             : ''
 
-      const response = await apiClient.update<Lead>('leads', leadId, {
-        ...data,
-        website,
-      })
+       const payload = {
+          name: data.name,
+          email: data.email,
+          title: data.title,
+          company: data.company,
+          website,
+        }
+      const response = await apiClient.update<Lead>('leads', leadId, payload )
 
       if (response.error) {
         setError(response.error)

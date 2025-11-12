@@ -9,8 +9,11 @@ module Api
                          .where(campaigns: { user_id: current_user.id })
       end
 
+      
+
       def create
         # Verify the campaign belongs to current user before creating lead
+        Rails.logger.info "🧩 Incoming params: #{params.inspect}"
         campaign = current_user.campaigns.find_by(id: lead_params[:campaign_id])
         unless campaign
           render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :unprocessable_entity

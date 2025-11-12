@@ -25,14 +25,6 @@ export default function Background() {
 
   return (
     <div 
-      className="fixed inset-0 z-0"
-      style={{
-        width: `${screenSize.width}px`,
-        height: `${screenSize.height}px`,
-        backgroundColor: '#F8FAFC'
-      }}
-    />
+      className="fixed inset-0 z-0 bg-[#F8FAFC]" />
   )
 }
-
-

@@ -38,15 +38,25 @@ class ApiClient {
 
       const url = `${this.baseURL}/${endpoint}`.replace(/\/+/g, '/')
       const config: RequestInit = {
+        ...options,
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           ...(this.csrfToken && { 'X-CSRF-Token': this.csrfToken }),
-          ...options.headers,
+          ...(options.headers || {}),
         },
-        ...options,
       }
 
+      if (config.body && typeof config.body === 'object') {
+        config.body = JSON.stringify(config.body)
+      }
+      console.log('📦 [API Request]', {
+        url,
+        method: config.method,
+        body: config.body,
+        headers: config.headers,
+      })
+      
       const response = await fetch(url, config)
       
       // Handle different response types

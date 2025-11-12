@@ -176,6 +176,7 @@ export default function AgentOutputModal({
   const hasLocalChangesRef = React.useRef(false) // Track if we have local changes that shouldn't be overwritten
   const isInitialLoadRef = React.useRef(true) // Track if this is the initial load when modal opens
 
+
   React.useEffect(() => {
     if (isOpen) {
       // Reset flags when modal opens for the first time
@@ -290,26 +291,69 @@ export default function AgentOutputModal({
   const formatSearchOutput = (output: SearchOutputData | null) => {
     const data = searchOutputData || output
     if (!data) return null
+    
+    if (!data.sources && (data.title || data.url || data.content)) {
+      data.sources = [data]
+    }
 
-    const domainLabel =
-      extractTextValue(data.domain, ['domain', 'name', 'company']) ??
-      extractTextValue(data, ['domain']) ??
+    if (!Array.isArray(data.sources)) {
+      const ps = data.personalization_signals
+      if (ps && typeof ps === "object") {
+        const recipientSources = Array.isArray(ps.recipient) ? ps.recipient : []
+        const companySources = Array.isArray(ps.company) ? ps.company : []
+        const combined = [...recipientSources, ...companySources]
+        if (combined.length > 0) {
+          data.sources = combined
+        } else {
+          data.sources = []
+        }
+      } else {
+        data.sources = []
+      }
+    }
+
+    const company =
+      extractTextValue(data.target_identity, ['company', 'organization', 'domain']) ??
+      extractTextValue(data.domain, ['name', 'company']) ??
       'Not provided'
 
-    const recipientLabel =
-      extractTextValue(data.recipient, ['name', 'full_name', 'recipient']) ??
+    const recipientName =
+      extractTextValue(data.target_identity, ['name', 'full_name', 'recipient']) ??
+      extractTextValue(data.recipient, ['name']) ??
       'Not provided'
+
+    const recipientTitle =
+      extractTextValue(data.target_identity, ['job_title', 'title']) ?? ''
+
+    const recipientLabel = recipientTitle
+      ? `${recipientName} (${recipientTitle})`
+      : recipientName
+
 
     const summary = extractTextValue(data, ['summary', 'notes', 'description'])
 
-    const primarySources = Array.isArray(data.sources) ? data.sources : null
+    const primarySources = Array.isArray(data.sources) ? data.sources : Array.isArray(data.outputData?.sources)
+      ? data.outputData.sources
+      : null
+
     const domainRecord = typeof data.domain === 'string' || data.domain == null ? null : toRecord(data.domain)
     const recipientRecord = typeof data.recipient === 'string' || data.recipient == null ? null : toRecord(data.recipient)
 
+    const personalizationRecord = isRecord(data.personalization_signals)
+      ? toRecord(data.personalization_signals)
+      : null
+
     const fallbackSources = [
       ...(domainRecord ? toSourcesArray(domainRecord['sources']) : []),
-      ...(recipientRecord ? toSourcesArray(recipientRecord['sources']) : [])
+      ...(recipientRecord ? toSourcesArray(recipientRecord['sources']) : []),
+      ...(personalizationRecord
+        ? [
+            ...toSourcesArray(personalizationRecord['recipient']),
+            ...toSourcesArray(personalizationRecord['company']),
+          ]
+        : [])
     ]
+
 
     const rawSources = primarySources ?? fallbackSources
     // Cap sources at 10 to prevent displaying more than the limit
@@ -324,7 +368,7 @@ export default function AgentOutputModal({
           <h4 className="font-semibold text-gray-900">Search Summary</h4>
           <p className="text-sm text-gray-600">
             <span className="font-medium text-gray-700">Domain:</span>{' '}
-            {domainLabel}
+            {company}
           </p>
           <p className="text-sm text-gray-600">
             <span className="font-medium text-gray-700">Recipient:</span>{' '}
@@ -340,6 +384,17 @@ export default function AgentOutputModal({
             </p>
           )}
         </div>
+
+        {Array.isArray(data.inferred_focus_areas) && data.inferred_focus_areas.length > 0 && (
+          <div className="mb-3">
+            <h4 className="font-semibold text-gray-900">Focus Areas</h4>
+            <ul className="list-disc list-inside text-sm text-gray-700">
+              {data.inferred_focus_areas.map((area: string, i: number) => (
+                <li key={i}>{area}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {sourcesCount > 0 ? (
           <div className="space-y-3">
@@ -360,7 +415,7 @@ export default function AgentOutputModal({
               return (
                 <div
                   key={key}
-                  className="border border-gray-200 rounded-lg p-3 bg-gray-50 relative"
+                  className="border border-gray-200 rounded-lg p-3 bg-gray-50 relative hover:shadow-md transition-shadow"
                 >
                   {hasRemovableSources && (
                     <button
