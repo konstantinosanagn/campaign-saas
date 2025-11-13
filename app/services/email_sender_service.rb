@@ -146,6 +146,7 @@ class EmailSenderService
 
       # 👉 Minimal change: use from_email to find OAuth user
       Rails.logger.info("[EmailSender] Using from_email: #{from_email}")
+      Rails.logger.info("[EmailSender] Campaign owner: user #{user&.id} (#{user&.email}), send_from_email: #{user&.send_from_email}")
       oauth_user = User.find_by(email: from_email)
       Rails.logger.info("[EmailSender] OAuth user lookup: #{oauth_user&.id} (#{oauth_user&.email})")
 
@@ -161,7 +162,18 @@ class EmailSenderService
           Rails.logger.warn("[EmailSender] OAuth configured but valid_access_token returned nil for user #{oauth_user.id}")
         end
       else
-        Rails.logger.info("[EmailSender] OAuth NOT configured for from_email user (#{from_email}), falling back to SMTP.")
+        if oauth_user.nil?
+          Rails.logger.warn("[EmailSender] No user found with email: #{from_email}")
+        else
+          Rails.logger.warn("[EmailSender] OAuth NOT configured for from_email user (#{from_email}, user_id: #{oauth_user.id})")
+        end
+        # Check if this is a Gmail address that needs OAuth
+        if from_email&.include?("@gmail.com") || from_email&.include?("@googlemail.com")
+          error_msg = "Gmail OAuth is not configured for #{from_email}. Please use 'campaignsaastester@gmail.com' or configure OAuth for this email address."
+          Rails.logger.error("[EmailSender] #{error_msg}")
+          raise error_msg
+        end
+        Rails.logger.info("[EmailSender] Falling back to SMTP for non-Gmail address.")
       end
 
       # Fallback to SMTP (OAuth or password-based)
@@ -316,7 +328,9 @@ class EmailSenderService
         ActionMailer::Base.smtp_settings = build_password_smtp_settings
         Rails.logger.info("[EmailSender] Configured password-based SMTP as fallback")
       else
-        Rails.logger.error("[EmailSender] No delivery method configured! OAuth not available and SMTP password not set.")
+        error_msg = "No email delivery method configured for #{send_from_email}. Gmail addresses require OAuth configuration. Please configure Gmail OAuth or set SMTP credentials."
+        Rails.logger.error("[EmailSender] #{error_msg}")
+        raise error_msg
       end
     end
 
