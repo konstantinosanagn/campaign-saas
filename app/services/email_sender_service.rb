@@ -150,8 +150,13 @@ class EmailSenderService
       oauth_user = User.find_by(email: from_email)
       Rails.logger.info("[EmailSender] OAuth user lookup: #{oauth_user&.id} (#{oauth_user&.email})")
 
-      if oauth_user && GmailOauthService.oauth_configured?(oauth_user)
+      # Check OAuth configuration with detailed logging
+      oauth_check_result = oauth_user ? GmailOauthService.oauth_configured?(oauth_user) : false
+      Rails.logger.info("[EmailSender] OAuth check result: #{oauth_check_result} for user #{oauth_user&.id}")
+      
+      if oauth_user && oauth_check_result
         Rails.logger.info("[EmailSender] OAuth configured for oauth_user #{oauth_user.id}, getting access token...")
+        Rails.logger.info("[EmailSender] User #{oauth_user.id} has refresh_token: #{oauth_user.gmail_refresh_token.present?}")
         access_token = GmailOauthService.valid_access_token(oauth_user)
         Rails.logger.info("[EmailSender] Access token present: #{access_token.present?}")
         if access_token
@@ -169,7 +174,11 @@ class EmailSenderService
         end
         # Check if this is a Gmail address that needs OAuth
         if from_email&.include?("@gmail.com") || from_email&.include?("@googlemail.com")
-          error_msg = "Gmail OAuth is not configured for #{from_email}. Please use 'campaignsaastester@gmail.com' or configure OAuth for this email address."
+          if oauth_user.nil?
+            error_msg = "No user account found for sending email address: #{from_email}. Please ensure this email address has a user account in the system."
+          else
+            error_msg = "Gmail OAuth is not configured for #{from_email}. Please log in as this user and complete Gmail OAuth authorization in Email Settings."
+          end
           Rails.logger.error("[EmailSender] #{error_msg}")
           raise error_msg
         end

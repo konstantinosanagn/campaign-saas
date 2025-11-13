@@ -131,7 +131,13 @@ class GmailOauthService
     # @param user [User] The user to check
     # @return [Boolean] True if user has valid OAuth setup
     def oauth_configured?(user)
-      user.gmail_refresh_token.present? && valid_access_token(user).present?
+      refresh_token_present = user.gmail_refresh_token.present?
+      access_token_result = valid_access_token(user)
+      access_token_present = access_token_result.present?
+      
+      Rails.logger.info("[GmailOauth] oauth_configured? check for user #{user.id}: refresh_token=#{refresh_token_present}, access_token=#{access_token_present}")
+      
+      refresh_token_present && access_token_present
     end
 
     private
