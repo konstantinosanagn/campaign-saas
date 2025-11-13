@@ -263,43 +263,21 @@ Creates:
 The project includes comprehensive test coverage across three testing frameworks:
 
 ### RSpec
-- **584 examples, 0 failures** ✅
-- **81.64% line coverage** (787 / 964 lines)
+- **776 examples, 0 failures** ✅
+- **100.0% line coverage** (1424/1424 lines)
 - Tests cover models, controllers, services, and integration scenarios
 - Comprehensive coverage of all AI agents (Search, Writer, Critique, Design)
 - Full pipeline progression testing (queued → searched → written → critiqued → designed)
 - Run: `bundle exec rspec`
 - Coverage report: `coverage/index.html`
-
-### Jest
-- **210 tests passed, 20 test suites** ✅
-- Tests cover React components, hooks, and utilities
-- Comprehensive component testing including CampaignDashboard, AgentDashboard, AgentOutputModal, and more
-- Custom hooks testing (useCampaigns, useLeads, useApiKeys, useSelection, useTypewriter)
-- Run: `yarn test`
-- Coverage: `yarn test:coverage`
-
-### Test Coverage Summary
-
-**Combined Test Coverage:**
-- **RSpec**: 81.64% line coverage (787/964 lines)
-- **Cucumber**: 76.14% line coverage (715/939 lines) - **+12.29% improvement** ✅
-- **Jest**: React component testing (separate coverage)
-
-**Recent Cucumber Coverage Improvements (Latest Update):**
-- ✅ **+24 scenarios** (96 → 120 scenarios)
-- ✅ **+157 steps** (497 → 654 steps)
-- ✅ **+12.29% coverage** (63.85% → 76.14%)
-- ✅ **DesignAgent**: 0% → ~80%+ coverage (newly tested)
-- ✅ **Orchestrator**: 0% → ~85%+ coverage (newly tested)
-- ✅ **AgentOutput**: Improved with status method tests
-- ✅ **Controllers**: Improved error scenario coverage
+![RspecCoverageTerminal](RspecCoverageTerminal.png "RspecCoverageTerminal")
+![RspecCoverageWeb](RspecCoverageWeb.png "RspecCoverageWeb")
 
 ### Cucumber
-- **120 scenarios** with **654 steps** - **100% passing** ✅
-- **19/19 API endpoints** covered (100%)
+- **247 scenarios** with **1862 steps** - **100% passing** ✅
+- **85.25% line coverage** (1214/1424 lines)
 - User acceptance tests covering:
-  - Authentication and authorization (401 responses for unauthenticated API requests)
+  - Authentication and authorization
   - Campaign CRUD operations (create, read, update, delete)
   - Lead management (create, update, delete, validation)
   - Agent workflows (run agents, retrieve outputs, update outputs, disabled agents)
@@ -313,25 +291,23 @@ The project includes comprehensive test coverage across three testing frameworks
   - Dashboard empty state
   - Input validation and authorization boundaries
   - Agent execution with error handling and disabled agent skipping
-
-Run: `bundle exec cucumber`
-
-**Code Coverage (SimpleCov):**
-- **76.14% line coverage** (715/939 lines) - **+12.29% improvement** ✅
-- Run with coverage: `COVERAGE=true bundle exec cucumber`
+  - Email sending functionality
+- Run: `bundle exec cucumber`
+- Run with coverage (SimpleCov): `COVERAGE=true bundle exec cucumber`
 - View report: `coverage/index.html`
-- See `COVERAGE_REPORT.md` for detailed coverage analysis
 
-**Coverage Improvements:**
-- ✅ DesignAgent: 0% → Now covered with DESIGN agent execution tests
-- ✅ Orchestrator: 0% → Now covered with standalone Orchestrator tests
-- ✅ AgentOutput: 78.57% → Improved with status method tests
-- ✅ Controllers: Improved error scenario coverage
+![CucumberCoverageTerminal](CucumberCoverageTerminal.png "CucumberCoverageTerminal")
+![CucumberCoverageWeb](CucumberCoverageWeb.png "CucumberCoverageWeb")
 
-**Coverage Analysis:**
-- See `features/COVERAGE_ANALYSIS.md` for detailed coverage mapping and gap analysis
-- See `features/HOW_TO_CHECK_COVERAGE.md` for methods to verify test coverage
-- See `COVERAGE_REPORT.md` for SimpleCov coverage breakdown by file and category
+
+### Jest
+- **210 tests passed, 20 test suites** ✅
+- Tests cover React components, hooks, and utilities
+- Comprehensive component testing including CampaignDashboard, AgentDashboard, AgentOutputModal, and more
+- Custom hooks testing (useCampaigns, useLeads, useApiKeys, useSelection, useTypewriter)
+- Run: `yarn test`
+- Coverage: `yarn test:coverage`
+
 
 ## API Endpoints
 
