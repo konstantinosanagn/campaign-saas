@@ -25,7 +25,7 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 1. **Clone the repository**
    ```bash
    git clone <your-repo-url>
-   cd saas-proj
+   cd campaign-saas
    ```
 
 2. **Set up Node.js version (if using nvm)**
