@@ -409,7 +409,17 @@ COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (76.
 
 ## Troubleshooting
 
+### yarn install Errors
+**Error:** `error @typescript-eslint/eslint-plugin@8.46.3: The engine "node" is incompatible with this module. Expected version "^18.18.0 || ^20.9.0 || >=21.1.0". Got "16.20.2"`
+
+**Solution:** use `yarn install --ignore-engines`
+
 ### Webpack/OpenSSL Errors
+
+**Error:** After `chmod +x bin/webpack-dev-server`, `./bin/webpack-dev-server` gives error `node: --openssl-legacy-provider is not allowed in NODE_OPTIONS`
+
+**Solution:** Comment out line 6 `ENV["NODE_OPTIONS"] ||= "--openssl-legacy-provider"` in bin/webpack-dev-server
+
 
 **Error:** `Error: error:0308010C:digital envelope routines::unsupported`
 
