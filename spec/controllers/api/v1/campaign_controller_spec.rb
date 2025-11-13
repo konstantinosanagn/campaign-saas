@@ -121,13 +121,13 @@ RSpec.describe Api::V1::CampaignsController, type: :controller do
       # Mock the controller to allow accessing campaign_params
       campaigns = double(find_by: nil)
       allow(user).to receive(:campaigns).and_return(campaigns)
-      
+
       # Set up params in the controller
       controller.params = ActionController::Parameters.new(params_with_shared)
-      
+
       # Call campaign_params directly to test the else branch on line 87
       result = controller.send(:campaign_params)
-      
+
       # Verify that shared_settings was set (line 87 executed)
       expect(result[:shared_settings]).to eq(shared_settings_param)
     end

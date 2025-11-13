@@ -233,7 +233,7 @@ RSpec.describe Api::V1::EmailConfigsController, type: :controller do
         before do
           allow(user).to receive(:update).and_return(false)
           allow(user).to receive(:errors).and_return(
-            double(full_messages: ['Email is invalid'])
+            double(full_messages: [ 'Email is invalid' ])
           )
         end
 
@@ -279,4 +279,3 @@ RSpec.describe Api::V1::EmailConfigsController, type: :controller do
     end
   end
 end
-

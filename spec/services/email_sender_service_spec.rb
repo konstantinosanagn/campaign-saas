@@ -630,7 +630,6 @@ RSpec.describe EmailSenderService, type: :service do
         }.to raise_error(StandardError, 'Network error')
       end
     end
-
   end
 
   describe '.send_email_to_lead error handling' do
@@ -659,7 +658,7 @@ RSpec.describe EmailSenderService, type: :service do
       let(:smtp_error) do
         error = Net::SMTPAuthenticationError.new('Authentication failed')
         allow(error).to receive(:response).and_return(double(code: '535', message: 'Invalid credentials'))
-        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
         error
       end
 
@@ -686,7 +685,7 @@ RSpec.describe EmailSenderService, type: :service do
         error = StandardError.new('SMTP error')
         error.extend(Net::SMTPError)
         allow(error).to receive(:response).and_return(double(inspect: 'response details'))
-        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
         allow(error).to receive(:message).and_return('SMTP error')
         allow(error).to receive(:class).and_return(StandardError)
         error
@@ -712,7 +711,7 @@ RSpec.describe EmailSenderService, type: :service do
       let(:mock_mail) { double }
       let(:ssl_error) do
         error = OpenSSL::SSL::SSLError.new('SSL error')
-        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
         error
       end
 
@@ -740,7 +739,7 @@ RSpec.describe EmailSenderService, type: :service do
 
       it 'logs connection error for Errno::ECONNREFUSED and raises' do
         error = Errno::ECONNREFUSED.new('Connection refused')
-        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
         allow(mock_mail).to receive(:deliver_now).and_raise(error)
 
         expect(Rails.logger).to receive(:error).with(/Connection Error/).at_least(:once)
@@ -753,7 +752,7 @@ RSpec.describe EmailSenderService, type: :service do
 
       it 'logs connection error for Errno::ETIMEDOUT and raises' do
         error = Errno::ETIMEDOUT.new('Connection timed out')
-        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
         allow(mock_mail).to receive(:deliver_now).and_raise(error)
 
         expect(Rails.logger).to receive(:error).with(/Connection Error/).at_least(:once)
@@ -766,7 +765,7 @@ RSpec.describe EmailSenderService, type: :service do
 
       it 'logs connection error for Timeout::Error and raises' do
         error = Timeout::Error.new('Timeout')
-        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
         allow(mock_mail).to receive(:deliver_now).and_raise(error)
 
         expect(Rails.logger).to receive(:error).with(/Connection Error/).at_least(:once)
@@ -782,7 +781,7 @@ RSpec.describe EmailSenderService, type: :service do
       let(:mock_mail) { double }
       let(:unexpected_error) do
         error = RuntimeError.new('Unexpected error')
-        allow(error).to receive(:backtrace).and_return(['line1', 'line2'])
+        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
         error
       end
 
@@ -1014,4 +1013,3 @@ RSpec.describe EmailSenderService, type: :service do
     end
   end
 end
-

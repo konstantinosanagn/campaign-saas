@@ -120,4 +120,3 @@ RSpec.describe Api::V1::OauthStatusesController, type: :controller do
     end
   end
 end
-
