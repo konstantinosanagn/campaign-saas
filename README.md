@@ -53,6 +53,7 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
    rails server
    
    # Terminal 2: Webpack dev server (for hot reload)
+   chmod +x ./bin/webpack-dev-server
    ./bin/webpack-dev-server
    ```
 
@@ -89,9 +90,10 @@ API keys are automatically populated for the admin user:
 - Users must register/login to access the application
 
 ### Required Environment Variables
+A .env file including the following environment variable is required:
 ```bash
-GMAIL_CLIENT_ID=your_gmail_client_id
-GMAIL_CLIENT_SECRET=your_gmail_client_secret
+GMAIL_CLIENT_ID=104902845705-j48s5c8e64ccoic198g5gqmb8lfvf4re.apps.googleusercontent.com
+GMAIL_CLIENT_SECRET=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
 
 # Optional: Disable authentication (production only)
 DISABLE_AUTH=true
