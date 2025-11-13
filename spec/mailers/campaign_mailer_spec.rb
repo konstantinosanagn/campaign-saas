@@ -152,4 +152,3 @@ RSpec.describe CampaignMailer, type: :mailer do
     end
   end
 end
-

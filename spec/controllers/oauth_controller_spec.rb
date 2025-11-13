@@ -319,4 +319,3 @@ RSpec.describe OauthController, type: :controller do
     end
   end
 end
-

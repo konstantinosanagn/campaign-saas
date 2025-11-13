@@ -452,4 +452,3 @@ RSpec.describe GmailOauthService, type: :service do
     end
   end
 end
-
