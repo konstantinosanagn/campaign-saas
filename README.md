@@ -93,7 +93,7 @@ API keys are automatically populated for the admin user:
 A .env file including the following environment variable is required:
 ```bash
 GMAIL_CLIENT_ID=104902845705-j48s5c8e64ccoic198g5gqmb8lfvf4re.apps.googleusercontent.com
-GMAIL_CLIENT_SECRET=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 as env configs
+GMAIL_CLIENT_SECRET=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
 
 # Optional: Disable authentication (production only)
 DISABLE_AUTH=true
