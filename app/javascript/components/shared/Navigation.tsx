@@ -9,9 +9,20 @@ type DropdownType = 'tavily' | 'gemini'
 const TAVILY_LOGO_SRC = '/images/tavily-trans.png'
 const GEMINI_LOGO_SRC = '/images/gemini-trans.png'
 
-export default function Navigation() {
+interface NavigationProps {
+  user?: {
+    first_name?: string | null;
+    last_name?: string | null;
+    name?: string | null;
+    workspace_name?: string | null;
+    job_title?: string | null;
+  };
+}
+
+export default function Navigation({ user }: NavigationProps = {}) {
   const { keys: apiKeys, saveKeys } = useApiKeys()
   const [activeDropdown, setActiveDropdown] = useState<DropdownType | null>(null)
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false)
   const [inputValues, setInputValues] = useState({ tavily: '', gemini: '' })
   const [saving, setSaving] = useState({ tavily: false, gemini: false })
   const [status, setStatus] = useState<{ tavily: 'idle' | 'saved' | 'error'; gemini: 'idle' | 'saved' | 'error' }>({
@@ -19,6 +30,7 @@ export default function Navigation() {
     gemini: 'idle'
   })
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const userDropdownRef = useRef<HTMLDivElement>(null)
   const dropdownRefs = {
     tavily: useRef<HTMLDivElement>(null),
     gemini: useRef<HTMLDivElement>(null)
@@ -81,6 +93,56 @@ export default function Navigation() {
       clearCloseTimer()
     }
   }, [])
+
+  // Close user dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setUserDropdownOpen(false)
+      }
+    }
+
+    if (userDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [userDropdownOpen])
+
+  const handleSignOut = async () => {
+    try {
+      // Create a form and submit it to sign out (Devise uses DELETE method)
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = '/logout'
+      
+      // Add CSRF token
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+      if (csrfToken) {
+        const csrfInput = document.createElement('input')
+        csrfInput.type = 'hidden'
+        csrfInput.name = 'authenticity_token'
+        csrfInput.value = csrfToken
+        form.appendChild(csrfInput)
+      }
+      
+      // Add method override for DELETE
+      const methodInput = document.createElement('input')
+      methodInput.type = 'hidden'
+      methodInput.name = '_method'
+      methodInput.value = 'delete'
+      form.appendChild(methodInput)
+      
+      document.body.appendChild(form)
+      form.submit()
+    } catch (error) {
+      console.error('Error signing out:', error)
+      // Fallback: redirect to logout URL
+      window.location.href = '/logout'
+    }
+  }
 
   // Sync input values from API keys prop
   useEffect(() => {
@@ -237,7 +299,11 @@ export default function Navigation() {
         <div className="w-full px-2 sm:px-4 lg:px-12 xl:px-16">
           <div className="flex justify-between">
             <div className="flex items-center">
-              <a href="/" className="flex-shrink-0 flex items-center px-6 sm:px-8 md:px-10">
+              <a 
+                href="/login" 
+                className="flex-shrink-0 flex items-center px-6 sm:px-8 md:px-10"
+                style={{ cursor: 'pointer' }}
+              >
                 <Cube />
               </a>
             </div>
@@ -312,16 +378,54 @@ export default function Navigation() {
                 </div>
               </div>
 
-              <div className="flex items-center px-6 py-4 sm:px-8 sm:py-4 md:px-10 md:py-5 border-l border-r border-gray-200 relative">
+              <div className="flex items-center px-6 py-4 sm:px-8 sm:py-4 md:px-10 md:py-5 border-l border-r border-gray-200 relative" ref={userDropdownRef}>
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900">John Doe</div>
-                    <div className="text-xs text-gray-500">Software Engineer @ TechCorp</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {user?.first_name && user?.last_name
+                        ? `${user.first_name} ${user.last_name}`
+                        : user?.name || 'User'}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {user?.job_title && user?.workspace_name
+                        ? `${user.job_title} @ ${user.workspace_name}`
+                        : user?.job_title
+                        ? user.job_title
+                        : user?.workspace_name
+                        ? user.workspace_name
+                        : 'User'}
+                    </div>
                   </div>
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600">
-                    JD
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                    className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600 hover:bg-gray-300 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2"
+                    aria-label="User menu"
+                    aria-expanded={userDropdownOpen}
+                    aria-haspopup="true"
+                  >
+                    {user?.first_name && user?.last_name
+                      ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
+                      : user?.name
+                      ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                      : 'U'}
+                  </button>
                 </div>
+                
+                {/* User dropdown menu */}
+                {userDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-gray-200 bg-white shadow-lg z-[9999]">
+                    <div className="py-1">
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -42,6 +42,9 @@ describe('ProgressTable', () => {
 
   const mockOnRunLead = jest.fn()
   const mockOnLeadClick = jest.fn()
+  const mockOnStageClick = jest.fn()
+  const mockOnToggleSelection = jest.fn()
+  const mockOnToggleMultiple = jest.fn()
   const mockSelectedLeads: number[] = []
 
   beforeEach(() => {
@@ -54,6 +57,7 @@ describe('ProgressTable', () => {
         leads={mockLeads}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -71,6 +75,7 @@ describe('ProgressTable', () => {
         leads={mockLeads}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -86,6 +91,7 @@ describe('ProgressTable', () => {
         leads={[mockLeads[0]]}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -102,6 +108,7 @@ describe('ProgressTable', () => {
         leads={mockLeads}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -117,6 +124,7 @@ describe('ProgressTable', () => {
         leads={mockLeads}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -134,6 +142,7 @@ describe('ProgressTable', () => {
         leads={[mockLeads[2]]}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -147,6 +156,7 @@ describe('ProgressTable', () => {
         leads={[mockLeads[0]]}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -169,6 +179,7 @@ describe('ProgressTable', () => {
         leads={[mockLeads[0]]}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -213,6 +224,7 @@ describe('ProgressTable', () => {
         leads={[]}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -227,6 +239,7 @@ describe('ProgressTable', () => {
         leads={[mockLeads[2]]}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -240,6 +253,7 @@ describe('ProgressTable', () => {
         leads={mockLeads}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -254,6 +268,7 @@ describe('ProgressTable', () => {
         leads={mockLeads}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={mockSelectedLeads}
       />
     )
@@ -270,6 +285,384 @@ describe('ProgressTable', () => {
 
     const johnDoeName = screen.getByText('John Doe')
     expect(johnDoeName).toHaveClass('text-blue-600')
+  })
+
+  describe('checkbox selection', () => {
+    it('renders checkboxes when onToggleSelection is provided', () => {
+      const selectableLeads: Lead[] = [
+        {
+          ...mockLeads[0],
+          stage: 'designed',
+        },
+      ]
+
+      render(
+        <ProgressTable
+          leads={selectableLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={mockSelectedLeads}
+          onToggleSelection={mockOnToggleSelection}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      expect(checkboxes.length).toBeGreaterThan(0)
+    })
+
+    it('does not render checkboxes when onToggleSelection is not provided', () => {
+      render(
+        <ProgressTable
+          leads={mockLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={mockSelectedLeads}
+        />
+      )
+
+      const checkboxes = screen.queryAllByRole('checkbox')
+      expect(checkboxes.length).toBe(0)
+    })
+
+    it('renders select all checkbox in header when onToggleSelection is provided', () => {
+      const selectableLeads: Lead[] = [
+        {
+          ...mockLeads[0],
+          stage: 'designed',
+        },
+      ]
+
+      render(
+        <ProgressTable
+          leads={selectableLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={mockSelectedLeads}
+          onToggleSelection={mockOnToggleSelection}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      // Should have select all checkbox + individual checkbox
+      expect(checkboxes.length).toBe(2)
+    })
+
+    it('calls onToggleSelection when individual checkbox is clicked', () => {
+      const selectableLead: Lead = {
+        ...mockLeads[0],
+        stage: 'designed',
+      }
+
+      render(
+        <ProgressTable
+          leads={[selectableLead]}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={mockSelectedLeads}
+          onToggleSelection={mockOnToggleSelection}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      // The second checkbox is the individual lead checkbox
+      const individualCheckbox = checkboxes[1]
+      fireEvent.click(individualCheckbox)
+
+      expect(mockOnToggleSelection).toHaveBeenCalledWith(1)
+    })
+
+    it('disables checkbox for non-selectable leads', () => {
+      render(
+        <ProgressTable
+          leads={mockLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={mockSelectedLeads}
+          onToggleSelection={mockOnToggleSelection}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      // First checkbox is select all, then individual checkboxes
+      // Lead 1 has stage 'queued', so it's not selectable
+      const lead1Checkbox = checkboxes[1]
+      expect(lead1Checkbox).toBeDisabled()
+    })
+
+    it('enables checkbox for selectable leads', () => {
+      const selectableLead: Lead = {
+        ...mockLeads[0],
+        stage: 'designed',
+      }
+
+      render(
+        <ProgressTable
+          leads={[selectableLead]}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={mockSelectedLeads}
+          onToggleSelection={mockOnToggleSelection}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      const leadCheckbox = checkboxes[1]
+      expect(leadCheckbox).not.toBeDisabled()
+    })
+
+    it('shows checked state for selected leads', () => {
+      const selectableLead: Lead = {
+        ...mockLeads[0],
+        stage: 'designed',
+      }
+
+      render(
+        <ProgressTable
+          leads={[selectableLead]}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={[1]}
+          onToggleSelection={mockOnToggleSelection}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      const leadCheckbox = checkboxes[1] as HTMLInputElement
+      expect(leadCheckbox.checked).toBe(true)
+    })
+
+    it('shows unchecked state for non-selected leads', () => {
+      const selectableLead: Lead = {
+        ...mockLeads[0],
+        stage: 'designed',
+      }
+
+      render(
+        <ProgressTable
+          leads={[selectableLead]}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={[]}
+          onToggleSelection={mockOnToggleSelection}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      const leadCheckbox = checkboxes[1] as HTMLInputElement
+      expect(leadCheckbox.checked).toBe(false)
+    })
+
+    it('calls onToggleMultiple when select all checkbox is clicked', () => {
+      const selectableLeads: Lead[] = [
+        {
+          ...mockLeads[0],
+          id: 1,
+          stage: 'designed',
+        },
+        {
+          ...mockLeads[1],
+          id: 2,
+          stage: 'completed',
+        },
+      ]
+
+      render(
+        <ProgressTable
+          leads={selectableLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={[]}
+          onToggleSelection={mockOnToggleSelection}
+          onToggleMultiple={mockOnToggleMultiple}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      const selectAllCheckbox = checkboxes[0]
+      fireEvent.click(selectAllCheckbox)
+
+      expect(mockOnToggleMultiple).toHaveBeenCalledWith([1, 2], true)
+    })
+
+    it('deselects all when select all checkbox is unchecked', () => {
+      const selectableLeads: Lead[] = [
+        {
+          ...mockLeads[0],
+          id: 1,
+          stage: 'designed',
+        },
+        {
+          ...mockLeads[1],
+          id: 2,
+          stage: 'completed',
+        },
+      ]
+
+      render(
+        <ProgressTable
+          leads={selectableLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={[1, 2]}
+          onToggleSelection={mockOnToggleSelection}
+          onToggleMultiple={mockOnToggleMultiple}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      const selectAllCheckbox = checkboxes[0]
+      fireEvent.click(selectAllCheckbox)
+
+      expect(mockOnToggleMultiple).toHaveBeenCalledWith([1, 2], false)
+    })
+
+    it('shows checked state for select all when all selectable leads are selected', () => {
+      const selectableLeads: Lead[] = [
+        {
+          ...mockLeads[0],
+          id: 1,
+          stage: 'designed',
+        },
+        {
+          ...mockLeads[1],
+          id: 2,
+          stage: 'completed',
+        },
+      ]
+
+      render(
+        <ProgressTable
+          leads={selectableLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={[1, 2]}
+          onToggleSelection={mockOnToggleSelection}
+          onToggleMultiple={mockOnToggleMultiple}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      const selectAllCheckbox = checkboxes[0] as HTMLInputElement
+      expect(selectAllCheckbox.checked).toBe(true)
+    })
+
+    it('shows unchecked state for select all when not all selectable leads are selected', () => {
+      const selectableLeads: Lead[] = [
+        {
+          ...mockLeads[0],
+          id: 1,
+          stage: 'designed',
+        },
+        {
+          ...mockLeads[1],
+          id: 2,
+          stage: 'completed',
+        },
+      ]
+
+      render(
+        <ProgressTable
+          leads={selectableLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={[1]}
+          onToggleSelection={mockOnToggleSelection}
+          onToggleMultiple={mockOnToggleMultiple}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      const selectAllCheckbox = checkboxes[0] as HTMLInputElement
+      expect(selectAllCheckbox.checked).toBe(false)
+    })
+
+    it('only considers selectable leads for select all checkbox', () => {
+      const mixedLeads: Lead[] = [
+        {
+          ...mockLeads[0],
+          id: 1,
+          stage: 'queued', // Not selectable
+        },
+        {
+          ...mockLeads[1],
+          id: 2,
+          stage: 'designed', // Selectable
+        },
+        {
+          ...mockLeads[2],
+          id: 3,
+          stage: 'completed', // Selectable
+        },
+      ]
+
+      render(
+        <ProgressTable
+          leads={mixedLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={[2, 3]}
+          onToggleSelection={mockOnToggleSelection}
+          onToggleMultiple={mockOnToggleMultiple}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      const selectAllCheckbox = checkboxes[0] as HTMLInputElement
+      // Should be checked because all selectable leads (2, 3) are selected
+      expect(selectAllCheckbox.checked).toBe(true)
+    })
+
+    it('does not call onToggleSelection when clicking disabled checkbox', () => {
+      render(
+        <ProgressTable
+          leads={mockLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={mockSelectedLeads}
+          onToggleSelection={mockOnToggleSelection}
+        />
+      )
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      const disabledCheckbox = checkboxes[1] // First lead is not selectable
+      expect(disabledCheckbox).toBeDisabled()
+
+      fireEvent.click(disabledCheckbox)
+      expect(mockOnToggleSelection).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('onStageClick', () => {
+    it('calls onStageClick when stage badge is clicked', () => {
+      render(
+        <ProgressTable
+          leads={mockLeads}
+          onRunLead={mockOnRunLead}
+          onLeadClick={mockOnLeadClick}
+          onStageClick={mockOnStageClick}
+          selectedLeads={mockSelectedLeads}
+        />
+      )
+
+      const stageButton = screen.getByText('queued')
+      fireEvent.click(stageButton)
+
+      expect(mockOnStageClick).toHaveBeenCalledWith(mockLeads[0])
+    })
   })
 })
 

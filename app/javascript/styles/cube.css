@@ -12,6 +12,7 @@
   position: absolute;
   width: 100%;
   border: 2px solid #004dff;
+  pointer-events: none;
 }
 
 .cube-spinner div:nth-of-type(1) {

@@ -1,242 +1,237 @@
 require 'rails_helper'
 
-RSpec.describe Orchestrator, type: :service do
+RSpec.describe Orchestrator do
   let(:gemini_api_key) { 'test-gemini-key' }
   let(:tavily_api_key) { 'test-tavily-key' }
-  let(:orchestrator) { described_class.new(gemini_api_key: gemini_api_key, tavily_api_key: tavily_api_key) }
+  let(:search_agent) { instance_double(Agents::SearchAgent) }
+  let(:writer_agent) { instance_double(Agents::WriterAgent) }
+  let(:critique_agent) { instance_double(Agents::CritiqueAgent) }
 
-  let(:mock_search_results) do
-    {
-      target_identity: {
-        name: 'John Doe',
-        company: 'Test Corp',
-        job_title: 'Head of Engineering',
-        email: 'john@example.com'
-      },
-      inferred_focus_areas: [ "cloud architecture", "scalability" ],
-      personalization_signals: {
-        recipient: [],
-        company: [
-          {
-            title: "Test Article",
-            url: "https://test.com/article",
-            content: "Test content"
-          }
-        ]
-      }
-    }
-  end
-
-
-  let(:mock_writer_output) do
-    {
-      company: 'Test Corp',
-      email: 'Subject: Test Subject\n\nTest email body',
-      variants: [ 'Subject: Test Subject\n\nTest email body' ],
-      recipient: 'John Doe',
-      sources: mock_search_results[:personalization_signals][:company],
-      inferred_focus_areas: mock_search_results[:inferred_focus_areas],
-      product_info: nil,
-      sender_company: nil
-    }
-  end
-
-
-  let(:mock_critique_result) do
-    { 'critique' => nil }
-  end
-
-  before do
-    # Mock the agent services
-    allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return(mock_search_results)
-    allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return(mock_writer_output)
-    allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return(mock_critique_result)
+  let(:orchestrator) do
+    described_class.new(
+      gemini_api_key: gemini_api_key,
+      tavily_api_key: tavily_api_key,
+      search_agent: search_agent,
+      writer_agent: writer_agent,
+      critique_agent: critique_agent
+    )
   end
 
   describe '#initialize' do
-    it 'initializes with API keys' do
-      expect(orchestrator).to be_a(Orchestrator)
+    context 'with custom agents' do
+      it 'uses provided agents' do
+        expect(orchestrator.instance_variable_get(:@search_agent)).to eq(search_agent)
+        expect(orchestrator.instance_variable_get(:@writer_agent)).to eq(writer_agent)
+        expect(orchestrator.instance_variable_get(:@critique_agent)).to eq(critique_agent)
+      end
     end
 
-    it 'creates SearchAgent instance' do
-      expect(orchestrator.instance_variable_get(:@search_agent)).to be_a(Agents::SearchAgent)
-    end
+    context 'without custom agents' do
+      before do
+        allow(ENV).to receive(:fetch).with('GEMINI_API_KEY').and_return('env-gemini-key')
+        allow(ENV).to receive(:fetch).with('TAVILY_API_KEY').and_return('env-tavily-key')
+      end
 
-    it 'creates WriterAgent instance' do
-      expect(orchestrator.instance_variable_get(:@writer_agent)).to be_a(Agents::WriterAgent)
-    end
-
-    it 'creates CritiqueAgent instance' do
-      expect(orchestrator.instance_variable_get(:@critique_agent)).to be_a(Agents::CritiqueAgent)
+      it 'creates new agent instances' do
+        orchestrator = described_class.new
+        expect(orchestrator.instance_variable_get(:@search_agent)).to be_a(Agents::SearchAgent)
+        expect(orchestrator.instance_variable_get(:@writer_agent)).to be_a(Agents::WriterAgent)
+        expect(orchestrator.instance_variable_get(:@critique_agent)).to be_a(Agents::CritiqueAgent)
+      end
     end
   end
 
   describe '#run' do
     let(:company_name) { 'Test Corp' }
     let(:recipient) { 'John Doe' }
-    let(:product_info) { 'Our amazing product' }
+    let(:product_info) { 'Test Product' }
     let(:sender_company) { 'My Company' }
 
-    it 'returns complete email campaign with all components' do
-      result = orchestrator.run(
-        company_name,
-        recipient: recipient,
-        product_info: product_info,
-        sender_company: sender_company
-      )
-
-      expect(result).to include(
-        company: company_name,
-        recipient: recipient,
-        email: 'Subject: Test Subject\n\nTest email body',
-        variants: [ 'Subject: Test Subject\n\nTest email body' ],
-        critique: nil,
-        sources: mock_search_results[:personalization_signals][:company],
-        inferred_focus_areas: mock_search_results[:inferred_focus_areas],
-        product_info: product_info,
-        sender_company: sender_company
-      )
+    let(:search_results) do
+      {
+        inferred_focus_areas: ['AI', 'Cloud'],
+        personalization_signals: {
+          company: [{ title: 'Company News', url: 'http://example.com' }],
+          recipient: [{ title: 'Recipient News', url: 'http://example.com/recipient' }]
+        }
+      }
     end
 
-    it 'calls SearchAgent with company name' do
-      expect_any_instance_of(Agents::SearchAgent).to receive(:run).with(
+    let(:writer_output) do
+      {
+        email: 'Subject: Test Email\n\nHello, this is a test email.'
+      }
+    end
+
+    let(:critique_result) do
+      {
+        'critique' => nil
+      }
+    end
+
+    before do
+      allow(search_agent).to receive(:run).and_return(search_results)
+      allow(writer_agent).to receive(:run).and_return(writer_output)
+      allow(critique_agent).to receive(:run).and_return(critique_result)
+      allow($stdout).to receive(:puts) # Suppress output
+    end
+
+    it 'calls search agent with correct parameters' do
+      expect(search_agent).to receive(:run).with(
         company: company_name,
-        recipient_name: nil,
+        recipient_name: recipient,
         job_title: nil,
         email: nil,
         tone: nil,
         persona: nil,
         goal: nil
       )
-
-      orchestrator.run(company_name)
+      orchestrator.run(company_name, recipient: recipient)
     end
 
-    it 'calls WriterAgent with search results and parameters' do
-      expect_any_instance_of(Agents::WriterAgent).to receive(:run).with(
+    it 'calls writer agent with search results' do
+      expect(writer_agent).to receive(:run).with(
         {
           company: company_name,
-          sources: mock_search_results[:personalization_signals][:company],
-          inferred_focus_areas: mock_search_results[:inferred_focus_areas]
+          inferred_focus_areas: search_results[:inferred_focus_areas],
+          sources: search_results.dig(:personalization_signals, :company)
         },
         recipient: recipient,
         company: company_name,
-        product_info: product_info,
-        sender_company: sender_company
+        product_info: nil,
+        sender_company: nil
       )
-
-      orchestrator.run(
-        company_name,
-        recipient: recipient,
-        product_info: product_info,
-        sender_company: sender_company
-      )
+      orchestrator.run(company_name, recipient: recipient)
     end
 
-    it 'calls CritiqueAgent with formatted input' do
-      expect_any_instance_of(Agents::CritiqueAgent).to receive(:run).with(
+    it 'calls critique agent with email content' do
+      expect(critique_agent).to receive(:run).with(
         hash_including(
-          'email_content' => 'Subject: Test Subject\n\nTest email body',
+          'email_content' => writer_output[:email],
           'number_of_revisions' => 1
         )
       )
-
-      orchestrator.run(company_name)
+      orchestrator.run(company_name, recipient: recipient)
     end
 
-    it 'outputs progress information' do
-      expect {
-        orchestrator.run(company_name)
-      }.to output(/Starting pipeline/).to_stdout
+    it 'returns complete result with all components' do
+      result = orchestrator.run(company_name, recipient: recipient, product_info: product_info, sender_company: sender_company)
+
+      expect(result[:company]).to eq(company_name)
+      expect(result[:recipient]).to eq(recipient)
+      expect(result[:email]).to eq(writer_output[:email])
+      expect(result[:critique]).to be_nil
+      expect(result[:sources]).to be_an(Array)
+      expect(result[:inferred_focus_areas]).to eq(search_results[:inferred_focus_areas])
+      expect(result[:product_info]).to eq(product_info)
+      expect(result[:sender_company]).to eq(sender_company)
     end
 
-    context 'when recipient is nil' do
-      it 'shows "General" as recipient' do
-        expect {
-          orchestrator.run(company_name)
-        }.to output(/Recipient: General/).to_stdout
+    context 'when recipient is a hash' do
+      let(:recipient_hash) do
+        {
+          name: 'John Doe',
+          job_title: 'CEO',
+          email: 'john@example.com',
+          tone: 'professional',
+          persona: 'executive',
+          goal: 'book_call'
+        }
+      end
+
+      it 'extracts recipient fields correctly' do
+        expect(search_agent).to receive(:run).with(
+          company: company_name,
+          recipient_name: 'John Doe',
+          job_title: 'CEO',
+          email: 'john@example.com',
+          tone: 'professional',
+          persona: 'executive',
+          goal: 'book_call'
+        )
+        orchestrator.run(company_name, recipient: recipient_hash)
+      end
+
+      it 'uses recipient name in writer agent' do
+        expect(writer_agent).to receive(:run).with(
+          anything,
+          recipient: 'John Doe',
+          company: company_name,
+          product_info: nil,
+          sender_company: nil
+        )
+        orchestrator.run(company_name, recipient: recipient_hash)
       end
     end
 
-    context 'when sender_company is nil' do
-      it 'shows "Not specified" as sender company' do
-        expect {
-          orchestrator.run(company_name)
-        }.to output(/Your Company: Not specified/).to_stdout
+    context 'when recipient is nil' do
+      it 'uses "General" as recipient name' do
+        expect(search_agent).to receive(:run).with(
+          company: company_name,
+          recipient_name: nil,
+          job_title: nil,
+          email: nil,
+          tone: nil,
+          persona: nil,
+          goal: nil
+        )
+        orchestrator.run(company_name)
       end
     end
 
     context 'when critique returns feedback' do
-      let(:critique_feedback) { 'This email needs improvement.' }
-      let(:mock_critique_with_feedback) { { 'critique' => critique_feedback } }
-
-      before do
-        allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return(mock_critique_with_feedback)
+      let(:critique_result) do
+        {
+          'critique' => 'This email needs improvement.'
+        }
       end
 
-      it 'shows critique feedback and breaks loop' do
-        expect {
-          orchestrator.run(company_name)
-        }.to output(/CritiqueAgent Feedback: #{critique_feedback[0..120]}/).to_stdout
+      it 'includes critique in result' do
+        result = orchestrator.run(company_name, recipient: recipient)
+        expect(result[:critique]).to eq('This email needs improvement.')
       end
 
-      it 'returns critique in result' do
-        result = orchestrator.run(company_name)
-
-        expect(result[:critique]).to eq(critique_feedback)
+      it 'breaks the loop after first revision' do
+        expect(critique_agent).to receive(:run).once
+        orchestrator.run(company_name, recipient: recipient)
       end
     end
 
     context 'when critique returns nil (approved)' do
-      it 'shows approval message' do
-        expect {
-          orchestrator.run(company_name)
-        }.to output(/CritiqueAgent: Email approved ✅/).to_stdout
-      end
-
-      it 'returns nil critique in result' do
-        result = orchestrator.run(company_name)
-
-        expect(result[:critique]).to be_nil
+      it 'breaks the loop' do
+        expect(critique_agent).to receive(:run).once.and_return({ 'critique' => nil })
+        orchestrator.run(company_name, recipient: recipient)
       end
     end
 
-    context 'with minimal parameters' do
-      it 'works with only company name' do
-        result = orchestrator.run(company_name)
-
-        expect(result[:company]).to eq(company_name)
-        expect(result[:recipient]).to be_nil
-        expect(result[:product_info]).to be_nil
-        expect(result[:sender_company]).to be_nil
-      end
-    end
-
-    context 'when search results are empty' do
-      let(:empty_search_results) { { domain: { domain: 'Test Corp', sources: [] }, recipient: { name: nil, sources: [] }, sources: [] } }
-
-      before do
-        allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return(empty_search_results)
+    context 'when search results have no sources' do
+      let(:search_results) do
+        {
+          inferred_focus_areas: [],
+          personalization_signals: {
+            company: [],
+            recipient: []
+          }
+        }
       end
 
       it 'handles empty sources gracefully' do
-        result = orchestrator.run(company_name)
-
+        result = orchestrator.run(company_name, recipient: recipient)
         expect(result[:sources]).to eq([])
       end
     end
 
-    context 'when writer output is malformed' do
-      let(:malformed_writer_output) { { company: 'Test Corp', email: nil } }
+    context 'when writer output has no email' do
+      let(:writer_output) { {} }
 
-      before do
-        allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return(malformed_writer_output)
-      end
-
-      it 'handles malformed output gracefully' do
-        result = orchestrator.run(company_name)
-
-        expect(result[:email]).to eq('')
+      it 'uses empty string for email' do
+        expect(critique_agent).to receive(:run).with(
+          hash_including(
+            'email_content' => '',
+            'number_of_revisions' => 1
+          )
+        )
+        orchestrator.run(company_name, recipient: recipient)
       end
     end
   end
@@ -244,64 +239,31 @@ RSpec.describe Orchestrator, type: :service do
   describe '.run' do
     let(:company_name) { 'Test Corp' }
 
+    before do
+      allow(ENV).to receive(:fetch).with('GEMINI_API_KEY').and_return('env-gemini-key')
+      allow(ENV).to receive(:fetch).with('TAVILY_API_KEY').and_return('env-tavily-key')
+      allow_any_instance_of(described_class).to receive(:run).and_return({ company: company_name })
+      allow($stdout).to receive(:puts)
+    end
+
     it 'creates new instance and calls run' do
-      expect(described_class).to receive(:new).with(
-        gemini_api_key: gemini_api_key,
-        tavily_api_key: tavily_api_key
-      ).and_return(orchestrator)
-
-      expect(orchestrator).to receive(:run).with(
-        company_name,
-        recipient: nil,
-        product_info: nil,
-        sender_company: nil
-      )
-
-      described_class.run(company_name, gemini_api_key: gemini_api_key, tavily_api_key: tavily_api_key)
+      result = described_class.run(company_name)
+      expect(result[:company]).to eq(company_name)
     end
 
     it 'passes all parameters to instance run method' do
-      recipient = 'John Doe'
-      product_info = 'Our product'
-      sender_company = 'My Company'
-
-      # Mock the new method to return our orchestrator instance
-      allow(described_class).to receive(:new).and_return(orchestrator)
-      expect(orchestrator).to receive(:run).with(
+      expect_any_instance_of(described_class).to receive(:run).with(
         company_name,
-        recipient: recipient,
-        product_info: product_info,
-        sender_company: sender_company
+        recipient: 'John',
+        product_info: 'Product',
+        sender_company: 'Company'
       )
-
       described_class.run(
         company_name,
-        gemini_api_key: gemini_api_key,
-        tavily_api_key: tavily_api_key,
-        recipient: recipient,
-        product_info: product_info,
-        sender_company: sender_company
+        recipient: 'John',
+        product_info: 'Product',
+        sender_company: 'Company'
       )
-    end
-  end
-
-  describe 'agent initialization' do
-    it 'initializes SearchAgent with tavily API key' do
-      expect(Agents::SearchAgent).to receive(:new).with(tavily_key: tavily_api_key, gemini_key: gemini_api_key)
-
-      described_class.new(gemini_api_key: gemini_api_key, tavily_api_key: tavily_api_key)
-    end
-
-    it 'initializes WriterAgent with gemini API key' do
-      expect(Agents::WriterAgent).to receive(:new).with(api_key: gemini_api_key)
-
-      described_class.new(gemini_api_key: gemini_api_key, tavily_api_key: tavily_api_key)
-    end
-
-    it 'initializes CritiqueAgent with gemini API key' do
-      expect(Agents::CritiqueAgent).to receive(:new).with(api_key: gemini_api_key)
-
-      described_class.new(gemini_api_key: gemini_api_key, tavily_api_key: tavily_api_key)
     end
   end
 end

@@ -1,5 +1,14 @@
 Given('a user exists') do
-  @user ||= User.find_by(email: 'admin@example.com') || User.create!(email: 'admin@example.com', password: 'password123', password_confirmation: 'password123', name: 'Admin User')
+  @user ||= User.find_by(email: 'admin@example.com') || User.create!(
+    email: 'admin@example.com',
+    password: 'password123',
+    password_confirmation: 'password123',
+    name: 'Admin User',
+    first_name: 'Admin',
+    last_name: 'User',
+    workspace_name: 'Admin Workspace',
+    job_title: 'Administrator'
+  )
 end
 
 Given('I am logged in') do

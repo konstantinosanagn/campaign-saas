@@ -29,6 +29,7 @@ import ReactDOM from 'react-dom'
 // Import components directly for global fallback
 import CampaignDashboard from '../components/campaigns/CampaignDashboard'
 import PlaceholderRoot from '../components/shared/PlaceholderRoot'
+import AuthPage from '../components/auth/AuthPage'
 
 // Expose React for react-rails UJS
 window.React = React
@@ -37,6 +38,7 @@ window.ReactDOM = ReactDOM
 // Expose components globally as fallback (react_ujs will find them via require.context first, then fall back to window)
 window.CampaignDashboard = CampaignDashboard
 window.PlaceholderRoot = PlaceholderRoot
+window.AuthPage = AuthPage
 
 // Auto-register React components from app/javascript/components
 // This uses require.context to find components, with fallback to window globals

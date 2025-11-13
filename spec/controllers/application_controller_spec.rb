@@ -95,5 +95,140 @@ RSpec.describe ApplicationController, type: :controller do
       h = { name: 'no-id' }
       expect(controller.send(:normalize_user, h)).to eq(h)
     end
+
+    it 'returns the original object when user does not respond to []' do
+      obj = Object.new
+      result = controller.send(:normalize_user, obj)
+      expect(result).to eq(obj)
+    end
+  end
+
+  describe '#new_user_session_path' do
+    context 'in production' do
+      before do
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production'))
+      end
+
+      it 'returns /login' do
+        expect(controller.new_user_session_path).to eq('/login')
+      end
+    end
+
+    context 'in development' do
+      before do
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+      end
+
+      it 'calls super' do
+        expect(controller.new_user_session_path).to eq('/users/sign_in')
+      end
+    end
+  end
+
+  describe '#new_user_registration_path' do
+    context 'in production' do
+      before do
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production'))
+      end
+
+      it 'returns /signup' do
+        expect(controller.new_user_registration_path).to eq('/signup')
+      end
+    end
+
+    context 'in development' do
+      before do
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+      end
+
+      it 'calls super' do
+        expect(controller.new_user_registration_path).to eq('/users/sign_up')
+      end
+    end
+  end
+
+  describe '#ensure_default_api_keys_for_dev' do
+    let(:user) { create(:user) }
+
+    before do
+      allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+      allow(controller).to receive(:current_user).and_return(user)
+    end
+
+    context 'when user has no API keys' do
+      it 'sets default LLM API key' do
+        controller.send(:ensure_default_api_keys_for_dev)
+        user.reload
+        expect(user.llm_api_key).to eq(ApplicationController::DEFAULT_DEV_LLM_KEY)
+      end
+
+      it 'sets default Tavily API key' do
+        controller.send(:ensure_default_api_keys_for_dev)
+        user.reload
+        expect(user.tavily_api_key).to eq(ApplicationController::DEFAULT_DEV_TAVILY_KEY)
+      end
+    end
+
+    context 'when user already has API keys' do
+      before do
+        user.update(llm_api_key: 'existing_key', tavily_api_key: 'existing_tavily')
+      end
+
+      it 'does not update existing keys' do
+        controller.send(:ensure_default_api_keys_for_dev)
+        user.reload
+        expect(user.llm_api_key).to eq('existing_key')
+        expect(user.tavily_api_key).to eq('existing_tavily')
+      end
+    end
+
+    context 'when user has only LLM key' do
+      before do
+        user.update(llm_api_key: 'existing_key', tavily_api_key: nil)
+      end
+
+      it 'only sets Tavily key' do
+        controller.send(:ensure_default_api_keys_for_dev)
+        user.reload
+        expect(user.llm_api_key).to eq('existing_key')
+        expect(user.tavily_api_key).to eq(ApplicationController::DEFAULT_DEV_TAVILY_KEY)
+      end
+    end
+
+    context 'when user has only Tavily key' do
+      before do
+        user.update(llm_api_key: nil, tavily_api_key: 'existing_tavily')
+      end
+
+      it 'only sets LLM key' do
+        controller.send(:ensure_default_api_keys_for_dev)
+        user.reload
+        expect(user.llm_api_key).to eq(ApplicationController::DEFAULT_DEV_LLM_KEY)
+        expect(user.tavily_api_key).to eq('existing_tavily')
+      end
+    end
+
+    context 'when not in development' do
+      before do
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production'))
+      end
+
+      it 'does not set API keys' do
+        controller.send(:ensure_default_api_keys_for_dev)
+        user.reload
+        expect(user.llm_api_key).to be_nil
+        expect(user.tavily_api_key).to be_nil
+      end
+    end
+
+    context 'when current_user is nil' do
+      before do
+        allow(controller).to receive(:current_user).and_return(nil)
+      end
+
+      it 'does not raise an error' do
+        expect { controller.send(:ensure_default_api_keys_for_dev) }.not_to raise_error
+      end
+    end
   end
 end

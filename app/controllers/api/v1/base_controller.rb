@@ -15,19 +15,48 @@ module Api
         Rails.env.development? || ENV["DISABLE_AUTH"] == "true"
       end
 
-      def current_user
-        if skip_auth?
-          admin_user = User.find_by(email: "admin@example.com") || User.create!(
-            email: "admin@example.com",
-            password: "password123",
-            password_confirmation: "password123",
-            name: "Admin User"
-          )
-          normalize_user(admin_user)
-        else
-          super
-        end
+  def current_user
+    # Get the authenticated user from Devise directly using warden to avoid recursion
+    # warden.user accesses Devise's session directly without calling current_user
+    authenticated_user = nil
+    
+    # Try to get user from Devise's warden (bypasses our overridden current_user)
+    # This is the safest way to avoid infinite recursion
+    # Use rescue to handle cases where warden is not available (e.g., in some tests)
+    begin
+      if respond_to?(:warden) && warden
+        authenticated_user = warden.user
       end
+    rescue Devise::MissingWarden
+      # Warden not available, continue to fallback logic
+      authenticated_user = nil
+    end
+    
+    # Normalize the user if needed (from ApplicationController)
+    authenticated_user = normalize_user(authenticated_user) if authenticated_user
+    
+    # If we have an authenticated user (from Devise session), use them
+    # This will be the case when a user has logged in, even in development
+    return authenticated_user if authenticated_user.present?
+    
+    # Only use admin user as fallback in development when no user is authenticated
+    # This is for convenience when testing without logging in
+    if skip_auth? && authenticated_user.nil?
+      admin_user = User.find_by(email: "admin@example.com") || User.create!(
+        email: "admin@example.com",
+        password: "password123",
+        password_confirmation: "password123",
+        name: "Admin User",
+        first_name: "Admin",
+        last_name: "User",
+        workspace_name: "Admin Workspace",
+        job_title: "Administrator"
+      )
+      normalize_user(admin_user)
+    else
+      authenticated_user
+    end
+  end
 
       # Force JSON format for API requests to ensure Devise returns 401 instead of redirecting
       def set_json_format

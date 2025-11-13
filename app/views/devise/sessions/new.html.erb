@@ -1,0 +1,10 @@
+<div id="auth-page-root" class="min-h-screen">
+  <%= react_component('AuthPage', {
+    initialMode: 'login',
+    errors: resource.errors.messages,
+    flashAlert: flash[:alert],
+    flashNotice: flash[:notice],
+    authenticityToken: form_authenticity_token
+  }) %>
+</div>
+

@@ -20,7 +20,16 @@ Given('a {string} agent output exists for the lead') do |agent_name|
 end
 
 Given('there is another user with a separate campaign') do
-  other = User.create!(email: 'other@example.com', password: 'password123', password_confirmation: 'password123', name: 'Other User')
+  other = User.create!(
+    email: 'other@example.com',
+    password: 'password123',
+    password_confirmation: 'password123',
+    name: 'Other User',
+    first_name: 'Other',
+    last_name: 'User',
+    workspace_name: 'Other Workspace',
+    job_title: 'User'
+  )
   @other_campaign = Campaign.create!(title: 'Other Campaign', shared_settings: { brand_voice: { tone: 'professional', persona: 'founder' }, primary_goal: 'book_call' }, user: other)
 end
 

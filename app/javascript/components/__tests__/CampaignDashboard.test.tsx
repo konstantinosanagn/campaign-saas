@@ -88,13 +88,22 @@ jest.mock('@/components/agents/AgentDashboard', () => {
 })
 
 jest.mock('@/components/leads/ProgressTable', () => {
-  return function MockProgressTable({ leads, onRunLead, onLeadClick, selectedLeads }: any) {
+  return function MockProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLeads, onToggleSelection, onToggleMultiple }: any) {
     return (
       <div data-testid="progress-table">
         {leads.map((lead: Lead) => (
           <div key={lead.id}>
             <button onClick={() => onRunLead(lead.id)}>Run {lead.id}</button>
             <button onClick={() => onLeadClick(lead)}>Click {lead.id}</button>
+            <button onClick={() => onStageClick && onStageClick(lead)}>Stage {lead.id}</button>
+            {onToggleSelection && (
+              <input
+                type="checkbox"
+                checked={selectedLeads?.includes(lead.id) || false}
+                onChange={() => onToggleSelection(lead.id)}
+                data-testid={`checkbox-${lead.id}`}
+              />
+            )}
           </div>
         ))}
       </div>
@@ -140,7 +149,9 @@ describe('CampaignDashboard', () => {
   const mockUpdateLead = jest.fn()
   const mockDeleteLeads = jest.fn()
   const mockFindLead = jest.fn()
+  const mockRefreshLeads = jest.fn()
   const mockToggleSelection = jest.fn()
+  const mockToggleMultiple = jest.fn()
   const mockClearSelection = jest.fn()
 
   beforeEach(() => {
@@ -164,11 +175,13 @@ describe('CampaignDashboard', () => {
       updateLead: mockUpdateLead,
       deleteLeads: mockDeleteLeads,
       findLead: mockFindLead,
+      refreshLeads: mockRefreshLeads,
     })
 
     ;(useSelection as jest.Mock).mockReturnValue({
       selectedIds: [],
       toggleSelection: mockToggleSelection,
+      toggleMultiple: mockToggleMultiple,
       clearSelection: mockClearSelection,
     })
 
@@ -314,6 +327,7 @@ describe('CampaignDashboard', () => {
       updateLead: mockUpdateLead,
       deleteLeads: mockDeleteLeads,
       findLead: mockFindLead,
+      refreshLeads: mockRefreshLeads,
     })
 
     render(<CampaignDashboard />)
@@ -383,7 +397,24 @@ describe('CampaignDashboard', () => {
     expect(screen.getByText('Run 1')).toBeInTheDocument()
   })
 
-  it('toggles lead selection when lead is clicked', () => {
+  it('toggles lead selection when selectable lead is clicked', () => {
+    // Create a selectable lead (designed or completed stage)
+    const selectableLead: Lead = {
+      ...mockLeads[0],
+      stage: 'designed',
+    }
+
+    ;(useLeads as jest.Mock).mockReturnValue({
+      leads: [selectableLead],
+      loading: false,
+      error: null,
+      createLead: mockCreateLead,
+      updateLead: mockUpdateLead,
+      deleteLeads: mockDeleteLeads,
+      findLead: mockFindLead,
+      refreshLeads: mockRefreshLeads,
+    })
+
     render(<CampaignDashboard />)
 
     fireEvent.click(screen.getByText('Campaign 1'))
@@ -392,12 +423,23 @@ describe('CampaignDashboard', () => {
     expect(mockToggleSelection).toHaveBeenCalledWith(1)
   })
 
+  it('does not toggle lead selection when non-selectable lead is clicked', () => {
+    render(<CampaignDashboard />)
+
+    fireEvent.click(screen.getByText('Campaign 1'))
+    fireEvent.click(screen.getByText('Click 1'))
+
+    // Lead has stage 'queued', so it's not selectable
+    expect(mockToggleSelection).not.toHaveBeenCalled()
+  })
+
   it('opens edit lead form when one lead is selected and edit clicked', () => {
     mockFindLead.mockReturnValue(mockLeads[0])
 
     ;(useSelection as jest.Mock).mockReturnValue({
       selectedIds: [1],
       toggleSelection: mockToggleSelection,
+      toggleMultiple: mockToggleMultiple,
       clearSelection: mockClearSelection,
     })
 
@@ -421,6 +463,7 @@ describe('CampaignDashboard', () => {
     ;(useSelection as jest.Mock).mockReturnValue({
       selectedIds: [1, 2],
       toggleSelection: mockToggleSelection,
+      toggleMultiple: mockToggleMultiple,
       clearSelection: mockClearSelection,
     })
 
@@ -444,6 +487,7 @@ describe('CampaignDashboard', () => {
     ;(useSelection as jest.Mock).mockReturnValue({
       selectedIds: [1],
       toggleSelection: mockToggleSelection,
+      toggleMultiple: mockToggleMultiple,
       clearSelection: mockClearSelection,
     })
 
@@ -573,6 +617,7 @@ describe('CampaignDashboard', () => {
       updateLead: mockUpdateLead,
       deleteLeads: mockDeleteLeads,
       findLead: mockFindLead,
+      refreshLeads: mockRefreshLeads,
     })
 
     render(<CampaignDashboard />)
@@ -589,6 +634,7 @@ describe('CampaignDashboard', () => {
     ;(useSelection as jest.Mock).mockReturnValue({
       selectedIds: [1],
       toggleSelection: mockToggleSelection,
+      toggleMultiple: mockToggleMultiple,
       clearSelection: mockClearSelection,
     })
 

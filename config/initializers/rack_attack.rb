@@ -54,7 +54,7 @@ class Rack::Attack
   # Throttle login attempts
   # 5 login attempts per 20 minutes per IP
   throttle("logins/ip", limit: 5, period: 20.minutes) do |req|
-    req.ip if req.path == "/users/sign_in" && req.post?
+    req.ip if (req.path == "/users/sign_in" || req.path == "/login") && req.post?
   end
 
   # Throttle password reset requests

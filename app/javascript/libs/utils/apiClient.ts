@@ -77,7 +77,7 @@ class ApiClient {
         // In development, auth is skipped so 401s shouldn't happen
         if (response.status === 401 && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
           // Redirect to Devise login page only in production
-          window.location.href = '/users/sign_in'
+          window.location.href = '/login'
           return {
             error: 'Unauthorized',
             status: 401,

@@ -26,4 +26,10 @@ body {
   }
 }
 
+/* Auth promo card blue shadow */
+#auth-promo-card {
+  box-shadow: 0 0 60px rgba(0, 77, 255, 0.1), 0 0 100px rgba(0, 77, 255, 0.05);
+  border-color: rgba(0, 77, 255, 0.3);
+}
+
 

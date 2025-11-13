@@ -133,6 +133,68 @@ RSpec.describe Api::V1::BaseController, type: :controller do
         # Test that the method exists and can be called
         expect(controller.respond_to?(:current_user, true)).to be true
       end
+
+      context 'when authenticated user exists from warden' do
+        let(:user) { create(:user) }
+
+        before do
+          allow(controller).to receive(:respond_to?).and_call_original
+          allow(controller).to receive(:respond_to?).with(:warden).and_return(true)
+          allow(controller).to receive(:warden).and_return(double(user: user))
+        end
+
+        it 'returns the authenticated user' do
+          result = controller.send(:current_user)
+          expect(result).to eq(user)
+        end
+
+        it 'normalizes the user' do
+          # Test that normalize_user is called on the authenticated user
+          expect(controller).to receive(:normalize_user).with(user).and_call_original
+          controller.send(:current_user)
+        end
+      end
+
+      context 'when warden raises Devise::MissingWarden' do
+        before do
+          allow(controller).to receive(:respond_to?).and_call_original
+          allow(controller).to receive(:respond_to?).with(:warden).and_return(true)
+          allow(controller).to receive(:warden).and_raise(Devise::MissingWarden)
+        end
+
+        it 'handles the error gracefully and returns nil' do
+          result = controller.send(:current_user)
+          expect(result).to be_nil
+        end
+      end
+
+      context 'when warden is not available' do
+        before do
+          allow(controller).to receive(:respond_to?).and_call_original
+          allow(controller).to receive(:respond_to?).with(:warden).and_return(false)
+        end
+
+        it 'returns nil' do
+          result = controller.send(:current_user)
+          expect(result).to be_nil
+        end
+      end
+    end
+  end
+
+  describe '#set_json_format' do
+    it 'sets request format to JSON for API paths' do
+      allow(controller.request).to receive(:path).and_return('/api/v1/campaigns')
+      controller.send(:set_json_format)
+      expect(controller.request.format).to eq(:json)
+    end
+
+    it 'does not set format for non-API paths' do
+      allow(controller.request).to receive(:path).and_return('/campaigns')
+      original_format = controller.request.format
+      controller.send(:set_json_format)
+      # Format should remain unchanged for non-API paths
+      expect(controller.request.format).to eq(original_format)
     end
   end
 

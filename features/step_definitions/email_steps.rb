@@ -17,7 +17,16 @@ end
 
 Given('GmailOauthService will report oauth_configured for user {string} as {word}') do |email, value|
   step 'a user exists'
-  other = User.find_by(email: email) || User.create!(email: email, password: 'password123', password_confirmation: 'password123', name: 'Other')
+  other = User.find_by(email: email) || User.create!(
+    email: email,
+    password: 'password123',
+    password_confirmation: 'password123',
+    name: 'Other',
+    first_name: 'Other',
+    last_name: 'User',
+    workspace_name: 'Other Workspace',
+    job_title: 'User'
+  )
   bool = value == 'true'
   allow(GmailOauthService).to receive(:oauth_configured?) do |user|
     user.email == other.email ? bool : false
@@ -339,7 +348,11 @@ Given('there is another user with email {string}') do |email|
     email: email,
     password: 'password123',
     password_confirmation: 'password123',
-    name: 'Other User'
+    name: 'Other User',
+    first_name: 'Other',
+    last_name: 'User',
+    workspace_name: 'Other Workspace',
+    job_title: 'User'
   )
 end
 

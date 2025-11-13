@@ -27,7 +27,17 @@ type SendEmailsResponse = {
   error?: string
 }
 
-export default function CampaignDashboard() {
+interface CampaignDashboardProps {
+  user?: {
+    first_name?: string | null;
+    last_name?: string | null;
+    name?: string | null;
+    workspace_name?: string | null;
+    job_title?: string | null;
+  };
+}
+
+export default function CampaignDashboard({ user }: CampaignDashboardProps = {}) {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isEditFormOpen, setIsEditFormOpen] = useState(false)
   const [isLeadFormOpen, setIsLeadFormOpen] = useState(false)
@@ -48,7 +58,7 @@ export default function CampaignDashboard() {
 
   const { campaigns, createCampaign, updateCampaign, deleteCampaign } = useCampaigns()
   const { leads, createLead, updateLead, deleteLeads, findLead, refreshLeads } = useLeads()
-  const { selectedIds: selectedLeads, toggleSelection, clearSelection } = useSelection()
+  const { selectedIds: selectedLeads, toggleSelection, toggleMultiple, clearSelection } = useSelection()
 
   // Auto-select newly created campaign
   React.useEffect(() => {
@@ -188,6 +198,7 @@ export default function CampaignDashboard() {
   }, [campaignObj, createLead, refreshLeads, selectedCampaign])
 
   const handleLeadClick = useCallback((lead: Lead) => {
+    // Allow toggling selection for all leads
     toggleSelection(lead.id)
   }, [toggleSelection])
 
@@ -442,7 +453,7 @@ export default function CampaignDashboard() {
 
   return (
     <>
-      <Navigation />
+      <Navigation user={user} />
       <main className="relative overflow-hidden">
         <Background />
         <div className="relative z-10">
@@ -548,6 +559,7 @@ export default function CampaignDashboard() {
                           onStageClick={handleStageClick}
                           selectedLeads={selectedLeads}
                           onToggleSelection={toggleSelection}
+                          onToggleMultiple={toggleMultiple}
                           runningLeadIds={Array.from(runningLeadIds)}
                         />
                       )}
