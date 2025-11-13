@@ -99,7 +99,7 @@ GMAIL_CLIENT_SECRET=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
 DISABLE_AUTH=true
 ```
 
-### Gmail OAuth Test Mode
+### Gmail OAuth Test Mode (Work in Progress -- not part of iteration 2)
 
 ⚠️ The app is currently in **Google OAuth Test Mode** ("In testing"), which means Google restricts OAuth access to protect user data. Only accounts listed as Test users in the Google Cloud Console are allowed to authorize the app, and all other Google accounts will be blocked with a 403 error.
 
@@ -109,7 +109,9 @@ Because the Gmail OAuth scope (`gmail.send`) is considered sensitive, the unveri
 
 ![Gmail OAuth Test Mode](docs/gmail-oauth-test-mode.png)
 
-**To use Gmail OAuth:**
+***Disclaimer: While we aimed to have the sender ready for iteration 2 and have the skelton set up, its functionality depends on authorization set up for various user accounts -- which we are targetting by the demo day (stay tuned!). In this iteration our focus remained on the other agents by enhancing their functionality (ex: impriving search agent parameters to collect more relevent sources, generating variants of the writer agent outputs and critiquing them all to ensure highest quality outputs as well as refining our prompt engineering strategy to focus on key metrics such as tone and business synergy/ personalization as our target users are small B2B companies/ startups.)
+
+**To use Gmail OAuth:** (Work in Progress -- not part of iteration 2)
 1. Navigate to Email Settings in the application
 2. Enter `campaignsaastester@gmail.com` as the "Send From Email Address"
 3. Complete the OAuth flow with this authorized test account
