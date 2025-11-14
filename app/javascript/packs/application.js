@@ -42,5 +42,9 @@ window.AuthPage = AuthPage
 
 // Auto-register React components from app/javascript/components
 // This uses require.context to find components, with fallback to window globals
-const componentRequireContext = require.context('../components', true, /\.(js|jsx|ts|tsx)$/)
+const componentRequireContext = require.context(
+  '../components',
+  true,
+  /^(?!.*__tests__).*\.(js|jsx|ts|tsx)$/
+)
 ReactRailsUJS.useContext(componentRequireContext)
