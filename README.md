@@ -99,7 +99,7 @@ GMAIL_CLIENT_SECRET=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
 DISABLE_AUTH=true
 ```
 
-### Gmail OAuth Test Mode
+### Gmail OAuth Test Mode (Work in Progress -- not part of iteration 2)
 
 ⚠️ The app is currently in **Google OAuth Test Mode** ("In testing"), which means Google restricts OAuth access to protect user data. Only accounts listed as Test users in the Google Cloud Console are allowed to authorize the app, and all other Google accounts will be blocked with a 403 error.
 
@@ -109,7 +109,9 @@ Because the Gmail OAuth scope (`gmail.send`) is considered sensitive, the unveri
 
 ![Gmail OAuth Test Mode](docs/gmail-oauth-test-mode.png)
 
-**To use Gmail OAuth:**
+***Disclaimer: While we aimed to have the sender ready for iteration 2 and have the skelton set up, its functionality depends on authorization set up for various user accounts -- which we are targetting by the demo day (stay tuned!). In this iteration our focus remained on the other agents by enhancing their functionality (ex: impriving search agent parameters to collect more relevent sources, generating variants of the writer agent outputs and critiquing them all to ensure highest quality outputs as well as refining our prompt engineering strategy to focus on key metrics such as tone and business synergy/ personalization as our target users are small B2B companies/ startups.)
+
+**To use Gmail OAuth:** (Work in Progress -- not part of iteration 2)
 1. Navigate to Email Settings in the application
 2. Enter `campaignsaastester@gmail.com` as the "Send From Email Address"
 3. Complete the OAuth flow with this authorized test account
@@ -407,7 +409,17 @@ COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (76.
 
 ## Troubleshooting
 
+### yarn install Errors
+**Error:** `error @typescript-eslint/eslint-plugin@8.46.3: The engine "node" is incompatible with this module. Expected version "^18.18.0 || ^20.9.0 || >=21.1.0". Got "16.20.2"`
+
+**Solution:** use `yarn install --ignore-engines`
+
 ### Webpack/OpenSSL Errors
+
+**Error:** After `chmod +x bin/webpack-dev-server`, `./bin/webpack-dev-server` gives error `node: --openssl-legacy-provider is not allowed in NODE_OPTIONS`
+
+**Solution:** Comment out line 6 `ENV["NODE_OPTIONS"] ||= "--openssl-legacy-provider"` in bin/webpack-dev-server
+
 
 **Error:** `Error: error:0308010C:digital envelope routines::unsupported`
 
