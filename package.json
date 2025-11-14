@@ -67,6 +67,8 @@
     "postcss-loader": "4.3.0"
   },
   "scripts": {
+    "webpack": "webpack --config config/webpack/production.js",
+    "build": "yarn webpack",
     "lint": "eslint \"app/javascript/**/*.{js,jsx,ts,tsx}\"",
     "test": "jest",
     "test:watch": "jest --watch",
