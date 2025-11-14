@@ -13,11 +13,9 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 - **Ruby:** 3.3.9+
 - **Rails:** 8.1
 - **PostgreSQL:** 12+
-- **Node.js:** 16.x (required for Webpacker compatibility)
-  - ⚠️ **Important:** Node.js 17+ uses OpenSSL 3.0 which is incompatible with Webpack 4
-  - **Recommended:** Use Node.js 16.20.2 (specified in `.nvmrc`)
-  - If using Node.js 17+, the scripts automatically use `--openssl-legacy-provider` flag
-  - Use `nvm use` (if you have nvm) or install Node.js 16.x manually
+- **Node.js:** 18.x (required for Shakapacker/Webpack 5)
+  - **Recommended:** Use Node.js 18.20.3 (see `.nvmrc`)
+  - Use `nvm use` (if you have nvm) or install Node.js 18.x manually
 - **Yarn:** 1.22.x
 
 ## Installation
@@ -30,8 +28,8 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 
 2. **Set up Node.js version (if using nvm)**
    ```bash
-   nvm use  # Uses version from .nvmrc (16.20.2)
-   # or manually: nvm install 16.20.2 && nvm use 16.20.2
+   nvm use  # Uses version from .nvmrc (18.20.x)
+   # or manually: nvm install 18.20.3 && nvm use 18.20.3
    ```
 
 3. **Install dependencies**
@@ -61,7 +59,7 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
    - Open http://localhost:3000
    - You're automatically logged in as `admin@example.com`
    
-   **Note:** If you encounter OpenSSL errors with webpack-dev-server, see the [Troubleshooting](#troubleshooting) section below.
+   **Note:** If you encounter Node version errors when running the dev server, ensure you're using Node 18.x.
 
 ## Development Mode
 
@@ -120,7 +118,7 @@ Because the Gmail OAuth scope (`gmail.send`) is considered sensitive, the unveri
 - **Platform:** Heroku
 - **URL:** https://campaign-saas-7460a258bf90.herokuapp.com/
 - **Database:** PostgreSQL (Heroku Essential-0 plan)
-- **Node.js:** 16.x (pinned for Webpacker compatibility)
+- **Node.js:** 18.x (pinned for Shakapacker/Webpack 5)
 - **Ruby:** 3.3.9
 
 Set environment variables via Heroku Config Vars:
@@ -260,7 +258,7 @@ Creates:
 - **React 18** - UI framework
 - **TypeScript** - Type safety
 - **Tailwind CSS** - Styling
-- **Webpacker** - Asset compilation
+- **Shakapacker (Webpack 5)** - Asset compilation
 
 ## Testing
 

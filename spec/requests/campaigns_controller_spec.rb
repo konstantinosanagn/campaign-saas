@@ -7,22 +7,22 @@ RSpec.describe "CampaignsController", type: :request do
   include Devise::Test::IntegrationHelpers
 
   #
-  # ---- Webpacker/Test-environment hardening ---------------------------------
+  # ---- Shakapacker/Test-environment hardening ---------------------------------
   #
-  # In CI / test, we don't compile packs. Stub Webpacker lookups so layout
+  # In CI / test, we don't compile packs. Stub Shakapacker lookups so layout
   # helpers (javascript_pack_tag / stylesheet_pack_tag) don't explode.
   #
   before(:each) do
-    if defined?(Webpacker)
-      fake_manifest = instance_double("Webpacker::Manifest")
-      allow(Webpacker).to receive(:manifest).and_return(fake_manifest)
+    if defined?(Shakapacker)
+      fake_manifest = instance_double("Shakapacker::Manifest")
+      allow(Shakapacker).to receive(:manifest).and_return(fake_manifest)
 
       allow(fake_manifest).to receive(:lookup!)
         .and_return("/packs/application.js")
       allow(fake_manifest).to receive(:lookup)
         .and_return("/packs/application.js")
 
-      # Some helper paths in newer webpacker call this:
+      # Some helper paths in newer Shakapacker call this:
       if fake_manifest.respond_to?(:lookup_pack_with_chunks!)
         allow(fake_manifest).to receive(:lookup_pack_with_chunks!)
           .and_return({ "application.js" => "/packs/application.js" })

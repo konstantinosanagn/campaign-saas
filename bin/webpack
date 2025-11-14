@@ -2,8 +2,6 @@
 
 ENV["RAILS_ENV"] ||= ENV["RACK_ENV"] || "development"
 ENV["NODE_ENV"]  ||= "development"
-# Fix for Node.js 17+ OpenSSL compatibility with Webpack 4
-ENV["NODE_OPTIONS"] ||= "--openssl-legacy-provider"
 
 require "pathname"
 ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../../Gemfile",
@@ -11,10 +9,10 @@ ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../../Gemfile",
 
 require "bundler/setup"
 
-require "webpacker"
-require "webpacker/webpack_runner"
+require "shakapacker"
+require "shakapacker/webpack_runner"
 
 APP_ROOT = File.expand_path("..", __dir__)
 Dir.chdir(APP_ROOT) do
-  Webpacker::WebpackRunner.run(ARGV)
+  Shakapacker::WebpackRunner.run(ARGV)
 end

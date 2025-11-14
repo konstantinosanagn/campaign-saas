@@ -1,4 +1,4 @@
-# Stub Webpacker helpers to avoid manifest lookups in Cucumber tests
+# Stub Shakapacker helpers to avoid manifest lookups in Cucumber tests
 module ActionView
   class Base
     def javascript_pack_tag(*args)

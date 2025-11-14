@@ -2,7 +2,7 @@ module.exports = function (api) {
   api.cache(true)
   return {
     presets: [
-      // Webpacker usually has preset-env, but we include a safe config:
+      // Shakapacker usually has preset-env, but we include a safe config:
       ['@babel/preset-env', { 
         modules: false, 
         useBuiltIns: 'entry', 

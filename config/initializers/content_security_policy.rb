@@ -18,8 +18,8 @@ Rails.application.configure do
     # Disable object/embed tags for security
     policy.object_src :none
 
-    # Scripts: allow same origin, HTTPS, and unsafe-inline for Webpacker/Webpack
-    # unsafe-inline is needed for Webpacker dev server and some React features
+    # Scripts: allow same origin, HTTPS, and unsafe-inline for Shakapacker/Webpack
+    # unsafe-inline is needed for the Shakapacker dev server and some React features
     policy.script_src :self, :https, :unsafe_inline, :unsafe_eval
 
     # Styles: allow same origin, HTTPS, and unsafe-inline for Tailwind CSS
