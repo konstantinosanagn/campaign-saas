@@ -10,7 +10,7 @@ RSpec.describe AgentExecutionJob, type: :job do
       it 'executes agents for the lead' do
         expect(LeadAgentService).to receive(:run_agents_for_lead).with(lead, campaign, user).and_return({
           status: 'success',
-          completed_agents: ['SEARCH', 'WRITER'],
+          completed_agents: [ 'SEARCH', 'WRITER' ],
           failed_agents: []
         })
 
@@ -20,7 +20,7 @@ RSpec.describe AgentExecutionJob, type: :job do
       it 'logs success when agents complete' do
         allow(LeadAgentService).to receive(:run_agents_for_lead).and_return({
           status: 'success',
-          completed_agents: ['SEARCH', 'WRITER'],
+          completed_agents: [ 'SEARCH', 'WRITER' ],
           failed_agents: []
         })
 
@@ -90,10 +90,10 @@ RSpec.describe AgentExecutionJob, type: :job do
         db_user = User.find(user_without_keys.id)
         expect(db_user.llm_api_key).to be_nil
         expect(db_user.tavily_api_key).to be_nil
-        
+
         # Ensure LeadAgentService is not called (job should fail before reaching it)
         expect(LeadAgentService).not_to receive(:run_agents_for_lead)
-        
+
         # The job should raise ArgumentError when it tries to get API keys
         # Note: When discard_on ArgumentError is configured, ActiveJob catches and discards
         # the error. In perform_now, the error may still be raised, but if it's discarded,
@@ -106,7 +106,7 @@ RSpec.describe AgentExecutionJob, type: :job do
           # If the error is raised, that's also acceptable
           # The important thing is that LeadAgentService was not called
         end
-        
+
         # Verify LeadAgentService was never called - this confirms the job was discarded
         # before executing agents, which is the expected behavior
       end

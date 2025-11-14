@@ -92,4 +92,3 @@ RSpec.describe CustomFailureApp do
     end
   end
 end
-

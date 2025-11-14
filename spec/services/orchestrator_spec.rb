@@ -49,10 +49,10 @@ RSpec.describe Orchestrator do
 
     let(:search_results) do
       {
-        inferred_focus_areas: ['AI', 'Cloud'],
+        inferred_focus_areas: [ 'AI', 'Cloud' ],
         personalization_signals: {
-          company: [{ title: 'Company News', url: 'http://example.com' }],
-          recipient: [{ title: 'Recipient News', url: 'http://example.com/recipient' }]
+          company: [ { title: 'Company News', url: 'http://example.com' } ],
+          recipient: [ { title: 'Recipient News', url: 'http://example.com/recipient' } ]
         }
       }
     end

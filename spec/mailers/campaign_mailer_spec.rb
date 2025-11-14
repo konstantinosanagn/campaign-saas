@@ -20,7 +20,7 @@ RSpec.describe CampaignMailer, type: :mailer do
 
     it 'renders the headers' do
       expect(mail.subject).to include('Test Campaign')
-      expect(mail.to).to eq([to])
+      expect(mail.to).to eq([ to ])
     end
 
     it 'includes recipient name in subject' do
@@ -35,13 +35,13 @@ RSpec.describe CampaignMailer, type: :mailer do
       let(:from_email) { 'custom@example.com' }
 
       it 'uses the custom from email' do
-        expect(mail.from).to eq([from_email])
+        expect(mail.from).to eq([ from_email ])
       end
     end
 
     context 'when from_email is nil' do
       it 'uses default from email' do
-        expect(mail.from).to eq([ApplicationMailer.default[:from]])
+        expect(mail.from).to eq([ ApplicationMailer.default[:from] ])
       end
     end
 

@@ -102,7 +102,7 @@ module MarkdownHelper
     html.gsub!(/`([^`]+)`/, '<code>\1</code>')
 
     # Convert bold **text** - must come before italic
-    html.gsub!(/\*\*([^*]+)\*\*/, '<strong>\1</strong>')
+    html.gsub!(/\*\*(.+?)\*\*/, '<strong>\1</strong>')
 
     # Convert strikethrough ~~text~~
     html.gsub!(/~~([^~]+)~~/, '<del>\1</del>')

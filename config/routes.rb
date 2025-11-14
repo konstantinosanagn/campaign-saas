@@ -1,18 +1,18 @@
 Rails.application.routes.draw do
   devise_for :users, controllers: {
-    sessions: 'users/sessions',
-    registrations: 'users/registrations'
+    sessions: "users/sessions",
+    registrations: "users/registrations"
   }
-  
+
   # Custom authentication routes for production
   devise_scope :user do
-    get '/login', to: 'users/sessions#new', as: :login
-    post '/login', to: 'users/sessions#create'
-    get '/signup', to: 'users/registrations#new', as: :signup
-    post '/signup', to: 'users/registrations#create'
-    delete '/logout', to: 'users/sessions#destroy', as: :logout
+    get "/login", to: "users/sessions#new", as: :login
+    post "/login", to: "users/sessions#create"
+    get "/signup", to: "users/registrations#new", as: :signup
+    post "/signup", to: "users/registrations#create"
+    delete "/logout", to: "users/sessions#destroy", as: :logout
   end
-  
+
   root "campaigns#index"
 
   resources :campaigns do

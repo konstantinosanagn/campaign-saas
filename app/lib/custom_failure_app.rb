@@ -5,11 +5,11 @@ class CustomFailureApp < Devise::FailureApp
       # Use custom routes in production
       if warden_options[:scope] == :user
         # Check if the request was for signup
-        if request.path == '/users/sign_up' || request.path == '/signup' || 
-           request.referer&.include?('/signup') || request.referer&.include?('/users/sign_up')
-          '/signup'
+        if request.path == "/users/sign_up" || request.path == "/signup" ||
+           request.referer&.include?("/signup") || request.referer&.include?("/users/sign_up")
+          "/signup"
         else
-          '/login'
+          "/login"
         end
       else
         super
@@ -20,4 +20,3 @@ class CustomFailureApp < Devise::FailureApp
     end
   end
 end
-

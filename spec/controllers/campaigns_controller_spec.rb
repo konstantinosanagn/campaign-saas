@@ -29,7 +29,7 @@ RSpec.describe CampaignsController, type: :controller do
       end
 
       context 'when admin user exists but missing fields' do
-        let!(:admin_user) { create(:user, email: 'admin@example.com', first_name: nil, workspace_name: nil) }
+        let!(:admin_user) { create(:user, email: 'admin@example.com', first_name: nil, workspace_name: nil, job_title: nil) }
 
         it 'updates missing fields' do
           controller.send(:current_user)
@@ -94,4 +94,3 @@ RSpec.describe CampaignsController, type: :controller do
     end
   end
 end
-

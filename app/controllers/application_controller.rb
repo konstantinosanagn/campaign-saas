@@ -13,11 +13,21 @@ class ApplicationController < ActionController::Base
 
   # Override Devise path helpers to use custom routes in production
   def new_user_session_path(*args)
-    Rails.env.production? ? '/login' : super
+    if Rails.env.production?
+      "/login"
+    else
+      # In development, use Devise's default path
+      Rails.application.routes.url_helpers.new_user_session_path(*args)
+    end
   end
 
   def new_user_registration_path(*args)
-    Rails.env.production? ? '/signup' : super
+    if Rails.env.production?
+      "/signup"
+    else
+      # In development, use Devise's default path
+      Rails.application.routes.url_helpers.new_user_registration_path(*args)
+    end
   end
 
   def current_user
@@ -30,7 +40,7 @@ class ApplicationController < ActionController::Base
   def ensure_default_api_keys_for_dev
     # Double-check we're in development mode (safety check)
     return unless Rails.env.development?
-    
+
     user = current_user
     return unless user
 
@@ -47,12 +57,11 @@ class ApplicationController < ActionController::Base
 
   def normalize_user(user)
     return user if user.is_a?(User) || user.nil?
+    return user unless user.respond_to?(:[])
 
-    user_id =
-      if user.respond_to?(:[])
-        user[:id] || user["id"]
-      end
+    user_id = user[:id] || user["id"]
+    return user if user_id.blank?
 
-    user_id ? User.find_by(id: user_id) : user
+    User.find_by(id: user_id) || user
   end
 end

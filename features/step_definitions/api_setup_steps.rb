@@ -128,11 +128,20 @@ Given('SMTP is not configured') do
 end
 
 Given('email delivery will fail') do
-  # Mock CampaignMailer to raise an error when delivering
-  # The actual call is CampaignMailer.send_email(...).deliver_now
-  mail_double = double("Mail::Message")
-  allow(mail_double).to receive(:deliver_now).and_raise(StandardError.new("SMTP connection failed"))
-  allow(CampaignMailer).to receive(:send_email).and_return(mail_double)
+  allow(EmailSenderService).to receive(:send_email_for_lead).and_raise(StandardError.new("SMTP connection failed"))
+  allow(EmailSenderService).to receive(:send_emails_for_campaign).and_raise(StandardError.new("SMTP connection failed"))
+end
+
+Given('email delivery will succeed') do
+  allow(EmailSenderService).to receive(:send_email_for_lead).and_return({
+    success: true,
+    message: 'Email sent successfully'
+  })
+  allow(EmailSenderService).to receive(:send_emails_for_campaign).and_return({
+    sent: 1,
+    failed: 0,
+    errors: []
+  })
 end
 
 Given('job enqueueing will fail') do
@@ -924,12 +933,8 @@ Given('authentication is enabled') do
   ENV['DISABLE_AUTH'] = 'false'
 end
 
-Given('I am not logged in') do
-  # Ensure authentication is enabled
-  ENV['DISABLE_AUTH'] = 'false'
-  # Clear any user session - in tests with Capybara, we can't actually log out
-  # but the controller should check for authentication
-end
+# Note: "I am not logged in" is defined in user_authentication_steps.rb
+# This step was removed to avoid ambiguity
 
 Given('the original lead ID is stored') do
   @original_lead_id = @lead.id
@@ -1186,34 +1191,6 @@ Then('the lead stage should advance past {string}') do |stage|
   current_index = stages.index(@lead.stage)
   past_index = stages.index(stage)
   expect(current_index).to be > past_index
-end
-
-Then('the JSON response should include {string} with false') do |key|
-  data = JSON.parse(@last_response.body)
-  actual_value = data[key] || data[key.to_sym] || data[key.to_s.camelize(:lower).to_sym]
-  actual_bool = case actual_value
-  when true, 'true', 1, '1'
-    true
-  when false, 'false', 0, '0', nil
-    false
-  else
-    actual_value
-  end
-  expect(actual_bool).to eq(false)
-end
-
-Then('the JSON response should include {string} with true') do |key|
-  data = JSON.parse(@last_response.body)
-  actual_value = data[key] || data[key.to_sym] || data[key.to_s.camelize(:lower).to_sym]
-  actual_bool = case actual_value
-  when true, 'true', 1, '1'
-    true
-  when false, 'false', 0, '0', nil
-    false
-  else
-    actual_value
-  end
-  expect(actual_bool).to eq(true)
 end
 
 Given('the lead has a {string} agent output') do |agent_name|

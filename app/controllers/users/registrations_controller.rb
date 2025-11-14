@@ -1,22 +1,22 @@
 class Users::RegistrationsController < Devise::RegistrationsController
   # Handle authentication check before Devise's require_no_authentication
-  before_action :check_authentication_and_remember_me, only: [:new]
+  prepend_before_action :check_authentication_and_remember_me, only: [ :new ]
 
   # POST /resource
   def create
     build_resource(sign_up_params)
-    
+
     # Combine first_name and last_name into name if provided
     if params[:first_name].present? && params[:last_name].present?
       resource.name = "#{params[:first_name]} #{params[:last_name]}".strip
     end
-    
+
     # Set additional fields
     resource.first_name = params[:first_name] if params[:first_name].present?
     resource.last_name = params[:last_name] if params[:last_name].present?
     resource.workspace_name = params[:workspace_name] if params[:workspace_name].present?
     resource.job_title = params[:job_title] if params[:job_title].present?
-    
+
     resource.save
     yield resource if block_given?
     if resource.persisted?
@@ -51,18 +51,18 @@ class Users::RegistrationsController < Devise::RegistrationsController
         cookie_name = "remember_user_token"
         cookies.delete(cookie_name, domain: :all)
         cookies.delete(cookie_name)
-        
+
         # Clear the remember_created_at in the database
         current_user.update_column(:remember_created_at, nil) if current_user.remember_created_at.present?
-        
+
         # Sign out the user
-        sign_out(current_user)
-        
+        sign_out(:user)
+
         # Clear any flash messages about being already signed in
         flash.delete(:alert)
-        
+
         # Redirect to signup page to ensure clean page load
-        redirect_to '/signup' and return
+        redirect_to "/signup" and return
       end
     end
   end
@@ -70,17 +70,17 @@ class Users::RegistrationsController < Devise::RegistrationsController
   # Check if user is remembered via Devise's remember_me cookie
   def user_remembered?
     return false unless user_signed_in?
-    
+
     # Check both the cookie and the database field to ensure they're actually remembered
     cookie_name = "remember_user_token"
     has_cookie = cookies.signed[cookie_name].present? ||
                  cookies.encrypted[cookie_name].present? ||
                  cookies[cookie_name].present?
-    
+
     # Also check if the user has remember_created_at set in the database
     # This ensures the remember_me state is actually active (Devise handles expiration)
     has_db_remember = current_user.remember_created_at.present?
-    
+
     has_cookie && has_db_remember
   end
 
@@ -100,4 +100,3 @@ class Users::RegistrationsController < Devise::RegistrationsController
     root_path
   end
 end
-

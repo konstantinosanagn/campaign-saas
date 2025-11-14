@@ -42,7 +42,18 @@ Given('GmailOauthService will return authorization url {string}') do |url|
 end
 
 Given('GmailOauthService will return exchange result {word}') do |value|
-  allow(GmailOauthService).to receive(:exchange_code_for_tokens).and_return(value == 'true')
+  if value == 'true'
+    allow(GmailOauthService).to receive(:exchange_code_for_tokens) do |user, _code|
+      user.update!(
+        gmail_access_token: 'test-access-token',
+        gmail_refresh_token: 'test-refresh-token',
+        gmail_token_expires_at: 1.hour.from_now
+      )
+      true
+    end
+  else
+    allow(GmailOauthService).to receive(:exchange_code_for_tokens).and_return(false)
+  end
 end
 
 When('I deliver a campaign email to {string} with recipient_name {string} and campaign_title {string} and from_email {string}') do |to, recipient_name, campaign_title, from_email|

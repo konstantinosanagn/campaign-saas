@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import AuthNavbar from './AuthNavbar';
 import AuthBackground from './AuthBackground';
 import AuthHeroSection from './AuthHeroSection';
@@ -29,18 +29,13 @@ const AuthPage: React.FC<AuthPageProps> = ({
     workspace_name: '',
     job_title: ''
   });
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
-  // Update form errors when errors prop changes
-  useEffect(() => {
-    const newErrors: Record<string, string> = {};
-    Object.keys(errors).forEach(key => {
-      if (errors[key] && errors[key].length > 0) {
-        newErrors[key] = errors[key][0];
-      }
-    });
-    setFormErrors(newErrors);
-  }, [errors]);
+  // Derive form errors directly from the errors prop to avoid extra state updates in effects
+  const derivedFormErrors: Record<string, string> = {};
+  Object.keys(errors).forEach((key) => {
+    if (errors[key] && errors[key].length > 0) {
+      derivedFormErrors[key] = errors[key][0];
+    }
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -54,19 +49,11 @@ const AuthPage: React.FC<AuthPageProps> = ({
     setFormData(prev => ({ ...prev, [stateKey]: value }));
     
     // Clear error when user starts typing
-    if (formErrors[name] || formErrors[stateKey]) {
-      setFormErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        delete newErrors[stateKey];
-        return newErrors;
-      });
-    }
+    // Clearing errors is handled by derivedFormErrors on the next render
   };
 
   const handleModeChange = (newMode: 'login' | 'signup') => {
     setMode(newMode);
-    setFormErrors({});
   };
 
   return (
@@ -89,7 +76,7 @@ const AuthPage: React.FC<AuthPageProps> = ({
           <AuthForm
             mode={mode}
             formData={formData}
-            formErrors={formErrors}
+            formErrors={derivedFormErrors}
             flashAlert={flashAlert}
             flashNotice={flashNotice}
             authenticityToken={authenticityToken}

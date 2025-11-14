@@ -361,4 +361,3 @@ RSpec.describe Users::SessionsController, type: :controller do
     end
   end
 end
-

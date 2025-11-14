@@ -1,0 +1,23 @@
+<section class="campaign-details">
+  <header>
+    <h1><%= @campaign.title %></h1>
+    <p><%= @campaign.respond_to?(:description) && @campaign.description.present? ? @campaign.description : "Campaign ##{@campaign.id}" %></p>
+  </header>
+
+  <section class="campaign-leads">
+    <h2>Leads</h2>
+    <% if @leads.any? %>
+      <ul>
+        <% @leads.each do |lead| %>
+          <li data-lead-id="<%= lead.id %>">
+            <strong><%= lead.name %></strong>
+            <span><%= lead.email %></span>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <p>No leads found for this campaign.</p>
+    <% end %>
+  </section>
+</section>
+

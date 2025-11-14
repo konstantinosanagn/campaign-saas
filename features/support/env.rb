@@ -1,7 +1,8 @@
-# SimpleCov is loaded in simplecov_setup.rb (loaded before this file)
-# Load it explicitly if COVERAGE is set but simplecov_setup wasn't loaded
+# SimpleCov must be loaded before this file
+# It's loaded via 00_simplecov_setup.rb (which loads alphabetically before env.rb)
+# If COVERAGE is set but SimpleCov wasn't loaded, load it explicitly
 if ENV['COVERAGE'] && !defined?(SimpleCov)
-  require_relative 'simplecov_setup'
+  require_relative '00_simplecov_setup'
 end
 
 require 'cucumber/rails'

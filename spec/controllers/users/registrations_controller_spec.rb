@@ -59,18 +59,18 @@ RSpec.describe Users::RegistrationsController, type: :controller do
         # Set remember_created_at before the action
         user.update_column(:remember_created_at, Time.current)
         expect(user.remember_created_at).to be_present
-        
+
         # The controller should clear remember_created_at when user is not remembered
         # Since there's no cookie, user_remembered? returns false
         # The controller calls: current_user.update_column(:remember_created_at, nil) before sign_out
         # Devise's sign_out with expire_all_remember_me_on_sign_out = true also clears it
         get :new
-        
+
         # Verify the redirect happened (the important behavior)
         # The controller redirects to '/signup', but Devise might redirect to root after sign_out
         # So we just verify a redirect occurred
         expect(response).to have_http_status(:redirect)
-        
+
         # Note: The controller does clear remember_created_at, but verifying the exact database
         # state in RSpec controller specs can be tricky due to how authentication state is managed.
         # The important behavior is that the user is redirected (signed out), which we verify above.
@@ -280,4 +280,3 @@ RSpec.describe Users::RegistrationsController, type: :controller do
     end
   end
 end
-
