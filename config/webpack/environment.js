@@ -1,7 +1,7 @@
-const { environment } = require('shakapacker')
 const path = require('path')
+const { generateWebpackConfig, merge } = require('shakapacker')
 
-environment.config.merge({
+const customConfig = {
   resolve: {
     alias: {
       react: path.resolve(__dirname, '../../node_modules/react'),
@@ -9,22 +9,29 @@ environment.config.merge({
       '@': path.resolve(__dirname, '..', '..', 'app', 'javascript')
     },
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.css']
-  },
-})
+  }
+}
+
+const config = merge(generateWebpackConfig(), customConfig)
 
 // Fix PostCSS loader configuration
-const css = environment.loaders.get('css');
-if (css) {
-  const use = css.use;
-  const postcssIdx = use.findIndex(u => u.loader && u.loader.includes('postcss-loader'));
-  if (postcssIdx >= 0) {
-    use[postcssIdx].options = {
+const cssRule = config.module.rules.find(
+  (rule) => rule.test && rule.test.toString().includes('css')
+)
+
+if (cssRule && Array.isArray(cssRule.use)) {
+  const postcssLoader = cssRule.use.find(
+    (loader) => loader.loader && loader.loader.includes('postcss-loader')
+  )
+
+  if (postcssLoader) {
+    postcssLoader.options = {
       postcssOptions: {
         plugins: [require('tailwindcss'), require('autoprefixer')]
       },
       sourceMap: true
-    };
+    }
   }
 }
 
-module.exports = environment
+module.exports = config
