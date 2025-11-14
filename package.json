@@ -57,7 +57,8 @@
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=16 <23"
+    "node": "18.x",
+    "npm": "9.x"
   },
   "resolutions": {
     "react": "18.3.1",
