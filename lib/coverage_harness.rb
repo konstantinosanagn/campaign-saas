@@ -1,4 +1,9 @@
-require "rspec/mocks"
+begin
+  require "rspec/mocks"
+rescue LoadError
+  # RSpec is not available in production (test-only dependency).
+  # The harness does not depend on it at runtime, so skip the require.
+end
 
 module CoverageHarness
   class << self
