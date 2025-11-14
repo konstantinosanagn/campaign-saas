@@ -14,6 +14,10 @@ type LeadDeleteSuccess = {
   deletedIds: number[]
 }
 
+type LoadOptions = {
+  silent?: boolean
+}
+
 export function useLeads() {
   const [leads, setLeads] = React.useState<Lead[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -24,25 +28,33 @@ export function useLeads() {
     loadLeads()
   }, [])
 
-  const loadLeads = async () => {
+  const loadLeads = async (options?: LoadOptions): Promise<Lead[] | undefined> => {
+    const silent = options?.silent ?? false
     try {
-      setLoading(true)
+      if (!silent) {
+        setLoading(true)
+      }
       setError(null)
       const response = await apiClient.index<Lead[]>('leads')
       
       if (response.error) {
         setError(response.error)
         console.error('Failed to load leads:', response.error)
-        return
+        return undefined
       }
 
-      setLeads(response.data || [])
+      const nextLeads = (response.data ?? []) as Lead[]
+      setLeads(nextLeads)
+      return nextLeads
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load leads'
       setError(errorMessage)
       console.error('Error loading leads:', err)
+      return undefined
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }
 
@@ -258,16 +270,16 @@ export function useLeads() {
   const findLeadById = (leadId: number) => leads.find((l) => l.id === leadId)
   const findLead = findLeadById
 
-  return { 
-    leads, 
-    loading, 
-    error, 
-    createLead, 
-    updateLead, 
-    deleteLeads, 
+  return {
+    leads,
+    loading,
+    error,
+    createLead,
+    updateLead,
+    deleteLeads,
     findLead,
     findLeadById,
-    refreshLeads: loadLeads
+    refreshLeads: (options?: LoadOptions) => loadLeads(options)
   }
 }
 

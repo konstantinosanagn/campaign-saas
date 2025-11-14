@@ -57,7 +57,11 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
   const [isEmailConfigModalOpen, setIsEmailConfigModalOpen] = useState(false)
 
   const { campaigns, createCampaign, updateCampaign, deleteCampaign } = useCampaigns()
-  const { leads, createLead, updateLead, deleteLeads, findLead, refreshLeads } = useLeads()
+  const { leads, createLead, updateLead, deleteLeads, refreshLeads } = useLeads()
+  const findLeadById = React.useCallback(
+    (leadId: number) => leads.find((lead) => lead.id === leadId),
+    [leads]
+  )
   const { selectedIds: selectedLeads, toggleSelection, toggleMultiple, clearSelection } = useSelection()
 
   // Auto-select newly created campaign
@@ -76,8 +80,80 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
       ? campaigns[selectedCampaign]
       : null;
 
-  const { loading: agentExecLoading, runAgentsForLead, runAgentsForMultipleLeads } = useAgentExecution()
+  const { loading: agentExecLoading, runAgentsForLead } = useAgentExecution()
   const [runningLeadIds, setRunningLeadIds] = React.useState<Set<number>>(new Set())
+  const isMountedRef = React.useRef(true)
+
+  React.useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  const addRunningLeadId = React.useCallback((leadId: number) => {
+    setRunningLeadIds((prev) => {
+      if (prev.has(leadId)) {
+        return prev
+      }
+      const next = new Set(prev)
+      next.add(leadId)
+      return next
+    })
+  }, [])
+
+  const removeRunningLeadId = React.useCallback((leadId: number) => {
+    setRunningLeadIds((prev) => {
+      if (!prev.has(leadId)) {
+        return prev
+      }
+      const next = new Set(prev)
+      next.delete(leadId)
+      return next
+    })
+  }, [])
+
+  const waitForLeadCompletion = React.useCallback(
+    async (leadId: number, startingStage: string | null) => {
+      const MAX_ATTEMPTS = 40
+      const POLL_INTERVAL_MS = 3000
+      let currentStage = startingStage
+
+      try {
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          if (!isMountedRef.current) {
+            return
+          }
+
+          await new Promise((resolve) => window.setTimeout(resolve, POLL_INTERVAL_MS))
+          const latestLeads = await refreshLeads({ silent: true })
+          const latestLead = latestLeads?.find((lead) => lead.id === leadId)
+
+          if (!latestLead) {
+            break
+          }
+
+          const reachedFinalStage = latestLead.stage === 'completed' || latestLead.stage === 'designed'
+
+          if (reachedFinalStage) {
+            break
+          }
+
+          if (currentStage !== latestLead.stage) {
+            currentStage = latestLead.stage
+          } else if (attempt === MAX_ATTEMPTS - 1) {
+            console.warn(`[AgentPolling] Lead ${leadId} is still processing after ${MAX_ATTEMPTS * (POLL_INTERVAL_MS / 1000)} seconds.`)
+          }
+        }
+      } catch (pollError) {
+        console.error('Error while polling lead status:', pollError)
+      } finally {
+        if (isMountedRef.current) {
+          removeRunningLeadId(leadId)
+        }
+      }
+    },
+    [refreshLeads, removeRunningLeadId]
+  )
   const { loading: outputsLoading, outputs, loadAgentOutputs } = useAgentOutputs()
   const { configs, loading: configsLoading, updateConfig, createConfig, loadConfigs } = useAgentConfigs(campaignObj?.id || null)
   
@@ -204,7 +280,7 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
 
   const handleEditSelectedLead = () => {
     if (selectedLeads.length === 1) {
-      const lead = findLead(selectedLeads[0])
+      const lead = findLeadById(selectedLeads[0])
       if (lead) {
         setEditingLead({ id: lead.id, name: lead.name, email: lead.email, title: lead.title, company: lead.company })
         setIsEditLeadFormOpen(true)
@@ -222,43 +298,50 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
   }
 
   const handleRunLead = useCallback(async (leadId: number) => {
-    setRunningLeadIds(prev => new Set(prev).add(leadId))
+    const initialStage = findLeadById(leadId)?.stage ?? null
+    addRunningLeadId(leadId)
     try {
       console.log('Running agents for lead:', leadId)
       const result = await runAgentsForLead(leadId)
       console.log('Agent execution result:', result)
-      
-      if (result) {
-        // Check if there were any errors in the response
-        if (result.status === 'failed' && result.error) {
-          alert(`Failed to run agents: ${result.error}`)
-          console.error('Agent execution failed:', result.error)
-        } else if (result.failedAgents && result.failedAgents.length > 0) {
-          alert(`Some agents failed: ${result.failedAgents.join(', ')}`)
-          console.error('Some agents failed:', result.failedAgents)
-        } else {
-          console.log('Agents executed successfully:', result.completedAgents)
-        }
-        // Refresh leads to get updated stage/quality
-        await refreshLeads()
-      } else {
-        // If result is null, there was an error in the API call
+
+      if (!result) {
         const errorMsg = 'Failed to run agents. Please check the console for details.'
         alert(errorMsg)
         console.error('Agent execution returned null - check API response')
+        removeRunningLeadId(leadId)
+        return
       }
+
+      if (result.status === 'failed' && result.error) {
+        alert(`Failed to run agents: ${result.error}`)
+        console.error('Agent execution failed:', result.error)
+      } else if (result.failedAgents && result.failedAgents.length > 0) {
+        alert(`Some agents failed: ${result.failedAgents.join(', ')}`)
+        console.error('Some agents failed:', result.failedAgents)
+      }
+
+      if (result.status === 'queued') {
+        waitForLeadCompletion(leadId, initialStage).catch((err) => {
+          console.error('Error while polling lead status:', err)
+          removeRunningLeadId(leadId)
+        })
+        return
+      }
+
+      if (result.status === 'error' && result.error) {
+        alert(`Error running agents: ${result.error}`)
+      }
+
+      await refreshLeads()
+      removeRunningLeadId(leadId)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
       alert(`Error running agents: ${errorMessage}`)
       console.error('Exception in handleRunLead:', err)
-    } finally {
-      setRunningLeadIds(prev => {
-        const next = new Set(prev)
-        next.delete(leadId)
-        return next
-      })
+      removeRunningLeadId(leadId)
     }
-  }, [runAgentsForLead, refreshLeads])
+  }, [findLeadById, addRunningLeadId, runAgentsForLead, waitForLeadCompletion, refreshLeads, removeRunningLeadId])
 
   const handleStageClick = useCallback(async (lead: Lead) => {
     setOutputModalLead(lead)
@@ -266,30 +349,17 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
     await loadAgentOutputs(lead.id)
   }, [loadAgentOutputs])
 
-  const handleRunAllAgents = useCallback(async () => {
+  const handleRunAllAgents = useCallback(() => {
     if (!filteredLeads.length) return
-    
-    // Run agents for all leads that aren't in completed stage
-    const leadsToRun = filteredLeads.filter(l => l.stage !== 'completed').map(l => l.id)
-    
-    if (leadsToRun.length > 0) {
-      setRunningLeadIds(prev => {
-        const next = new Set(prev)
-        leadsToRun.forEach(id => next.add(id))
-        return next
-      })
-      try {
-        await runAgentsForMultipleLeads(leadsToRun)
-        await refreshLeads()
-      } finally {
-        setRunningLeadIds(prev => {
-          const next = new Set(prev)
-          leadsToRun.forEach(id => next.delete(id))
-          return next
-        })
-      }
-    }
-  }, [filteredLeads, runAgentsForMultipleLeads, refreshLeads])
+
+    const leadsToRun = filteredLeads
+      .filter((l) => l.stage !== 'completed')
+      .map((l) => l.id)
+
+    leadsToRun.forEach((id) => {
+      handleRunLead(id)
+    })
+  }, [filteredLeads, handleRunLead])
 
   const handleAgentSettingsClick = useCallback((agentName: 'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE') => {
     console.log('handleAgentSettingsClick called with:', agentName)
