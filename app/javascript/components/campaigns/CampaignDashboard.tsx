@@ -579,10 +579,10 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
                       )}
                       <button 
                         onClick={handleRunAllAgents}
-                        disabled={agentExecLoading || filteredLeads.filter(l => l.stage !== 'completed').length === 0}
+                        disabled={(agentExecLoading || runningLeadIds.size > 0) || filteredLeads.filter(l => l.stage !== 'completed').length === 0}
                         className="px-3 py-1.5 text-sm font-medium text-white bg-black border border-black rounded-full hover:text-black hover:bg-transparent hover:border-black transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-white disabled:hover:bg-black disabled:hover:border-black"
                       >
-                        {agentExecLoading ? 'Running...' : 'Run Agents'}
+                        {(agentExecLoading || runningLeadIds.size > 0) ? 'Running...' : 'Run Agents'}
                       </button>
                       {selectedReadyLeads.length > 0 ? (
                         <button 

@@ -46,7 +46,8 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
         // Count leads currently in 'written' stage (just completed WRITER)
         return leads.filter(l => l.stage === 'written').length.toString()
       case 'DESIGNER':
-        return '0'
+        // Count leads currently in 'designed' stage (just completed DESIGN)
+        return leads.filter(l => l.stage === 'designed').length.toString()
       case 'CRITIQUE':
         // Count leads currently in 'critiqued' stage (just completed CRITIQUE)
         return leads.filter(l => l.stage === 'critiqued').length.toString()
