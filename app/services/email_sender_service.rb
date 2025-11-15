@@ -153,7 +153,7 @@ class EmailSenderService
       # Check OAuth configuration with detailed logging
       oauth_check_result = oauth_user ? GmailOauthService.oauth_configured?(oauth_user) : false
       Rails.logger.info("[EmailSender] OAuth check result: #{oauth_check_result} for user #{oauth_user&.id}")
-      
+
       if oauth_user && oauth_check_result
         Rails.logger.info("[EmailSender] OAuth configured for oauth_user #{oauth_user.id}, getting access token...")
         Rails.logger.info("[EmailSender] User #{oauth_user.id} has refresh_token: #{oauth_user.gmail_refresh_token.present?}")
