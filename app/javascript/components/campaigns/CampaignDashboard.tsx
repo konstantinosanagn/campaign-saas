@@ -129,24 +129,37 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
           const latestLead = latestLeads?.find((lead) => lead.id === leadId)
 
           if (!latestLead) {
+            // Lead not found, stop polling
             break
           }
 
-          const reachedFinalStage = latestLead.stage === 'completed' || latestLead.stage === 'designed'
-
-          if (reachedFinalStage) {
-            break
-          }
-
+          // Check if stage has changed (meaning agent for previous stage completed)
           if (currentStage !== latestLead.stage) {
+            stageChanged = true
             currentStage = latestLead.stage
-          } else if (attempt === MAX_ATTEMPTS - 1) {
+            
+            // Stage changed means the agent for the previous stage completed
+            // Remove the loading cube and stop polling
+            console.log(`[AgentPolling] Lead ${leadId} stage changed from "${startingStage}" to "${currentStage}". Agent completed.`)
+            break
+          }
+
+          // Check if we've reached a final stage (all agents done)
+          const reachedFinalStage = latestLead.stage === 'completed' || latestLead.stage === 'designed'
+          if (reachedFinalStage) {
+            console.log(`[AgentPolling] Lead ${leadId} reached final stage "${latestLead.stage}".`)
+            break
+          }
+
+          // Timeout warning on last attempt
+          if (attempt === MAX_ATTEMPTS - 1) {
             console.warn(`[AgentPolling] Lead ${leadId} is still processing after ${MAX_ATTEMPTS * (POLL_INTERVAL_MS / 1000)} seconds.`)
           }
         }
       } catch (pollError) {
         console.error('Error while polling lead status:', pollError)
       } finally {
+        // Always remove the loading cube when polling stops
         if (isMountedRef.current) {
           removeRunningLeadId(leadId)
         }
