@@ -135,7 +135,6 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
 
           // Check if stage has changed (meaning agent for previous stage completed)
           if (currentStage !== latestLead.stage) {
-            stageChanged = true
             currentStage = latestLead.stage
             
             // Stage changed means the agent for the previous stage completed
