@@ -365,17 +365,81 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
     await loadAgentOutputs(lead.id)
   }, [loadAgentOutputs])
 
-  const handleRunAllAgents = useCallback(() => {
+  const handleRunAllAgents = useCallback(async () => {
     if (!filteredLeads.length) return
 
     const leadsToRun = filteredLeads
       .filter((l) => l.stage !== 'completed')
       .map((l) => l.id)
 
-    leadsToRun.forEach((id) => {
-      handleRunLead(id)
-    })
-  }, [filteredLeads, handleRunLead])
+    if (leadsToRun.length === 0) return
+
+    // Check API keys by testing the first lead first
+    // If API keys are missing, show one error message and stop processing all leads
+    const firstLeadId = leadsToRun[0]
+    const initialStage = findLeadById(firstLeadId)?.stage ?? null
+    addRunningLeadId(firstLeadId)
+    
+    try {
+      const result = await runAgentsForLead(firstLeadId)
+      
+      // If API keys are missing, show error once and stop processing
+      if (result && result.status === 'failed' && result.error && result.error.includes('Missing API keys')) {
+        alert(`Failed to run agents: ${result.error}`)
+        console.error('Agent execution failed (API keys missing):', result.error)
+        removeRunningLeadId(firstLeadId)
+        return
+      }
+      
+      // API keys are available, process first lead normally
+      removeRunningLeadId(firstLeadId)
+      
+      // Handle first lead result
+      if (!result) {
+        const errorMsg = 'Failed to run agents. Please check the console for details.'
+        alert(errorMsg)
+        console.error('Agent execution returned null - check API response')
+      } else if (result.status === 'failed' && result.error && !result.error.includes('Missing API keys')) {
+        // Non-API-key error for first lead - show error but continue with others
+        alert(`Failed to run agents for lead: ${result.error}`)
+        console.error('Agent execution failed:', result.error)
+      } else if (result.status === 'queued') {
+        // First lead queued successfully, start polling
+        addRunningLeadId(firstLeadId)
+        waitForLeadCompletion(firstLeadId, initialStage).catch((err) => {
+          console.error('Error while polling lead status:', err)
+          removeRunningLeadId(firstLeadId)
+        })
+      } else {
+        // First lead completed/partial successfully
+        await refreshLeads()
+      }
+      
+      // Process remaining leads (API keys are available, so they should work or fail for other reasons)
+      for (let i = 1; i < leadsToRun.length; i++) {
+        handleRunLead(leadsToRun[i])
+      }
+    } catch (err) {
+      removeRunningLeadId(firstLeadId)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      
+      // Check if it's an API key error from the exception
+      if (errorMessage.includes('Missing API keys') || errorMessage.includes('API key')) {
+        alert(`Failed to run agents: ${errorMessage}`)
+        console.error('Exception in handleRunAllAgents (API keys missing):', err)
+        return
+      }
+      
+      // Other errors - show but continue with remaining leads
+      alert(`Error running agents: ${errorMessage}`)
+      console.error('Exception in handleRunAllAgents:', err)
+      
+      // Still try to process remaining leads
+      for (let i = 1; i < leadsToRun.length; i++) {
+        handleRunLead(leadsToRun[i])
+      }
+    }
+  }, [filteredLeads, findLeadById, addRunningLeadId, runAgentsForLead, removeRunningLeadId, waitForLeadCompletion, refreshLeads, handleRunLead])
 
   const handleAgentSettingsClick = useCallback((agentName: 'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE') => {
     console.log('handleAgentSettingsClick called with:', agentName)
