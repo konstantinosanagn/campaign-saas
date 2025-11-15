@@ -1,12 +1,12 @@
 <div id="campaign-dashboard-root" class="min-h-screen">
   <%= react_component('CampaignDashboard', {
-    user: {
-      first_name: @user&.first_name,
-      last_name: @user&.last_name,
-      name: @user&.name,
-      workspace_name: @user&.workspace_name,
-      job_title: @user&.job_title
-    }
+    user: @user ? {
+      first_name: @user.respond_to?(:first_name) ? @user.first_name : nil,
+      last_name: @user.respond_to?(:last_name) ? @user.last_name : nil,
+      name: @user.respond_to?(:name) ? @user.name : nil,
+      workspace_name: @user.respond_to?(:workspace_name) ? @user.workspace_name : nil,
+      job_title: @user.respond_to?(:job_title) ? @user.job_title : nil
+    } : {}
   }) %>
 </div>
 
