@@ -22,6 +22,12 @@ export function useLeads() {
   const [leads, setLeads] = React.useState<Lead[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const leadsRef = React.useRef<Lead[]>([])
+
+  // Keep ref in sync with state
+  React.useEffect(() => {
+    leadsRef.current = leads
+  }, [leads])
 
   // Load leads on mount
   React.useEffect(() => {
@@ -44,8 +50,43 @@ export function useLeads() {
       }
 
       const nextLeads = (response.data ?? []) as Lead[]
-      setLeads(nextLeads)
-      return nextLeads
+      const prevLeads = leadsRef.current
+      
+      // Preserve the original order when refreshing leads
+      // This prevents leads from reordering when their status changes
+      let orderedLeads: Lead[]
+      
+      if (prevLeads.length === 0) {
+        // First load - use whatever order comes from API
+        orderedLeads = nextLeads
+      } else {
+        // Create a map of new leads by ID for quick lookup
+        const newLeadsMap = new Map<number, Lead>()
+        nextLeads.forEach(lead => {
+          newLeadsMap.set(lead.id, lead)
+        })
+        
+        // Preserve original order: map existing leads to their updated versions
+        orderedLeads = prevLeads
+          .map(existingLead => {
+            const updatedLead = newLeadsMap.get(existingLead.id)
+            return updatedLead || existingLead // Use updated version if available, otherwise keep existing
+          })
+          .filter(lead => newLeadsMap.has(lead.id)) // Remove leads that were deleted
+        
+        // Add any new leads that weren't in the original list (append to end)
+        const existingIds = new Set(prevLeads.map(l => l.id))
+        nextLeads.forEach(lead => {
+          if (!existingIds.has(lead.id)) {
+            orderedLeads.push(lead)
+          }
+        })
+      }
+      
+      // Update state with ordered leads
+      setLeads(orderedLeads)
+      
+      return orderedLeads
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load leads'
       setError(errorMessage)
