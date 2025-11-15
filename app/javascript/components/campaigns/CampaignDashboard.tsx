@@ -328,7 +328,11 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
       if (result.status === 'failed' && result.error) {
         alert(`Failed to run agents: ${result.error}`)
         console.error('Agent execution failed:', result.error)
-      } else if (result.failedAgents && result.failedAgents.length > 0) {
+        removeRunningLeadId(leadId)
+        return
+      }
+
+      if (result.failedAgents && result.failedAgents.length > 0) {
         alert(`Some agents failed: ${result.failedAgents.join(', ')}`)
         console.error('Some agents failed:', result.failedAgents)
       }

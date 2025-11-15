@@ -94,6 +94,17 @@ module Api
           Rails.env.production?
         end
 
+        # Validate API keys BEFORE queuing or running (works for both sync and async)
+        unless ApiKeyService.keys_available?(current_user)
+          missing_keys = ApiKeyService.missing_keys(current_user)
+          render json: {
+            status: "failed",
+            error: "Missing API keys: #{missing_keys.join(', ')}. Please add them in the API Keys section.",
+            lead: lead
+          }, status: :unprocessable_entity
+          return
+        end
+
         if use_async
           # Enqueue background job
           begin
