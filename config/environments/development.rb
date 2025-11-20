@@ -42,37 +42,24 @@ Rails.application.configure do
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 
-  # Configure email delivery method
-  # Option 1: Use SMTP (if SMTP_ADDRESS is set) - will actually send emails
-  # Option 2: Use file delivery (default) - saves emails to tmp/mail for testing
   # Raise delivery errors in development to help debug email sending issues
   config.action_mailer.raise_delivery_errors = true
 
-  # Option 3: Use test delivery - accumulates emails in ActionMailer::Base.deliveries
-  # Note: OAuth email sending is configured dynamically in EmailSenderService
-  # This default config is only used if SMTP_ADDRESS env var is set
-  if ENV["SMTP_ADDRESS"].present?
-    use_oauth = ENV["OAUTH_ACCESS_TOKEN"].present?
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.perform_deliveries = true
+  config.action_mailer.raise_delivery_errors = true
 
-    config.action_mailer.delivery_method = :smtp
-    config.action_mailer.smtp_settings = {
-      address:              ENV.fetch("SMTP_ADDRESS"),
-      port:                 ENV.fetch("SMTP_PORT", "587").to_i,
-      domain:               ENV.fetch("SMTP_DOMAIN", "localhost"),
-      user_name:            ENV.fetch("SMTP_USER_NAME", ""),
-      authentication:       (use_oauth ? :xoauth2 : ENV.fetch("SMTP_AUTHENTICATION", "plain").to_sym),
-      password:             (use_oauth ? ENV.fetch("OAUTH_ACCESS_TOKEN") : ENV.fetch("SMTP_PASSWORD", "")),
-      enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "true") == "true",
-      openssl_verify_mode:  "none"  # 仅开发环境
-    }
-  elsif ENV["MAIL_DELIVERY_METHOD"] == "test"
-    # Use test delivery (emails stored in ActionMailer::Base.deliveries array)
-    config.action_mailer.delivery_method = :test
-  else
-    # Default: Use file delivery (saves emails to tmp/mail directory)
-    config.action_mailer.delivery_method = :file
-    config.action_mailer.file_settings = { location: Rails.root.join("tmp", "mail") }
-  end
+  # Default placeholder SMTP settings (will be overridden by EmailSenderService)
+  config.action_mailer.smtp_settings = {
+    address: "smtp.gmail.com",
+    port: 587,
+    domain: "localhost",
+    user_name: nil,
+    password: nil,
+    authentication: :plain,
+    enable_starttls_auto: true
+  }
+
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

@@ -21,7 +21,7 @@ development:
 # Do not set this db to the same as development or production.
 test:
   <<: *default
-  database: campaign_manager_test
+  database: campaign_saas_test
   username: postgres
   password: <%= ENV['POSTGRES_PASSWORD'] || 'postgres' %>
   host: localhost

@@ -1,79 +1,69 @@
 module Api
   module V1
     class EmailConfigsController < BaseController
-      ##
-      # GET /api/v1/email_config
-      # Returns current user's email configuration
+
       def show
-        send_from_email = current_user.send_from_email.presence || current_user.email
+        user = current_user
+        from = user.send_from_email || user.email
+        domain = from.split("@").last.downcase
 
-        # Check OAuth for current user
-        oauth_configured = false
-        begin
-          oauth_configured = GmailOauthService.oauth_configured?(current_user)
+        provider_key = AgentConstants::DETAILED_2FA_INSTRUCTIONS[domain]
+        details = nil
 
-          # If send_from_email is different and current user doesn't have OAuth,
-          # check if the send_from_email user has OAuth
-          if !oauth_configured && send_from_email != current_user.email
-            email_user = User.find_by(email: send_from_email)
-            if email_user
-              oauth_configured = GmailOauthService.oauth_configured?(email_user)
-              Rails.logger.info("[EmailConfig] Using OAuth from send_from_email user (#{email_user.id})")
-            end
-          end
-        rescue => e
-          # If OAuth is not configured at app level, return false
-          Rails.logger.warn("Gmail OAuth service error: #{e.message}")
-          oauth_configured = false
+        if provider_key.is_a?(Symbol)
+          details = AgentConstants::DETAILED_2FA_INSTRUCTIONS.detect { |k, v| k == provider_key }.last
+        elsif provider_key.is_a?(Hash)
+          details = provider_key
         end
 
         render json: {
-          email: send_from_email,
-          oauth_configured: oauth_configured
+          email: from,
+          smtp_server: user.smtp_server,
+          smtp_port: user.smtp_port,
+          smtp_username: user.smtp_username,
+          has_app_password: user.smtp_app_password.present?,
+          requires_2fa: details.present?,
+          instructions: details
         }
       end
 
-      ##
-      # PUT /api/v1/email_config
-      # Updates user's send from email address
+      # def show
+      #   user = current_user
+      #   from = user.send_from_email || user.email
+      #   domain = from.split("@").last.downcase
+
+      #   provider_link = AgentConstants::APP_PASSWORD_PROVIDERS[domain]
+      #   requires_2fa  = provider_link.present?
+
+      #   render json: {
+      #     email: from,
+      #     smtp_server: user.smtp_server,
+      #     smtp_port: user.smtp_port,
+      #     smtp_username: user.smtp_username,
+      #     has_app_password: user.smtp_app_password.present?,
+      #     requires_2fa: requires_2fa,
+      #     app_password_link: provider_link
+      #   }
+      # end
+
       def update
-        email = params[:email]&.strip
-        if email.present?
-          if current_user.update(send_from_email: email)
-            send_from_email = current_user.send_from_email.presence || current_user.email
+        user = current_user
 
-            # Check OAuth for current user or send_from_email user
-            oauth_configured = false
-            begin
-              oauth_configured = GmailOauthService.oauth_configured?(current_user)
+        # read raw params, not nested email_config
+        raw = params.permit(:email, :app_password)
 
-              # If send_from_email is different and current user doesn't have OAuth,
-              # check if the send_from_email user has OAuth
-              if !oauth_configured && send_from_email != current_user.email
-                email_user = User.find_by(email: send_from_email)
-                if email_user
-                  oauth_configured = GmailOauthService.oauth_configured?(email_user)
-                  Rails.logger.info("[EmailConfig] Using OAuth from send_from_email user (#{email_user.id})")
-                end
-              end
-            rescue => e
-              Rails.logger.warn("Gmail OAuth service error: #{e.message}")
-              oauth_configured = false
-            end
+        updates = {
+          send_from_email:   raw[:email],
+          smtp_username:     raw[:email],
+          smtp_server:       nil,
+          smtp_port:         nil,
+          smtp_app_password: raw[:app_password]
+        }
 
-            render json: {
-              email: send_from_email,
-              oauth_configured: oauth_configured
-            }
-          else
-            render json: {
-              error: current_user.errors.full_messages.join(", ")
-            }, status: :unprocessable_entity
-          end
+        if user.update(updates)
+          render json: { success: true }
         else
-          render json: {
-            error: "Email is required"
-          }, status: :unprocessable_entity
+          render json: { success: false, errors: user.errors.full_messages }
         end
       end
     end

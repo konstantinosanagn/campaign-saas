@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_13_004103) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_18_211231) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -83,6 +83,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_13_004103) do
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
     t.string "send_from_email"
+    t.text "smtp_app_password"
+    t.integer "smtp_port", default: 587
+    t.string "smtp_server"
+    t.string "smtp_username"
     t.string "tavily_api_key"
     t.datetime "updated_at", null: false
     t.string "workspace_name"

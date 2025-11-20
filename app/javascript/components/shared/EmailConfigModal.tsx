@@ -1,267 +1,168 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from "react";
 
-interface EmailConfigModalProps {
-  isOpen: boolean
-  onClose: () => void
+interface EmailConfigResponse {
+  email: string;
+  has_app_password: boolean;
+  requires_2fa: boolean;
+  app_password_link?: string;
 }
 
-interface EmailConfig {
-  email: string
-  oauth_configured: boolean
-  oauth_url?: string
+interface EmailConfigModalProps {
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export default function EmailConfigModal({ isOpen, onClose }: EmailConfigModalProps) {
-  const [email, setEmail] = useState('')
-  const [oauthConfigured, setOauthConfigured] = useState(false)
-  const [oauthAvailable, setOauthAvailable] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [email, setEmail] = useState("");
+  const [appPassword, setAppPassword] = useState("");
+
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [appPasswordLink, setAppPasswordLink] = useState("");
+  const [hasAppPassword, setHasAppPassword] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      loadEmailConfig()
-      checkOauthStatus()
-    }
-  }, [isOpen])
+    if (isOpen) loadConfig();
+  }, [isOpen]);
 
-  const checkOauthStatus = async () => {
+  const loadConfig = async () => {
     try {
-      const response = await fetch('/api/v1/oauth_status', {
-        headers: {
-          'Accept': 'application/json',
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('OAuth status response:', data)
-        setOauthAvailable(data.oauth_configured || false)
-      } else {
-        console.error('OAuth status check failed:', response.status, response.statusText)
-        const text = await response.text()
-        console.error('Response body:', text)
-        setOauthAvailable(false)
-      }
-    } catch (err) {
-      console.error('Error checking OAuth status:', err)
-      setOauthAvailable(false)
-    }
-  }
+      setLoading(true);
+      setError(null);
 
-  const loadEmailConfig = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const response = await fetch('/api/v1/email_config', {
-        headers: {
-          'Accept': 'application/json',
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        }
-      })
+      const res = await fetch("/api/v1/email_config");
+      if (!res.ok) throw new Error("Failed to load");
 
-      if (response.ok) {
-        const data = await response.json() as EmailConfig
-        setEmail(data.email || '')
-        setOauthConfigured(data.oauth_configured || false)
-      } else {
-        setError('Failed to load email configuration')
-      }
-    } catch (err) {
-      console.error('Error loading email config:', err)
-      setError('Failed to load email configuration')
+      const data: EmailConfigResponse = await res.json();
+
+      setEmail(data.email);
+      setHasAppPassword(data.has_app_password);
+      setRequires2FA(data.requires_2fa);
+      setAppPasswordLink(data.app_password_link || "");
+      setAppPassword("");
+    } catch {
+      setError("Failed to load email settings");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const handleSave = async () => {
-    if (!email.trim()) {
-      setError('Email is required')
-      return
-    }
+  const saveEmailSettings = async () => {
+    setSaving(true);
+    setError(null);
 
-    try {
-      setSaving(true)
-      setError(null)
-      const response = await fetch('/api/v1/email_config', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        },
-        body: JSON.stringify({ email: email.trim() })
+    const res = await fetch("/api/v1/email_config", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: email,
+        app_password: appPassword || null
       })
+    });
 
-      if (response.ok) {
-        await loadEmailConfig()
-        onClose()
-      } else {
-        const data = await response.json()
-        setError(data.error || 'Failed to save email configuration')
-      }
-    } catch (err) {
-      console.error('Error saving email config:', err)
-      setError('Failed to save email configuration')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleAuthorizeGmail = async () => {
-    try {
-      // Check if OAuth is configured by trying to get authorization URL
-      // This will fail gracefully if not configured
-      window.location.href = '/oauth/gmail/authorize'
-    } catch (err) {
-      console.error('Error initiating Gmail OAuth:', err)
-      setError('Failed to initiate Gmail authorization. Please check if OAuth is configured.')
-    }
-  }
-
-  const handleRevokeGmail = async () => {
-    if (!confirm('Are you sure you want to revoke Gmail OAuth? You will need to re-authorize to send emails.')) {
-      return
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error || "Failed to save settings");
+    } else {
+      // loadConfig();
+      onClose();
     }
 
-    try {
-      setLoading(true)
-      const response = await fetch('/oauth/gmail/revoke', {
-        method: 'DELETE',
-        headers: {
-          'Accept': 'application/json',
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        }
-      })
+    setSaving(false);
+  };
 
-      if (response.ok) {
-        await loadEmailConfig()
-      } else {
-        setError('Failed to revoke OAuth')
-      }
-    } catch (err) {
-      console.error('Error revoking OAuth:', err)
-      setError('Failed to revoke OAuth')
-    } finally {
-      setLoading(false)
-    }
-  }
+  if (!isOpen) return null;
 
-  if (!isOpen) return null
+  // True when app password is required but user hasn't provided one yet
+  const isMissingRequiredAppPassword =
+    requires2FA && !hasAppPassword && !appPassword;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Email Configuration</h2>
-        </div>
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900">Email Configuration</h2>
 
-        <div className="px-6 py-4 space-y-4">
-          {loading && !saving ? (
-            <div className="text-center py-4">
-              <div className="text-gray-500">Loading...</div>
+
+        {loading ? (
+          <p className="text-gray-500">Loading…</p>
+        ) : (
+          <>
+            {/* Email */}
+            <label className="block text-sm font-medium text-gray-700 mb-1">Send From Email</label>
+            <input
+              type="email"
+              className="w-full border border-gray-300 p-2 rounded text-gray-900"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
+            <div className="mt-4">
+              {/* App Password */}
+              <label className="block text-sm font-medium text-gray-700 mb-1">App Password</label>
+              <input
+                type="password"
+                className="w-full border p-2 rounded mb-2"
+                placeholder={hasAppPassword ? "Already saved — enter to replace" : ""}
+                value={appPassword}
+                onChange={e => setAppPassword(e.target.value)}
+              />
             </div>
-          ) : (
-            <>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Send From Email Address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 outline-none ring-1 ring-transparent transition-colors duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  placeholder="your-email@gmail.com"
-                  disabled={saving}
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  This email will be used as the sender address when sending campaign emails.
-                </p>
+
+            {/* 2FA Required */}
+            {requires2FA && (
+              <div className="p-3 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded mb-3 text-sm">
+                <strong>This provider requires a 2FA App Password.</strong>
+                <br />
+                To generate one, open:
+                <br />
+                <a
+                  href={appPasswordLink}
+                  className="text-blue-600 underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Generate App Password
+                </a>
               </div>
+            )}
 
-              <div className="border-t border-gray-200 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">Gmail OAuth</h3>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Authorize Gmail to send emails securely without passwords
-                    </p>
-                  </div>
-                  <div className={`px-2 py-1 rounded text-xs font-medium ${
-                    oauthConfigured 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
-                    {oauthConfigured ? 'Authorized' : 'Not Authorized'}
-                  </div>
-                </div>
-
-                {oauthConfigured ? (
-                  <button
-                    onClick={handleRevokeGmail}
-                    disabled={loading || saving}
-                    className="w-full px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Revoking...' : 'Revoke Gmail Authorization'}
-                  </button>
-                ) : (
-                  <>
-                    {!oauthAvailable && (
-                      <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                        <p className="text-xs text-yellow-800">
-                          ⚠️ Gmail OAuth is not configured. Please contact your administrator to set up GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET.
-                        </p>
-                      </div>
-                    )}
-                    <button
-                      onClick={handleAuthorizeGmail}
-                      disabled={loading || saving || !email.trim() || !oauthAvailable}
-                      className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={!oauthAvailable ? 'Gmail OAuth is not configured by administrator' : !email.trim() ? 'Please enter an email address first' : ''}
-                    >
-                      Authorize Gmail
-                    </button>
-                    {oauthAvailable && (
-                      <p className="mt-2 text-xs text-gray-500 text-center">
-                        Click to authorize sending emails from your Gmail account
-                      </p>
-                    )}
-                  </>
-                )}
+            {/* Hard block if 2FA needed but password missing */}
+            {isMissingRequiredAppPassword && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded mb-3 text-sm">
+                This provider requires an App Password. Please generate one and paste
+                it above before sending emails or running a test.
               </div>
+            )}
 
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                  <p className="text-sm text-red-800">{error}</p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            {/* Errors */}
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded mb-3">
+                {error}
+              </div>
+            )}
 
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            disabled={saving || loading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Close
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || loading || !email.trim()}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? 'Saving...' : 'Save Email'}
-          </button>
-        </div>
+            {/* Footer */}
+            <div className="flex justify-between">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded"
+              >
+                Close
+              </button>
+
+              <button
+                onClick={saveEmailSettings}
+                className="px-4 py-2 bg-blue-600 text-white rounded"
+                disabled={saving || !email.trim()}
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
-  )
+  );
 }
-

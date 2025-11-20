@@ -18,8 +18,20 @@ class GmailOauthService
   class << self
     def authorization_url(user)
       client = build_authorization_client
-      uri = client.authorization_uri
-      Rails.logger.info("Gmail OAuth authorization URL generated: #{uri}")
+      # uri = client.authorization_uri
+      # Rails.logger.info("Gmail OAuth authorization URL generated: #{uri}")
+      # uri.to_s
+      params = {
+        client_id: ENV["GMAIL_CLIENT_ID"],
+        redirect_uri: ENV["GMAIL_REDIRECT_URI"],
+        response_type: "code",
+        scope: "https://www.googleapis.com/auth/gmail.send",
+        access_type: "offline",
+        prompt: "consent"
+      }
+
+      uri = URI("https://accounts.google.com/o/oauth2/auth")
+      uri.query = URI.encode_www_form(params)
       uri.to_s
     end
 
@@ -107,13 +119,14 @@ class GmailOauthService
     end
 
     def oauth_configured?(user)
-      token = valid_access_token(user)
-      configured = token.present?
       refresh_present = user.gmail_refresh_token.present?
+      token_present   = user.gmail_access_token.present?
+
+      configured = token_present && refresh_present
 
       Rails.logger.info(
         "[GmailOauth] oauth_configured? check for user #{user.id}: " \
-        "token_present=#{configured}, refresh_token_present=#{refresh_present}"
+        "token_present=#{token_present}, refresh_token_present=#{refresh_present}"
       )
 
       configured
