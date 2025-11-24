@@ -11,7 +11,7 @@ gem "importmap"
 gem "importmap-rails"
 gem "turbo-rails"
 gem "stimulus-rails"
-gem "shakapacker", "~> 8.0"
+gem "shakapacker", "~> 9.4"
 gem "react-rails"
 
 # Build JSON APIs
