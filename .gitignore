@@ -101,6 +101,9 @@ useApiKeys-simple.test.ts
 COVERAGE_REPORT.md
 CUCUMBER_COVERAGE_GAPS.md
 UNCOVERED_LINES_REPORT.txt
+*COVERAGE_SUMMARY.md
+GENERATED_TEST_CASES_SUMMARY.md
+HIGH_PRIORITY_IMPROVEMENTS.md
 
 # Temporary commit files
 commit_message.txt
@@ -112,3 +115,12 @@ PROJECT_ANALYSIS.md
 features/COVERAGE_ANALYSIS.md
 features/HOW_TO_CHECK_COVERAGE.md
 features/SIMPLECOV_GUIDE.md
+
+# Legacy config files (removed, but ignore if they reappear)
+.babelrc.js
+.eslintrc.js
+
+# Coverage analysis scripts
+scripts/
+coverage_report.rb
+lib/coverage_harness.rb

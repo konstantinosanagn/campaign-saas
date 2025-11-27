@@ -13,9 +13,7 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 - **Ruby:** 3.3.9+
 - **Rails:** 8.1
 - **PostgreSQL:** 12+
-- **Node.js:** ^18.18.0 || ^20.9.0 || >=21.1.0 (required for Shakapacker/Webpack 5)
-  - **Recommended:** Use Node.js 18.20.3 (see `.nvmrc`) or any supported version (18.18+, 20.9+, or 21.1+)
-  - Use `nvm use` (if you have nvm) or install a supported Node.js version manually
+- **Node.js:** 18+ (latest LTS recommended)
 - **Yarn:** 1.22.x
 
 ## Installation
@@ -26,13 +24,12 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
    cd campaign-saas
    ```
 
-2. **Set up Node.js version (if using nvm)**
+2. **Install Node.js (if not already installed)**
    ```bash
-   nvm use  # Uses version from .nvmrc (18.20.3)
-   # or manually install a supported version:
-   # nvm install 18.20.3 && nvm use 18.20.3
-   # nvm install 20.9.0 && nvm use 20.9.0
-   # nvm install 22.17.0 && nvm use 22.17.0
+   # Install the latest LTS version from https://nodejs.org/
+   # Or if using nvm:
+   nvm install --lts
+   nvm use --lts
    ```
 
 3. **Install dependencies**
@@ -61,8 +58,6 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 6. **Access the application**
    - Open http://localhost:3000
    - You're automatically logged in as `admin@example.com`
-   
-   **Note:** If you encounter Node version errors when running the dev server, ensure you're using a supported Node.js version (18.18+, 20.9+, or 21.1+).
 
 ## Development Mode
 
@@ -121,7 +116,7 @@ Because the Gmail OAuth scope (`gmail.send`) is considered sensitive, the unveri
 - **Platform:** Heroku
 - **URL:** https://campaign-saas-7460a258bf90.herokuapp.com/
 - **Database:** PostgreSQL (Heroku Essential-0 plan)
-- **Node.js:** ^18.18.0 || ^20.9.0 || >=21.1.0 (required for Shakapacker/Webpack 5)
+- **Node.js:** 18+ (latest LTS recommended)
 - **Ruby:** 3.3.9
 
 Set environment variables via Heroku Config Vars:
@@ -275,8 +270,6 @@ The project includes comprehensive test coverage across three testing frameworks
 - Full pipeline progression testing (queued → searched → written → critiqued → designed)
 - Run: `bundle exec rspec`
 - Coverage report: `coverage/index.html`
-![RspecCoverageTerminal](RspecCoverageTerminal.png "RspecCoverageTerminal")
-![RspecCoverageWeb](RspecCoverageWeb.png "RspecCoverageWeb")
 
 ### Cucumber
 - **247 scenarios** with **1862 steps** - **100% passing** ✅
@@ -300,9 +293,6 @@ The project includes comprehensive test coverage across three testing frameworks
 - Run: `bundle exec cucumber`
 - Run with coverage (SimpleCov): `COVERAGE=true bundle exec cucumber`
 - View report: `coverage/index.html`
-
-![CucumberCoverageTerminal](CucumberCoverageTerminal.png "CucumberCoverageTerminal")
-![CucumberCoverageWeb](CucumberCoverageWeb.png "CucumberCoverageWeb")
 
 
 ### Jest
@@ -409,47 +399,6 @@ COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (76.
 - [ ] Set up monitoring and error tracking
 
 ## Troubleshooting
-
-### yarn install Errors
-**Error:** `error @typescript-eslint/eslint-plugin@8.46.3: The engine "node" is incompatible with this module. Expected version "^18.18.0 || ^20.9.0 || >=21.1.0". Got "16.20.2"`
-
-**Solution:** 
-- **Recommended:** Use a supported Node.js version (18.18+, 20.9+, or 21.1+)
-- **Workaround:** Use `yarn install --ignore-engines` (not recommended, as it may cause compatibility issues)
-
-### Webpack/OpenSSL Errors
-
-**Error:** After `chmod +x bin/webpack-dev-server`, `./bin/webpack-dev-server` gives error `node: --openssl-legacy-provider is not allowed in NODE_OPTIONS`
-
-**Solution:** Comment out line 6 `ENV["NODE_OPTIONS"] ||= "--openssl-legacy-provider"` in bin/webpack-dev-server
-
-
-**Error:** `Error: error:0308010C:digital envelope routines::unsupported`
-
-**Cause:** This error typically occurs with older Webpack versions and Node.js 17+. However, this project uses Webpack 5, which should work with Node.js 18+ without issues.
-
-**Solutions:**
-
-1. **Recommended:** Use a supported Node.js version (18.18+, 20.9+, or 21.1+)
-   ```bash
-   # If using nvm (Node Version Manager)
-   nvm use  # Uses version from .nvmrc (18.20.3)
-   # or
-   nvm install 18.20.3 && nvm use 18.20.3
-   nvm install 20.9.0 && nvm use 20.9.0
-   nvm install 22.17.0 && nvm use 22.17.0
-   ```
-
-2. **If you still encounter OpenSSL errors:** The project uses Webpack 5 which should not require the legacy OpenSSL provider. If you see this error, try:
-   ```bash
-   export NODE_OPTIONS=--openssl-legacy-provider  # Linux/Mac
-   $env:NODE_OPTIONS="--openssl-legacy-provider"  # Windows PowerShell
-   ```
-
-3. **Verify Node.js version:**
-   ```bash
-   node --version  # Should be 18.18+, 20.9+, or 21.1+ for best compatibility
-   ```
 
 ### Database Connection Issues
 
