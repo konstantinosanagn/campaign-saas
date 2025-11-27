@@ -13,9 +13,9 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 - **Ruby:** 3.3.9+
 - **Rails:** 8.1
 - **PostgreSQL:** 12+
-- **Node.js:** 18.x (required for Shakapacker/Webpack 5)
-  - **Recommended:** Use Node.js 18.20.3 (see `.nvmrc`)
-  - Use `nvm use` (if you have nvm) or install Node.js 18.x manually
+- **Node.js:** ^18.18.0 || ^20.9.0 || >=21.1.0 (required for Shakapacker/Webpack 5)
+  - **Recommended:** Use Node.js 18.20.3 (see `.nvmrc`) or any supported version (18.18+, 20.9+, or 21.1+)
+  - Use `nvm use` (if you have nvm) or install a supported Node.js version manually
 - **Yarn:** 1.22.x
 
 ## Installation
@@ -28,8 +28,11 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 
 2. **Set up Node.js version (if using nvm)**
    ```bash
-   nvm use  # Uses version from .nvmrc (18.20.x)
-   # or manually: nvm install 18.20.3 && nvm use 18.20.3
+   nvm use  # Uses version from .nvmrc (18.20.3)
+   # or manually install a supported version:
+   # nvm install 18.20.3 && nvm use 18.20.3
+   # nvm install 20.9.0 && nvm use 20.9.0
+   # nvm install 22.17.0 && nvm use 22.17.0
    ```
 
 3. **Install dependencies**
@@ -59,7 +62,7 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
    - Open http://localhost:3000
    - You're automatically logged in as `admin@example.com`
    
-   **Note:** If you encounter Node version errors when running the dev server, ensure you're using Node 18.x.
+   **Note:** If you encounter Node version errors when running the dev server, ensure you're using a supported Node.js version (18.18+, 20.9+, or 21.1+).
 
 ## Development Mode
 
@@ -118,7 +121,7 @@ Because the Gmail OAuth scope (`gmail.send`) is considered sensitive, the unveri
 - **Platform:** Heroku
 - **URL:** https://campaign-saas-7460a258bf90.herokuapp.com/
 - **Database:** PostgreSQL (Heroku Essential-0 plan)
-- **Node.js:** 18.x (pinned for Shakapacker/Webpack 5)
+- **Node.js:** ^18.18.0 || ^20.9.0 || >=21.1.0 (required for Shakapacker/Webpack 5)
 - **Ruby:** 3.3.9
 
 Set environment variables via Heroku Config Vars:
@@ -410,7 +413,9 @@ COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (76.
 ### yarn install Errors
 **Error:** `error @typescript-eslint/eslint-plugin@8.46.3: The engine "node" is incompatible with this module. Expected version "^18.18.0 || ^20.9.0 || >=21.1.0". Got "16.20.2"`
 
-**Solution:** use `yarn install --ignore-engines`
+**Solution:** 
+- **Recommended:** Use a supported Node.js version (18.18+, 20.9+, or 21.1+)
+- **Workaround:** Use `yarn install --ignore-engines` (not recommended, as it may cause compatibility issues)
 
 ### Webpack/OpenSSL Errors
 
@@ -421,20 +426,21 @@ COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (76.
 
 **Error:** `Error: error:0308010C:digital envelope routines::unsupported`
 
-**Cause:** Node.js 17+ uses OpenSSL 3.0 which is incompatible with Webpack 4.
+**Cause:** This error typically occurs with older Webpack versions and Node.js 17+. However, this project uses Webpack 5, which should work with Node.js 18+ without issues.
 
 **Solutions:**
 
-1. **Recommended:** Use Node.js 16.x
+1. **Recommended:** Use a supported Node.js version (18.18+, 20.9+, or 21.1+)
    ```bash
    # If using nvm (Node Version Manager)
-   nvm use
+   nvm use  # Uses version from .nvmrc (18.20.3)
    # or
-   nvm install 16.20.2
-   nvm use 16.20.2
+   nvm install 18.20.3 && nvm use 18.20.3
+   nvm install 20.9.0 && nvm use 20.9.0
+   nvm install 22.17.0 && nvm use 22.17.0
    ```
 
-2. **Automatic Fix:** The project scripts (`bin/webpack` and `bin/webpack-dev-server`) automatically set `NODE_OPTIONS=--openssl-legacy-provider` for Node.js 17+. This should work automatically, but if you still see errors, you can manually set:
+2. **If you still encounter OpenSSL errors:** The project uses Webpack 5 which should not require the legacy OpenSSL provider. If you see this error, try:
    ```bash
    export NODE_OPTIONS=--openssl-legacy-provider  # Linux/Mac
    $env:NODE_OPTIONS="--openssl-legacy-provider"  # Windows PowerShell
@@ -442,7 +448,7 @@ COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (76.
 
 3. **Verify Node.js version:**
    ```bash
-   node --version  # Should be 16.x for best compatibility
+   node --version  # Should be 18.18+, 20.9+, or 21.1+ for best compatibility
    ```
 
 ### Database Connection Issues
