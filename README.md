@@ -18,46 +18,62 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 
 ## Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd campaign-saas
-   ```
+### Quick Start (Recommended)
 
-2. **Install Node.js (if not already installed)**
-   ```bash
-   # Install the latest LTS version from https://nodejs.org/
-   # Or if using nvm:
-   nvm install --lts
-   nvm use --lts
-   ```
+```bash
+# 1. Clone and enter the repository
+git clone <your-repo-url>
+cd campaign-saas
 
-3. **Install dependencies**
+# 2. Install Node.js 18+ from https://nodejs.org/ (if needed)
+
+# 3. Run automated setup (installs Ruby gems, sets up database)
+bin/setup --skip-server
+
+# 4. Install JavaScript dependencies
+yarn install
+
+# 5. Start the application (requires two terminals)
+# Terminal 1: Rails backend
+rails server
+
+# Terminal 2: Webpack frontend (hot reload)
+./bin/webpack-dev-server
+```
+
+Open **http://localhost:3000** - automatically logged in as `admin@example.com`
+
+**Note:** The `.env` file is optional for development - defaults are provided. Create it with `cp .env.example .env` if you want to customize settings.
+
+### Manual Setup (Alternative)
+
+If you prefer manual setup:
+
+1. **Install prerequisites:**
+   - Ruby 3.3.9+
+   - Node.js 18+ (latest LTS recommended)
+   - PostgreSQL 12+
+   - Yarn 1.22.x
+
+2. **Install dependencies:**
    ```bash
    bundle install
    yarn install
    ```
 
-4. **Setup database**
+3. **Setup database:**
    ```bash
-   rails db:create
-   rails db:migrate
-   rails db:seed
+   rails db:setup  # Creates, migrates, and seeds in one command
    ```
 
-5. **Start the application**
+4. **Start the application:**
    ```bash
    # Terminal 1: Rails server
    rails server
    
    # Terminal 2: Webpack dev server (for hot reload)
-   chmod +x ./bin/webpack-dev-server
    ./bin/webpack-dev-server
    ```
-
-6. **Access the application**
-   - Open http://localhost:3000
-   - You're automatically logged in as `admin@example.com`
 
 ## Development Mode
 
