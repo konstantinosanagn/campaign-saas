@@ -98,6 +98,7 @@ export default function EmailConfigModal({ isOpen, onClose }: EmailConfigModalPr
               value={email}
               onChange={e => setEmail(e.target.value)}
             />
+
             <div className="mt-4">
               {/* App Password */}
               <label className="block text-sm font-medium text-gray-700 mb-1">App Password</label>

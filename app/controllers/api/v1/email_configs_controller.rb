@@ -8,13 +8,17 @@ module Api
         domain = from.split("@").last.downcase
 
         provider_key = AgentConstants::DETAILED_2FA_INSTRUCTIONS[domain]
-        details = nil
+        details =
+          case provider_key
+          when Symbol
+            AgentConstants::DETAILED_2FA_INSTRUCTIONS["#{provider_key}.com"]
+          when Hash
+            provider_key
+          else
+            provider_key
+          end
 
-        if provider_key.is_a?(Symbol)
-          details = AgentConstants::DETAILED_2FA_INSTRUCTIONS.detect { |k, v| k == provider_key }.last
-        elsif provider_key.is_a?(Hash)
-          details = provider_key
-        end
+        link = details&.dig(:link)
 
         render json: {
           email: from,
@@ -23,7 +27,8 @@ module Api
           smtp_username: user.smtp_username,
           has_app_password: user.smtp_app_password.present?,
           requires_2fa: details.present?,
-          instructions: details
+          instructions: details,
+          app_password_link: link
         }
       end
 

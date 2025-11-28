@@ -50,16 +50,15 @@ class Orchestrator
   end
 
   def run(company_name, recipient: nil, product_info: nil, sender_company: nil)
-    puts "\n" + "=" * 80
-    puts "Starting pipeline"
-    puts "=" * 80 + "\n"
-    puts "Target Company: #{company_name}"
-    puts "Recipient: #{recipient || 'General'}"
-    puts "Your Company: #{sender_company || 'Not specified'}"
-    puts
+    log("=" * 80)
+    log("Starting pipeline")
+    log("=" * 80)
+    log("Target Company: #{company_name}")
+    log("Recipient: #{recipient || 'General'}")
+    log("Your Company: #{sender_company || 'Not specified'}")
 
     # Step 1: Search for information about the company
-    puts "Step 1: Searching for latest news about #{company_name} and #{recipient || 'General'}..."
+    log("Step 1: Searching for latest news about #{company_name} and #{recipient || 'General'}...")
     recipient_name = recipient.is_a?(Hash) ? recipient[:name] : recipient
     recipient_job_title = recipient.is_a?(Hash) ? recipient[:job_title] : nil
     recipient_email = recipient.is_a?(Hash) ? recipient[:email] : nil
@@ -90,10 +89,10 @@ class Orchestrator
     company_sources   = Array(search_results.dig(:personalization_signals, :company))
     sources = recipient_sources + company_sources
 
-    puts "Found #{sources.length} sources"
+    log("Found #{sources.length} sources")
 
     # Step 2: Generate personalized email TO the company
-    puts "Step 2: Generating personalized B2B outreach email..."
+    log("Step 2: Generating personalized B2B outreach email...")
     formatted_search_input = {
       company: company_name,
       inferred_focus_areas: search_results[:inferred_focus_areas],
@@ -107,44 +106,70 @@ class Orchestrator
       sender_company: sender_company
     )
     email_text = writer_output[:email] || ""
-    puts "Initial Email generated (#{email_text.length} characters)"
+    writer_variants = writer_output[:variants] || []
+    log("Initial email generated (#{email_text.length} chars, #{writer_variants.length} variants)")
 
     # Step 3: Critique and revise until approved
-    puts "Step 3: Running critique and revision loop..."
+    log("Step 3: Running critique and revision loop...")
     revision_count = 0
     critique_result = nil
+    max_revisions = 3
+    current_variants = writer_variants.dup
 
     loop do
       revision_count += 1
-      puts "Revision attempt ##{revision_count}..."
+      log("Revision attempt ##{revision_count} (current length #{email_text.length})")
 
       critique_input = {
         "email_content" => email_text,
         "number_of_revisions" => revision_count
       }
+      critique_input["variants"] = current_variants if current_variants.any?
 
       critique_result = @critique_agent.run(critique_input)
       critique_text = critique_result["critique"]
 
+      revised_email =
+        critique_result["rewritten_email"].presence ||
+        critique_result["selected_variant"].presence ||
+        critique_result["email_content"].presence ||
+        email_text
+
+      email_changed = revised_email.strip != email_text.strip
+      email_text = revised_email
+      current_variants = [email_text]
+      log("Critique score=#{critique_result['score']} meets_min=#{critique_result['meets_min_score']} rewrite=#{critique_result['rewrite_applied']} changed=#{email_changed}")
+
       if critique_text.nil?
-        puts "CritiqueAgent: Email approved ✅"
+        log("CritiqueAgent: Email approved ✅")
+        break
+      elsif critique_result["meets_min_score"]
+        log("CritiqueAgent minimum score met ✅")
+        break
+      elsif revision_count >= max_revisions || !email_changed
+        log("CritiqueAgent: Reached max revisions or no further changes.")
         break
       else
-        puts "CritiqueAgent Feedback: #{critique_text[0..120]}..."
-        break
+        log("CritiqueAgent feedback snippet: #{critique_text[0..120]}...")
       end
     end
 
-    puts "\n" + "=" * 80
-    puts "Pipeline completed successfully!"
-    puts "=" * 80 + "\n"
+    log("Pipeline completed after #{revision_count} iteration(s). Final length #{email_text.length}.")
+
+    final_email =
+      critique_result["rewritten_email"].presence ||
+      critique_result["selected_variant"].presence ||
+      critique_result["email_content"].presence ||
+      critique_result["email"].presence ||
+      email_text
 
     {
       company: company_name,
       recipient: recipient,
-      email: email_text,
-      variants: [ email_text ],
+      email: final_email,
+      variants: current_variants.any? ? current_variants : [ final_email ],
       critique: critique_result["critique"],
+      critique_details: critique_result,
       sources: sources,
       inferred_focus_areas: search_results[:inferred_focus_areas],
       product_info: product_info,
@@ -159,5 +184,16 @@ class Orchestrator
       product_info: product_info,
       sender_company: sender_company
     )
+  end
+
+  private
+
+  def log(message)
+    formatted = "[Orchestrator] #{message}"
+    if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+      Rails.logger.info(formatted)
+    else
+      puts(formatted)
+    end
   end
 end
