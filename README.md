@@ -13,7 +13,7 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 - **Ruby:** 3.3.9+
 - **Rails:** 8.1
 - **PostgreSQL:** 12+
-- **Node.js:** 18+ (latest LTS recommended)
+- **Node.js:** 20+ (latest LTS recommended)
 - **Yarn:** 1.22.x
 
 ## Installation
@@ -26,6 +26,8 @@ git clone <your-repo-url>
 cd campaign-saas
 
 # 2. Install Node.js 20+ from https://nodejs.org/ (if needed)
+# nvm install 20.9.0
+# nvm use 20.9.0
 
 # 3. Run automated setup (installs Ruby gems, sets up database)
 bin/setup --skip-server
@@ -52,7 +54,7 @@ If you prefer manual setup:
 
 1. **Install prerequisites:**
    - Ruby 3.3.9+
-   - Node.js 18+ (latest LTS recommended)
+   - Node.js 20+ (latest LTS recommended)
    - PostgreSQL 12+
    - Yarn 1.22.x
 
@@ -133,7 +135,7 @@ Because the Gmail OAuth scope (`gmail.send`) is considered sensitive, the unveri
 - **Platform:** Heroku
 - **URL:** https://campaign-saas-7460a258bf90.herokuapp.com/
 - **Database:** PostgreSQL (Heroku Essential-0 plan)
-- **Node.js:** 18+ (latest LTS recommended)
+- **Node.js:** 20+ (latest LTS recommended)
 - **Ruby:** 3.3.9
 
 Set environment variables via Heroku Config Vars:
