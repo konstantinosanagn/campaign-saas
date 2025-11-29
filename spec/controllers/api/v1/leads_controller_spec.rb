@@ -183,7 +183,7 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     it "runs sync and returns ok on success" do
-      result = { status: "completed", outputs: {}, completed_agents: ["SEARCH", "WRITER"], failed_agents: [] }
+      result = { status: "completed", outputs: {}, completed_agents: [ "SEARCH", "WRITER" ], failed_agents: [] }
       allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
       allow(LeadAgentService).to receive(:run_agents_for_lead).and_return(result)
       allow(LeadSerializer).to receive(:serialize).with(lead).and_return({
