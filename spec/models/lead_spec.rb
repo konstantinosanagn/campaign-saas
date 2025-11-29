@@ -102,18 +102,8 @@ RSpec.describe Lead, type: :model do
     let(:campaign) { create(:campaign, user: user) }
     let(:lead) { create(:lead, campaign: campaign) }
 
-    it 'provides campaignId getter' do
-      expect(lead.campaignId).to eq(campaign.id)
-    end
-
-    it 'provides campaignId setter' do
-      new_campaign = create(:campaign, user: user)
-      lead.campaignId = new_campaign.id
-      expect(lead.campaign_id).to eq(new_campaign.id)
-    end
-
-    it 'returns camelCase in as_json' do
-      json = lead.as_json
+    it 'returns camelCase when serialized' do
+      json = LeadSerializer.serialize(lead)
       expect(json).to have_key('campaignId')
       expect(json).not_to have_key('campaign_id')
       expect(json['campaignId']).to eq(campaign.id)

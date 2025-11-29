@@ -140,7 +140,7 @@ export function useLeads() {
       console.log("📬 [createLead] Response from backend:", response)
 
       if (response.error) {
-        const errors = response.data?.errors ?? response.errors ?? []
+        const errors = (response.data as { errors?: string[] } | undefined)?.errors ?? []
         const errorMsg = Array.isArray(errors) && errors.length > 0 ? errors.join(', ') : response.error
         setError(errorMsg)
 

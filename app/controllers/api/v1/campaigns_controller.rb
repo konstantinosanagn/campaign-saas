@@ -4,14 +4,15 @@ module Api
       def index
         # Only return campaigns belonging to the current user
         # Use includes to prevent N+1 queries when accessing associations
-        render json: current_user.campaigns.includes(:leads, :agent_configs)
+        campaigns = current_user.campaigns.includes(:leads, :agent_configs)
+        render json: CampaignSerializer.serialize_collection(campaigns)
       end
 
       def create
         # Associate campaign with current user
         campaign = current_user.campaigns.build(campaign_params)
         if campaign.save
-          render json: campaign, status: :created
+          render json: CampaignSerializer.serialize(campaign), status: :created
         else
           render json: { errors: campaign.errors.full_messages }, status: :unprocessable_entity
         end
@@ -21,7 +22,7 @@ module Api
         # Only allow updating campaigns that belong to current user
         campaign = current_user.campaigns.find_by(id: params[:id])
         if campaign && campaign.update(campaign_params)
-          render json: campaign
+          render json: CampaignSerializer.serialize(campaign)
         else
           render json: { errors: campaign ? campaign.errors.full_messages : [ "Not found or unauthorized" ] }, status: :unprocessable_entity
         end

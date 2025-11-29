@@ -48,13 +48,13 @@ Feature: Coverage Gaps
     Then the primary goal should return "book_call"
 
   # Lead model coverage
-  Scenario: Lead campaignId getter and setter
+  Scenario: Lead serialization returns camelCase
     Given a campaign titled "Test Campaign" exists for me
     And a lead exists for my campaign
-    When I get the lead's campaignId
-    Then it should equal the campaign id
-    When I set the lead's campaignId to the campaign id
-    Then the lead should be saved
+    When I serialize the lead
+    Then the serialized lead should include "campaignId"
+    And the serialized lead should not include "campaign_id"
+    And the serialized campaignId should equal the campaign id
 
   # MarkdownHelper coverage
   Scenario: MarkdownHelper handles blockquotes with accumulated paragraphs

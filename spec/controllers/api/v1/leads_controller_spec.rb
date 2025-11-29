@@ -12,6 +12,10 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     it "returns leads belonging to current_user" do
       leads = [ double(id: 1), double(id: 2) ]
       allow(Lead).to receive_message_chain(:includes, :joins, :where).and_return(leads)
+      allow(LeadSerializer).to receive(:serialize_collection).with(leads).and_return([
+        { "id" => 1, "name" => "Lead 1" },
+        { "id" => 2, "name" => "Lead 2" }
+      ])
 
       get :index
 
@@ -36,10 +40,13 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     it "creates lead when campaign belongs to user" do
-      lead_double = instance_double("Lead", save: true)
+      lead_double = instance_double("Lead", save: true, id: 1, name: "Bob", email: "bob@example.com", title: "CEO", company: "Acme", website: "", campaign_id: 10, stage: "queued", quality: "-", created_at: Time.current, updated_at: Time.current)
       campaign_double = double(leads: double(build: lead_double))
       campaigns = double(find_by: campaign_double)
       allow(user).to receive(:campaigns).and_return(campaigns)
+      allow(LeadSerializer).to receive(:serialize).with(lead_double).and_return({
+        "id" => 1, "name" => "Bob", "campaignId" => 10
+      })
 
       post :create, params: params
 
@@ -65,8 +72,11 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     let(:params) { { id: lead_id, lead: { name: "John" } } }
 
     it "updates lead when found and authorized" do
-      lead = double(update: true)
+      lead = double(update: true, id: lead_id, name: "John", email: "john@example.com", title: "CTO", company: "Tech", website: "", campaign_id: 1, stage: "queued", quality: "-", created_at: Time.current, updated_at: Time.current)
       allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
+      allow(LeadSerializer).to receive(:serialize).with(lead).and_return({
+        "id" => lead_id, "name" => "John", "campaignId" => 1
+      })
 
       patch :update, params: params
 
@@ -119,6 +129,10 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
   describe "POST #run_agents" do
     let(:lead) { double(id: 5, campaign: double(id: 7)) }
 
+    before do
+      allow(ApiKeyService).to receive(:keys_available?).with(user).and_return(true)
+    end
+
     it "returns not found when lead missing" do
       allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(nil)
 
@@ -130,13 +144,16 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     it "queues job when async and perform_later returns job" do
       allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
       allow(AgentExecutionJob).to receive(:perform_later).and_return(double(job_id: "abc"))
+      allow(LeadSerializer).to receive(:serialize).with(lead).and_return({
+        "id" => 5, "name" => "Test Lead", "campaignId" => 7
+      })
 
       post :run_agents, params: { id: 1, async: "true" }
 
       expect(response).to have_http_status(:accepted)
       body = JSON.parse(response.body)
       expect(body["status"]).to eq("queued")
-      expect(body["job_id"]).to eq("abc")
+      expect(body["jobId"]).to eq("abc")
     end
 
     it "handles enqueue errors and returns 500" do
@@ -154,6 +171,9 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
       result = { status: "failed", error: "error" }
       allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
       allow(LeadAgentService).to receive(:run_agents_for_lead).and_return(result)
+      allow(LeadSerializer).to receive(:serialize).with(lead).and_return({
+        "id" => 5, "name" => "Test Lead", "campaignId" => 7
+      })
 
       post :run_agents, params: { id: 1, async: "false" }
 
@@ -163,15 +183,18 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     it "runs sync and returns ok on success" do
-      result = { status: "ok", outputs: [], completed_agents: 2, failed_agents: 0 }
+      result = { status: "completed", outputs: {}, completed_agents: ["SEARCH", "WRITER"], failed_agents: [] }
       allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
       allow(LeadAgentService).to receive(:run_agents_for_lead).and_return(result)
+      allow(LeadSerializer).to receive(:serialize).with(lead).and_return({
+        "id" => 5, "name" => "Test Lead", "campaignId" => 7
+      })
 
       post :run_agents, params: { id: 1, async: "false" }
 
       expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body)
-      expect(body["status"]).to eq("ok")
+      expect(body["status"]).to eq("completed")
     end
 
     it "handles exceptions during sync and returns 500" do
@@ -189,12 +212,15 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
       allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
       allow(Rails.env).to receive(:production?).and_return(true)
       allow(AgentExecutionJob).to receive(:perform_later).and_return(double(job_id: "job"))
+      allow(LeadSerializer).to receive(:serialize).with(lead).and_return({
+        "id" => 5, "name" => "Test Lead", "campaignId" => 7
+      })
 
       post :run_agents, params: { id: 1 }
 
       expect(response).to have_http_status(:accepted)
       body = JSON.parse(response.body)
-      expect(body["job_id"]).to eq("job")
+      expect(body["jobId"]).to eq("job")
     end
   end
 
@@ -314,10 +340,13 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
 
     context "when updating WRITER" do
       it "requires content and updates successfully" do
-        ao = double(agent_name: AgentConstants::AGENT_WRITER, status: "ok", output_data: {}, updated_at: Time.now)
+        ao = double(agent_name: AgentConstants::AGENT_WRITER, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
         outputs = double(find_by: ao)
         lead_with_ao = double(agent_outputs: outputs)
         allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
+          "agentName" => "WRITER", "status" => "completed", "outputData" => { "email" => "hi" }
+        })
 
         expect(ao).to receive(:output_data).and_return({})
         expect(ao).to receive(:update!).with(output_data: hash_including(:email)).and_return(true)
@@ -328,10 +357,13 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
       end
 
       it "accepts email param as alternative to content" do
-        ao = double(agent_name: AgentConstants::AGENT_WRITER, status: "ok", output_data: {}, updated_at: Time.now)
+        ao = double(agent_name: AgentConstants::AGENT_WRITER, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
         outputs = double(find_by: ao)
         lead_with_ao = double(agent_outputs: outputs)
         allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
+          "agentName" => "WRITER", "status" => "completed", "outputData" => { "email" => "email-content" }
+        })
 
         expect(ao).to receive(:output_data).and_return({})
         expect(ao).to receive(:update!).with(output_data: hash_including(email: "email-content")).and_return(true)
@@ -357,10 +389,13 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
 
     context "when updating DESIGN" do
       it "requires content and updates with formatted_email" do
-        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "ok", output_data: {}, updated_at: Time.now)
+        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
         outputs = double(find_by: ao)
         lead_with_ao = double(agent_outputs: outputs)
         allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
+          "agentName" => "DESIGN", "status" => "completed", "outputData" => { "formatted_email" => "hi" }
+        })
 
         expect(ao).to receive(:output_data).and_return({})
         expect(ao).to receive(:update!).with(output_data: hash_including(:formatted_email)).and_return(true)
@@ -371,10 +406,13 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
       end
 
       it "accepts email param as alternative to content" do
-        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "ok", output_data: {}, updated_at: Time.now)
+        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
         outputs = double(find_by: ao)
         lead_with_ao = double(agent_outputs: outputs)
         allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
+          "agentName" => "DESIGN", "status" => "completed", "outputData" => { "email" => "email-content", "formatted_email" => "email-content" }
+        })
 
         expect(ao).to receive(:output_data).and_return({})
         expect(ao).to receive(:update!).with(output_data: hash_including(email: "email-content", formatted_email: "email-content")).and_return(true)
@@ -385,10 +423,13 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
       end
 
       it "accepts formatted_email param as alternative to content" do
-        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "ok", output_data: {}, updated_at: Time.now)
+        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
         outputs = double(find_by: ao)
         lead_with_ao = double(agent_outputs: outputs)
         allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
+          "agentName" => "DESIGN", "status" => "completed", "outputData" => { "email" => "formatted-content", "formatted_email" => "formatted-content" }
+        })
 
         expect(ao).to receive(:output_data).and_return({})
         expect(ao).to receive(:update!).with(output_data: hash_including(email: "formatted-content", formatted_email: "formatted-content")).and_return(true)
@@ -414,10 +455,13 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
 
     context "when updating SEARCH" do
       it "requires updatedData and updates successfully" do
-        ao = double(agent_name: AgentConstants::AGENT_SEARCH, status: "ok", output_data: {}, updated_at: Time.now)
+        ao = double(agent_name: AgentConstants::AGENT_SEARCH, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
         outputs = double(find_by: ao)
         lead_with_ao = double(agent_outputs: outputs)
         allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
+          "agentName" => "SEARCH", "status" => "completed", "outputData" => { "sources" => [] }
+        })
         expect(ao).to receive(:update!).with(output_data: kind_of(ActionController::Parameters)).and_return(true)
 
         patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_SEARCH, updatedData: { foo: "bar" } }
@@ -426,10 +470,13 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
       end
 
       it "accepts updated_data (snake_case) as alternative to updatedData" do
-        ao = double(agent_name: AgentConstants::AGENT_SEARCH, status: "ok", output_data: {}, updated_at: Time.now)
+        ao = double(agent_name: AgentConstants::AGENT_SEARCH, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
         outputs = double(find_by: ao)
         lead_with_ao = double(agent_outputs: outputs)
         allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
+        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
+          "agentName" => "SEARCH", "status" => "completed", "outputData" => { "baz" => "qux" }
+        })
         expect(ao).to receive(:update!).with(output_data: kind_of(ActionController::Parameters)).and_return(true)
 
         patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_SEARCH, updated_data: { baz: "qux" } }

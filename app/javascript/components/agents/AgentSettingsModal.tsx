@@ -135,8 +135,8 @@ export default function AgentSettingsModal({
         setAllowBold((designSettings.allowBold ?? designSettings.allow_bold) !== false)
         setAllowItalic((designSettings.allowItalic ?? designSettings.allow_italic) !== false)
         setAllowBullets((designSettings.allowBullets ?? designSettings.allow_bullets) !== false)
-        setCtaStyle((designSettings.ctaStyle || designSettings.cta_style) || 'link')
-        setFontFamily((designSettings.fontFamily || designSettings.font_family) || 'system_sans')
+        setCtaStyle(((designSettings.ctaStyle || designSettings.cta_style) || 'link') as 'link' | 'button')
+        setFontFamily(((designSettings.fontFamily || designSettings.font_family) || 'system_sans') as 'system_sans' | 'serif')
       }
     } else {
       // Reset to defaults
@@ -263,8 +263,8 @@ export default function AgentSettingsModal({
         setAllowBold((designSettings.allowBold ?? designSettings.allow_bold) !== false)
         setAllowItalic((designSettings.allowItalic ?? designSettings.allow_italic) !== false)
         setAllowBullets((designSettings.allowBullets ?? designSettings.allow_bullets) !== false)
-        setCtaStyle((designSettings.ctaStyle || designSettings.cta_style) || 'link')
-        setFontFamily((designSettings.fontFamily || designSettings.font_family) || 'system_sans')
+        setCtaStyle(((designSettings.ctaStyle || designSettings.cta_style) || 'link') as 'link' | 'button')
+        setFontFamily(((designSettings.fontFamily || designSettings.font_family) || 'system_sans') as 'system_sans' | 'serif')
       }
     }
     onClose()

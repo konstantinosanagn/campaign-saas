@@ -57,11 +57,11 @@ class ApplicationController < ActionController::Base
 
   def normalize_user(user)
     return user if user.is_a?(User) || user.nil?
-    return user unless user.respond_to?(:[])
+    return nil unless user.respond_to?(:[])
 
     user_id = user[:id] || user["id"]
-    return user if user_id.blank?
+    return nil if user_id.blank?
 
-    User.find_by(id: user_id) || user
+    User.find_by(id: user_id) || nil
   end
 end

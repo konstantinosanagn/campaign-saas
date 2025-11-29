@@ -49,7 +49,7 @@ module Api
           }
         else
           render json: {
-            error: user.errors.full_messages
+            error: user.errors.full_messages.join(", ")
           }, status: :unprocessable_entity
         end
       end

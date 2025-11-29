@@ -103,7 +103,7 @@ Feature: Agent Execution Workflow
     When I send a POST request to "/api/v1/leads/#{@lead.id}/run_agents?async=true"
     Then the response status should be 202
     And the JSON response should include "status" with "queued"
-    And the JSON response should include "job_id"
+    And the JSON response should include "jobId"
     And an AgentExecutionJob should be enqueued
 
   Scenario: Run agents with async=false runs synchronously

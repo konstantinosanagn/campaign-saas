@@ -16,7 +16,7 @@ jest.mock('@/libs/utils/apiClient', () => ({
 
 import apiClient from '@/libs/utils/apiClient'
 import { useCampaigns } from '../useCampaigns'
-import type { Campaign } from '@/types'
+import type { Campaign, SharedSettings } from '@/types'
 
 const indexMock = apiClient.index as jest.Mock
 const createMock = apiClient.create as jest.Mock
@@ -79,7 +79,7 @@ describe('useCampaigns', () => {
   const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
   
   // Helper for default sharedSettings
-  const defaultSharedSettings = {
+  const defaultSharedSettings: SharedSettings = {
     brand_voice: {
       tone: 'professional',
       persona: 'founder',

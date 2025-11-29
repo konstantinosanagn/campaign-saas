@@ -61,7 +61,7 @@ export function useCampaigns() {
       const response = await apiClient.create<Campaign>('campaigns', payload)
       
       if (response.error) {
-        const errors = response.data?.errors ?? []
+        const errors = (response.data as { errors?: string[] } | undefined)?.errors ?? []
         const errorMsg = errors.length > 0 ? errors.join(', ') : response.error
         setError(errorMsg)
 

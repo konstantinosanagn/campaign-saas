@@ -12,6 +12,10 @@ RSpec.describe Api::V1::CampaignsController, type: :controller do
     it "returns campaigns for current_user" do
       campaigns = [ double(id: 1), double(id: 2) ]
       allow(user).to receive_message_chain(:campaigns, :includes).and_return(campaigns)
+      allow(CampaignSerializer).to receive(:serialize_collection).with(campaigns).and_return([
+        { "id" => 1, "title" => "Campaign 1" },
+        { "id" => 2, "title" => "Campaign 2" }
+      ])
 
       get :index
 
@@ -25,8 +29,11 @@ RSpec.describe Api::V1::CampaignsController, type: :controller do
     let(:params) { { campaign: { title: "New" } } }
 
     it "creates campaign when save succeeds" do
-      campaign_double = instance_double("Campaign", save: true)
+      campaign_double = instance_double("Campaign", save: true, id: 1, title: "New", shared_settings: {}, created_at: Time.current, updated_at: Time.current)
       allow(user).to receive_message_chain(:campaigns, :build).and_return(campaign_double)
+      allow(CampaignSerializer).to receive(:serialize).with(campaign_double).and_return({
+        "id" => 1, "title" => "New", "sharedSettings" => {}
+      })
 
       post :create, params: params
 
@@ -50,9 +57,12 @@ RSpec.describe Api::V1::CampaignsController, type: :controller do
     let(:params) { { id: id, campaign: { title: "Updated" } } }
 
     it "updates when found and valid" do
-      campaign = double(update: true)
+      campaign = double(update: true, id: id, title: "Updated", shared_settings: {}, created_at: Time.current, updated_at: Time.current)
       campaigns = double(find_by: campaign)
       allow(user).to receive(:campaigns).and_return(campaigns)
+      allow(CampaignSerializer).to receive(:serialize).with(campaign).and_return({
+        "id" => id, "title" => "Updated", "sharedSettings" => {}
+      })
 
       patch :update, params: params
 
@@ -87,9 +97,12 @@ RSpec.describe Api::V1::CampaignsController, type: :controller do
       existing_shared = { "y" => 1 }
       params_with_shared = { id: id, campaign: { sharedSettings: shared_settings_param } }
 
-      campaign = double(read_attribute: existing_shared, update: true)
+      campaign = double(read_attribute: existing_shared, update: true, id: id, title: "Test", shared_settings: { "x" => 2, "y" => 1 }, created_at: Time.current, updated_at: Time.current)
       campaigns = double(find_by: campaign)
       allow(user).to receive(:campaigns).and_return(campaigns)
+      allow(CampaignSerializer).to receive(:serialize).with(campaign).and_return({
+        "id" => id, "title" => "Test", "sharedSettings" => { "x" => 2, "y" => 1 }
+      })
 
       expect(campaign).to receive(:update).with(hash_including('shared_settings' => hash_including('x' => '2', 'y' => 1))).and_return(true)
 

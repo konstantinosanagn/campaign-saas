@@ -25,7 +25,8 @@ export interface Lead {
   website: string
   campaignId: number
   stage: string
-  quality: string
+  quality: string | null
+  errors?: string[]
 }
 
 export interface CampaignFormData {
@@ -106,15 +107,18 @@ export interface AgentConfig {
   settings: SearchAgentSettings | WriterAgentSettings | CritiqueAgentSettings | DesignAgentSettings | Record<string, unknown>
   createdAt?: string
   updatedAt?: string
+  errors?: string[]
 }
 
 export interface RunAgentsResponse {
-  status: 'completed' | 'partial' | 'failed'
-  outputs: Record<string, unknown>
+  status: 'completed' | 'partial' | 'failed' | 'queued' | 'error'
+  outputs?: Record<string, unknown>
   lead: Lead
-  completedAgents: string[]
-  failedAgents: string[]
+  completedAgents?: string[]
+  failedAgents?: string[]
   error?: string
+  message?: string
+  jobId?: string
 }
 
 

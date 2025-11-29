@@ -13,16 +13,7 @@ module Api
           return
         end
 
-        configs = campaign.agent_configs.map do |config|
-          {
-            id: config.id,
-            agentName: config.agent_name,
-            enabled: config.enabled,
-            settings: config.settings,
-            createdAt: config.created_at,
-            updatedAt: config.updated_at
-          }
-        end
+        configs = campaign.agent_configs.map { |config| AgentConfigSerializer.serialize(config) }
 
         render json: {
           campaignId: campaign.id,
@@ -49,14 +40,7 @@ module Api
           return
         end
 
-        render json: {
-          id: config.id,
-          agentName: config.agent_name,
-          enabled: config.enabled,
-          settings: config.settings,
-          createdAt: config.created_at,
-          updatedAt: config.updated_at
-        }, status: :ok
+        render json: AgentConfigSerializer.serialize(config), status: :ok
       end
 
       ##
@@ -102,14 +86,7 @@ module Api
         )
 
         if config.save
-          render json: {
-            id: config.id,
-            agentName: config.agent_name,
-            enabled: config.enabled,
-            settings: config.settings,
-            createdAt: config.created_at,
-            updatedAt: config.updated_at
-          }, status: :created
+          render json: AgentConfigSerializer.serialize(config), status: :created
         else
           render json: { errors: config.errors.full_messages }, status: :unprocessable_entity
         end
@@ -139,14 +116,7 @@ module Api
         update_params = agent_config_params.except(:agent_name, :agentName)
 
         if config.update(update_params)
-          render json: {
-            id: config.id,
-            agentName: config.agent_name,
-            enabled: config.enabled,
-            settings: config.settings,
-            createdAt: config.created_at,
-            updatedAt: config.updated_at
-          }, status: :ok
+          render json: AgentConfigSerializer.serialize(config), status: :ok
         else
           render json: { errors: config.errors.full_messages }, status: :unprocessable_entity
         end

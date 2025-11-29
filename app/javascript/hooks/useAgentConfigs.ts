@@ -60,7 +60,7 @@ export function useAgentConfigs(campaignId: number | null) {
       })
       
       if (response.error) {
-        const errorMsg = response.data?.errors ? response.data.errors.join(', ') : response.error
+        const errorMsg = (response.data as { errors?: string[] } | undefined)?.errors ? (response.data as { errors: string[] }).errors.join(', ') : response.error
         setError(errorMsg)
         console.error('Failed to create agent config:', response.error)
         return null

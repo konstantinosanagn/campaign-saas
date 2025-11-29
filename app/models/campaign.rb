@@ -35,13 +35,6 @@ class Campaign < ApplicationRecord
     shared_settings["primary_goal"] || "book_call"
   end
 
-  # Override as_json to maintain API compatibility with camelCase
-  def as_json(options = {})
-    super(options).merge(
-      "sharedSettings" => shared_settings
-    ).except("shared_settings")
-  end
-
   private
 
   def set_default_shared_settings

@@ -298,9 +298,10 @@ export default function AgentOutputModal({
 
     if (!Array.isArray(data.sources)) {
       const ps = data.personalization_signals
-      if (ps && typeof ps === "object") {
-        const recipientSources = Array.isArray(ps.recipient) ? ps.recipient : []
-        const companySources = Array.isArray(ps.company) ? ps.company : []
+      if (ps && typeof ps === "object" && ps !== null) {
+        const psRecord = ps as Record<string, unknown>
+        const recipientSources = Array.isArray(psRecord.recipient) ? psRecord.recipient : []
+        const companySources = Array.isArray(psRecord.company) ? psRecord.company : []
         const combined = [...recipientSources, ...companySources]
         if (combined.length > 0) {
           data.sources = combined
@@ -332,8 +333,9 @@ export default function AgentOutputModal({
 
     const summary = extractTextValue(data, ['summary', 'notes', 'description'])
 
-    const primarySources = Array.isArray(data.sources) ? data.sources : Array.isArray(data.outputData?.sources)
-      ? data.outputData.sources
+    const outputDataRecord = data.outputData as Record<string, unknown> | null | undefined
+    const primarySources = Array.isArray(data.sources) ? data.sources : Array.isArray(outputDataRecord?.sources)
+      ? outputDataRecord?.sources
       : null
 
     const domainRecord = typeof data.domain === 'string' || data.domain == null ? null : toRecord(data.domain)
@@ -398,15 +400,15 @@ export default function AgentOutputModal({
 
         {sourcesCount > 0 ? (
           <div className="space-y-3">
-            {sources.map((source, idx) => {
-              const title = source.title && source.title.trim().length > 0 ? source.title : undefined
-              const url = source.url && source.url.trim().length > 0 ? source.url : undefined
-              const description = source.content && source.content.trim().length > 0
+            {sources.map((source: Record<string, unknown>, idx: number) => {
+              const title = (typeof source.title === 'string' && source.title.trim().length > 0) ? source.title : undefined
+              const url = (typeof source.url === 'string' && source.url.trim().length > 0) ? source.url : undefined
+              const description = (typeof source.content === 'string' && source.content.trim().length > 0)
                 ? source.content
-                : source.snippet && source.snippet.trim().length > 0
+                : (typeof source.snippet === 'string' && source.snippet.trim().length > 0)
                   ? source.snippet
                   : undefined
-              const publishedAt = source.publishedAt && source.publishedAt.trim().length > 0
+              const publishedAt = (typeof source.publishedAt === 'string' && source.publishedAt.trim().length > 0)
                 ? source.publishedAt
                 : undefined
               const scoreDisplay = typeof source.score === 'number' ? source.score.toFixed(2) : undefined

@@ -4,9 +4,10 @@ module Api
       def index
         # Only return leads from campaigns belonging to the current user
         # Use includes to prevent N+1 queries when accessing associations
-        render json: Lead.includes(:campaign, :agent_outputs)
-                         .joins(:campaign)
-                         .where(campaigns: { user_id: current_user.id })
+        leads = Lead.includes(:campaign, :agent_outputs)
+                    .joins(:campaign)
+                    .where(campaigns: { user_id: current_user.id })
+        render json: LeadSerializer.serialize_collection(leads)
       end
 
 
@@ -22,7 +23,7 @@ module Api
 
         lead = campaign.leads.build(lead_params.except(:campaign_id))
         if lead.save
-          render json: lead, status: :created
+          render json: LeadSerializer.serialize(lead), status: :created
         else
           render json: { errors: lead.errors.full_messages }, status: :unprocessable_entity
         end
@@ -36,7 +37,7 @@ module Api
                    .where(campaigns: { user_id: current_user.id })
                    .find_by(id: params[:id])
         if lead && lead.update(lead_params.except(:campaign_id))
-          render json: lead
+          render json: LeadSerializer.serialize(lead)
         else
           render json: { errors: lead ? lead.errors.full_messages : [ "Not found or unauthorized" ] }, status: :unprocessable_entity
         end
@@ -94,15 +95,20 @@ module Api
           Rails.env.production?
         end
 
-        # Validate API keys BEFORE queuing or running (works for both sync and async)
-        unless ApiKeyService.keys_available?(current_user)
-          missing_keys = ApiKeyService.missing_keys(current_user)
-          render json: {
-            status: "failed",
-            error: "Missing API keys: #{missing_keys.join(', ')}. Please add them in the API Keys section.",
-            lead: lead
-          }, status: :unprocessable_entity
-          return
+        if use_async
+          # For async mode, allow job to be queued - the job will handle missing API keys
+          # and be discarded gracefully (discard_on ArgumentError)
+        else
+          # For sync mode, validate API keys before running to provide immediate feedback
+          unless ApiKeyService.keys_available?(current_user)
+            missing_keys = ApiKeyService.missing_keys(current_user)
+            render json: {
+              status: "failed",
+              error: "Missing API keys: #{missing_keys.join(', ')}. Please add them in the API Keys section.",
+              lead: LeadSerializer.serialize(lead)
+            }, status: :unprocessable_entity
+            return
+          end
         end
 
         if use_async
@@ -110,12 +116,12 @@ module Api
           begin
             job = AgentExecutionJob.perform_later(lead.id, campaign.id, current_user.id)
 
-            render json: {
-              status: "queued",
-              message: "Agent execution queued successfully",
-              job_id: job.job_id,
-              lead: lead
-            }, status: :accepted
+          render json: {
+            status: "queued",
+            message: "Agent execution queued successfully",
+            jobId: job.job_id,
+            lead: LeadSerializer.serialize(lead)
+          }, status: :accepted
           rescue => e
             Rails.logger.error("Failed to enqueue AgentExecutionJob: #{e.message}")
             render json: {
@@ -134,7 +140,7 @@ module Api
               render json: {
                 status: result[:status],
                 error: result[:error],
-                lead: lead
+                lead: LeadSerializer.serialize(lead)
               }, status: :unprocessable_entity
               return
             end
@@ -143,7 +149,7 @@ module Api
             render json: {
               status: result[:status],
               outputs: result[:outputs],
-              lead: lead,
+              lead: LeadSerializer.serialize(lead),
               completedAgents: result[:completed_agents],
               failedAgents: result[:failed_agents]
             }, status: :ok
@@ -175,16 +181,7 @@ module Api
         end
 
         # Get all agent outputs for this lead
-        outputs = lead.agent_outputs.map do |output|
-          {
-            agentName: output.agent_name,
-            status: output.status,
-            outputData: output.output_data,
-            errorMessage: output.error_message,
-            createdAt: output.created_at,
-            updatedAt: output.updated_at
-          }
-        end
+        outputs = lead.agent_outputs.map { |output| AgentOutputSerializer.serialize(output) }
 
         render json: {
           leadId: lead.id,
@@ -308,12 +305,7 @@ module Api
           agent_output.update!(output_data: updated_data_param)
         end
 
-        render json: {
-          agentName: agent_output.agent_name,
-          status: agent_output.status,
-          outputData: agent_output.output_data,
-          updatedAt: agent_output.updated_at
-        }, status: :ok
+        render json: AgentOutputSerializer.serialize(agent_output), status: :ok
       end
 
       private

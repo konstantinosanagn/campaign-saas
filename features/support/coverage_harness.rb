@@ -120,10 +120,8 @@ if ENV['COVERAGE']
     campaign.brand_voice
     campaign.primary_goal
 
-    # Test Lead camelCase methods
-    lead.campaignId
-    lead.campaignId = campaign.id
-    lead.as_json
+    # Test Lead serialization
+    LeadSerializer.serialize(lead)
 
     # Test AgentConfig methods
     config = campaign.agent_configs.create!(agent_name: 'WRITER', enabled: true, settings: { 'tone' => 'formal' })
@@ -420,5 +418,17 @@ if ENV['COVERAGE']
   end
 
   # Make helpers available in World
+  World(CoverageHarnessHelpers)
+else
+  # Define stub methods when COVERAGE is not set to prevent errors
+  module CoverageHarnessHelpers
+    def run_model_and_helper_coverage(user, campaign, lead)
+      # Stub - does nothing when COVERAGE is not set
+    end
+
+    def run_service_error_coverage(user, campaign, lead)
+      # Stub - does nothing when COVERAGE is not set
+    end
+  end
   World(CoverageHarnessHelpers)
 end

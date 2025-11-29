@@ -44,10 +44,11 @@ RSpec.describe Campaign, type: :model do
       expect(campaign.shared_settings['primary_goal']).to eq('book_call')
     end
 
-    it 'returns camelCase in as_json' do
-      json = campaign.as_json
+    it 'returns camelCase when serialized' do
+      json = CampaignSerializer.serialize(campaign)
       expect(json).to have_key('sharedSettings')
       expect(json['sharedSettings']).to be_a(Hash)
+      expect(json).not_to have_key('shared_settings')
     end
   end
 
@@ -122,7 +123,7 @@ RSpec.describe Campaign, type: :model do
       expect(reloaded.read_attribute(:shared_settings)).to eq(custom)
       expect(reloaded.shared_settings).to eq(custom)
 
-      json = campaign.as_json
+      json = CampaignSerializer.serialize(campaign)
       expect(json).to have_key('sharedSettings')
       expect(json['sharedSettings']).to eq(custom)
       expect(json).not_to have_key('shared_settings')

@@ -196,6 +196,7 @@ describe('ProgressTable', () => {
         leads={mockLeads}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={[1]}
       />
     )
@@ -210,6 +211,7 @@ describe('ProgressTable', () => {
         leads={mockLeads}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={[2]}
       />
     )
@@ -279,6 +281,7 @@ describe('ProgressTable', () => {
         leads={mockLeads}
         onRunLead={mockOnRunLead}
         onLeadClick={mockOnLeadClick}
+        onStageClick={mockOnStageClick}
         selectedLeads={[1]}
       />
     )

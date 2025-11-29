@@ -78,11 +78,11 @@ class ApiClient {
         if (response.status === 401 && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
           // Redirect to Devise login page only in production
           window.location.href = '/login'
-          return {
-            error: 'Unauthorized',
-            status: 401,
-            data: data
-          }
+        return {
+          error: 'Unauthorized',
+          status: 401,
+          data: data as T
+        }
         }
         
         // Handle validation errors (422) - Rails returns { errors: [...] }
@@ -98,7 +98,7 @@ class ApiClient {
         return {
           error: errorMessage,
           status: response.status,
-          data
+          data: data as T
         }
       }
 

@@ -38,9 +38,9 @@ export default function CampaignForm({ isOpen, onClose, onSubmit, initialData, i
       setTitle(initialData.title)
       setProductInfo(initialData.productInfo || '')
       setSenderCompany(initialData.senderCompany || '')
-      setTone(initialData.tone || 'professional')
-      setPersona(initialData.persona || 'founder')
-      setPrimaryGoal(initialData.primaryGoal || 'book_call')
+      setTone((initialData.tone || 'professional') as 'professional' | 'formal' | 'friendly')
+      setPersona((initialData.persona || 'founder') as 'founder' | 'sales' | 'cs')
+      setPrimaryGoal((initialData.primaryGoal || 'book_call') as 'book_call' | 'get_reply' | 'get_click')
     } else {
       setTitle('')
       setProductInfo('')
