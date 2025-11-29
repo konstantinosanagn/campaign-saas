@@ -124,3 +124,77 @@ features/SIMPLECOV_GUIDE.md
 scripts/
 coverage_report.rb
 lib/coverage_harness.rb
+
+# Shakapacker/Webpack build outputs and cache
+/.shakapacker/
+/.shakapacker-cache/
+/webpack-assets-manifest.json
+
+# SimpleCov coverage reports (additional patterns)
+/.coverage/
+*.coverage
+
+# Rails credentials (additional safety)
+/config/credentials.yml.enc
+/config/credentials/*.yml.enc
+
+# Heroku
+.heroku/
+
+# Backup files
+*.bak
+*.backup
+
+# Yarn/npm cache
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# TypeScript build outputs
+*.tsbuildinfo
+*.d.ts.map
+
+# Docker volumes
+docker-compose.override.yml
+
+# Local development overrides
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Ruby version managers
+.ruby-version.lock
+.rvmrc
+.rbenv-version
+
+# Python (if any scripts exist)
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+venv/
+env/
+
+# Additional IDE files
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+
+# Additional OS files
+.AppleDouble
+.LSOverride
+Icon
+.DocumentRevisions-V100
+.fseventsd
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk

@@ -129,13 +129,14 @@ export default function AgentSettingsModal({
         setMinScoreForSend(Math.max(1, Math.min(10, critiqueSettings.min_score_for_send || 6)))
         setVariantSelection(critiqueSettings.variant_selection || 'highest_overall_score')
       } else if (agentName === 'DESIGN') {
-        const designSettings = settings as DesignAgentSettings
+        const designSettings = settings as DesignAgentSettings & { allow_bold?: boolean; allow_italic?: boolean; allow_bullets?: boolean; cta_style?: string; font_family?: string }
         setFormat(designSettings.format || 'formatted')
-        setAllowBold(designSettings.allowBold !== false)
-        setAllowItalic(designSettings.allowItalic !== false)
-        setAllowBullets(designSettings.allowBullets !== false)
-        setCtaStyle(designSettings.ctaStyle || 'link')
-        setFontFamily(designSettings.fontFamily || 'system_sans')
+        // Handle both camelCase (new) and snake_case (backward compatibility)
+        setAllowBold((designSettings.allowBold ?? designSettings.allow_bold) !== false)
+        setAllowItalic((designSettings.allowItalic ?? designSettings.allow_italic) !== false)
+        setAllowBullets((designSettings.allowBullets ?? designSettings.allow_bullets) !== false)
+        setCtaStyle((designSettings.ctaStyle || designSettings.cta_style) || 'link')
+        setFontFamily((designSettings.fontFamily || designSettings.font_family) || 'system_sans')
       }
     } else {
       // Reset to defaults
@@ -256,13 +257,14 @@ export default function AgentSettingsModal({
         setMinScoreForSend(Math.max(1, Math.min(10, critiqueSettings.min_score_for_send || 6)))
         setVariantSelection(critiqueSettings.variant_selection || 'highest_overall_score')
       } else if (agentName === 'DESIGN') {
-        const designSettings = settings as DesignAgentSettings
+        const designSettings = settings as DesignAgentSettings & { allow_bold?: boolean; allow_italic?: boolean; allow_bullets?: boolean; cta_style?: string; font_family?: string }
         setFormat(designSettings.format || 'formatted')
-        setAllowBold(designSettings.allowBold !== false)
-        setAllowItalic(designSettings.allowItalic !== false)
-        setAllowBullets(designSettings.allowBullets !== false)
-        setCtaStyle(designSettings.ctaStyle || 'link')
-        setFontFamily(designSettings.fontFamily || 'system_sans')
+        // Handle both camelCase (new) and snake_case (backward compatibility)
+        setAllowBold((designSettings.allowBold ?? designSettings.allow_bold) !== false)
+        setAllowItalic((designSettings.allowItalic ?? designSettings.allow_italic) !== false)
+        setAllowBullets((designSettings.allowBullets ?? designSettings.allow_bullets) !== false)
+        setCtaStyle((designSettings.ctaStyle || designSettings.cta_style) || 'link')
+        setFontFamily((designSettings.fontFamily || designSettings.font_family) || 'system_sans')
       }
     }
     onClose()
@@ -1373,112 +1375,96 @@ export default function AgentSettingsModal({
                     </div>
                   </div>
 
-                  <div ref={fontFamilyRef} className="relative">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Font Family
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setFontFamilyOpen(!fontFamilyOpen)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-left text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white flex items-center justify-between"
-                    >
-                      <span className="text-gray-700">
-                        {fontFamily === 'system_sans' && 'System Sans'}
-                        {fontFamily === 'serif' && 'Serif'}
-                      </span>
-                      <svg
-                        className={`w-5 h-5 text-gray-400 transition-transform ${fontFamilyOpen ? 'transform rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                  <div className="grid grid-cols-2 gap-4">
+                    <div ref={fontFamilyRef} className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Font Family
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setFontFamilyOpen(!fontFamilyOpen)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-left text-sm text-gray-900 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white flex items-center justify-between"
                       >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {fontFamilyOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
-                        {[
-                          { value: 'system_sans', label: 'System Sans' },
-                          { value: 'serif', label: 'Serif' }
-                        ].map((option) => {
-                          const isSelected = fontFamily === option.value
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => {
-                                setFontFamily(option.value as 'system_sans' | 'serif')
-                                setFontFamilyOpen(false)
-                              }}
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center space-x-2"
-                            >
-                              <span className={`flex-shrink-0 ${isSelected ? 'text-blue-600' : 'text-transparent'}`}>
-                                <TickerIcon className="w-4 h-4" />
-                              </span>
-                              <span className={isSelected ? 'text-blue-600' : 'text-gray-700'}>{option.label}</span>
-                            </button>
-                          )
-                        })}
+                        <span className="text-gray-700">
+                          {fontFamily === 'system_sans' && 'System Sans'}
+                          {fontFamily === 'serif' && 'Serif'}
+                        </span>
+                        <svg
+                          className={`w-5 h-5 text-gray-400 transition-transform ${fontFamilyOpen ? 'transform rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {fontFamilyOpen && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                          {[
+                            { value: 'system_sans', label: 'System Sans' },
+                            { value: 'serif', label: 'Serif' }
+                          ].map((option) => {
+                            const isSelected = fontFamily === option.value
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => {
+                                  setFontFamily(option.value as 'system_sans' | 'serif')
+                                  setFontFamilyOpen(false)
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center space-x-2"
+                              >
+                                <span className={`flex-shrink-0 ${isSelected ? 'text-blue-600' : 'text-transparent'}`}>
+                                  <TickerIcon className="w-4 h-4" />
+                                </span>
+                                <span className={isSelected ? 'text-blue-600' : 'text-gray-700'}>{option.label}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Formatting Options
+                      </label>
+                      <div className="inline-flex rounded-full shadow-sm border border-gray-300 relative flex-shrink-0" role="group">
+                        <button
+                          type="button"
+                          onClick={() => setAllowBold(!allowBold)}
+                          className={`px-4 py-2 text-sm font-medium transition-all duration-200 border-r border-gray-300 ${
+                            allowBold
+                              ? 'bg-blue-600 text-white shadow-inner rounded-l-full'
+                              : 'bg-white text-gray-700 hover:bg-gray-50 rounded-l-full'
+                          }`}
+                        >
+                          Bold
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAllowItalic(!allowItalic)}
+                          className={`px-4 py-2 text-sm font-medium transition-all duration-200 border-r border-gray-300 ${
+                            allowItalic
+                              ? 'bg-blue-600 text-white shadow-inner'
+                              : 'bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          Italics
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAllowBullets(!allowBullets)}
+                          className={`px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                            allowBullets
+                              ? 'bg-blue-600 text-white shadow-inner rounded-r-full'
+                              : 'bg-white text-gray-700 hover:bg-gray-50 rounded-r-full'
+                          }`}
+                        >
+                          Bullets
+                        </button>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                      <label htmlFor="allowBold" className="text-sm font-medium text-gray-900">
-                        Allow Bold Formatting
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setAllowBold(!allowBold)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          allowBold ? 'bg-blue-600' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            allowBold ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                      <label htmlFor="allowItalic" className="text-sm font-medium text-gray-900">
-                        Allow Italic Formatting
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setAllowItalic(!allowItalic)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          allowItalic ? 'bg-blue-600' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            allowItalic ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                      <label htmlFor="allowBullets" className="text-sm font-medium text-gray-900">
-                        Allow Bullet Points
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setAllowBullets(!allowBullets)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          allowBullets ? 'bg-blue-600' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            allowBullets ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
                     </div>
                   </div>
                 </div>

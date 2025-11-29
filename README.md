@@ -13,7 +13,12 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 - **Ruby:** 3.3.9+
 - **Rails:** 8.1
 - **PostgreSQL:** 12+
-- **Node.js:** 20+ (latest LTS recommended)
+- **Node.js:** **20.0.0 or higher (latest LTS 24.x recommended)** ⚠️ **REQUIRED**
+  - This project uses Shakapacker (Webpack 5) which requires Node.js 20+
+  - The installation will fail if you don't have the correct Node.js version
+  - Check your version: `node --version`
+  - Download latest LTS: https://nodejs.org/
+  - Or use nvm: `nvm install 24 && nvm use 24`
 - **Yarn:** 1.22.x
 
 ## Installation
@@ -25,14 +30,22 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
 git clone <your-repo-url>
 cd campaign-saas
 
-# 2. Install Node.js 20+ from https://nodejs.org/ (if needed)
-# nvm install 20.9.0
-# nvm use 20.9.0
+# 2. ⚠️ IMPORTANT: Install Node.js 20+ (latest LTS 24.x recommended)
+#    The installation will automatically check and fail if Node.js version is too old.
+#    
+#    Option A: Download from https://nodejs.org/ (recommended for most users)
+#    Option B: Using nvm (Node Version Manager)
+#      nvm install 24
+#      nvm use 24
+#      # Or if .nvmrc exists: nvm use
+#
+#    Verify installation: node --version (should show v20.x.x or higher)
 
 # 3. Run automated setup (installs Ruby gems, sets up database)
 bin/setup --skip-server
 
 # 4. Install JavaScript dependencies
+#    This will automatically check Node.js version and fail if < 20.0.0
 yarn install
 
 # 5. Start the application (requires two terminals)
@@ -54,7 +67,11 @@ If you prefer manual setup:
 
 1. **Install prerequisites:**
    - Ruby 3.3.9+
-   - Node.js 20+ (latest LTS recommended)
+   - **Node.js 20.0.0+ (latest LTS 24.x recommended)** ⚠️ **REQUIRED**
+     - Check version: `node --version`
+     - Download: https://nodejs.org/
+     - Or use nvm: `nvm install 24 && nvm use 24`
+     - The `yarn install` command will automatically verify Node.js version
    - PostgreSQL 12+
    - Yarn 1.22.x
 
@@ -114,266 +131,44 @@ GMAIL_CLIENT_SECRET=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
 DISABLE_AUTH=true
 ```
 
-### Gmail OAuth Test Mode (Work in Progress -- not part of iteration 2)
+### Gmail OAuth Test Mode
 
-⚠️ The app is currently in **Google OAuth Test Mode** ("In testing"), which means Google restricts OAuth access to protect user data. Only accounts listed as Test users in the Google Cloud Console are allowed to authorize the app, and all other Google accounts will be blocked with a 403 error.
-
-Because the Gmail OAuth scope (`gmail.send`) is considered sensitive, the unverified app can only be used with approved test accounts. 
-
-**For this iteration, only `campaignsaastester@gmail.com` is authorized**, so Gmail OAuth will only work when this address is entered as the "Send From Email Address" in Email Settings.
-
-![Gmail OAuth Test Mode](docs/gmail-oauth-test-mode.png)
-
-***Disclaimer: While we aimed to have the sender ready for iteration 2 and have the skelton set up, its functionality depends on authorization set up for various user accounts -- which we are targetting by the demo day (stay tuned!). In this iteration our focus remained on the other agents by enhancing their functionality (ex: impriving search agent parameters to collect more relevent sources, generating variants of the writer agent outputs and critiquing them all to ensure highest quality outputs as well as refining our prompt engineering strategy to focus on key metrics such as tone and business synergy/ personalization as our target users are small B2B companies/ startups.)
-
-**To use Gmail OAuth:** (Work in Progress -- not part of iteration 2)
-1. Navigate to Email Settings in the application
-2. Enter `campaignsaastester@gmail.com` as the "Send From Email Address"
-3. Complete the OAuth flow with this authorized test account
-
-### Deployment
-- **Platform:** Heroku
-- **URL:** https://campaign-saas-7460a258bf90.herokuapp.com/
-- **Database:** PostgreSQL (Heroku Essential-0 plan)
-- **Node.js:** 20+ (latest LTS recommended)
-- **Ruby:** 3.3.9
-
-Set environment variables via Heroku Config Vars:
-```bash
-heroku config:set GEMINI_API_KEY="your_key"
-heroku config:set TAVILY_API_KEY="your_key"
-# ... etc
-```
-
-**Note:** The `.env` file is automatically loaded by `dotenv-rails` gem. Restart Rails server after modifying `.env`.
+⚠️ Currently in Google OAuth Test Mode. Only `campaignsaastester@gmail.com` is authorized for Gmail OAuth.
 
 ## Project Structure
 
 ```
-saas-proj/
+campaign-saas/
 ├── app/
-│   ├── controllers/          # MVC controllers
-│   │   ├── api/v1/          # RESTful API endpoints
-│   │   └── campaigns_controller.rb
-│   ├── models/              # ActiveRecord models
-│   │   ├── user.rb          # User authentication
-│   │   ├── campaign.rb      # Campaign management
-│   │   ├── lead.rb          # Lead information
-│   │   ├── agent_config.rb  # Agent configurations
-│   │   └── agent_output.rb  # Agent execution results
-│   ├── services/            # Business logic
-│   │   ├── orchestrator.rb  # Agent pipeline coordinator
-│   │   ├── agents/          # AI agents
-│   │   │   ├── search_agent.rb
-│   │   │   ├── writer_agent.rb
-│   │   │   ├── design_agent.rb
-│   │   │   └── critique_agent.rb
-│   │   ├── lead_agent_service.rb    # Lead processing service
-│   │   ├── email_sender_service.rb  # Email sending service
-│   │   └── api_key_service.rb       # API key management
-│   ├── javascript/          # React/TypeScript frontend
-│   │   ├── components/      # React components
-│   │   │   ├── campaigns/   # Campaign components
-│   │   │   ├── leads/       # Lead components
-│   │   │   ├── agents/      # Agent components
-│   │   │   └── shared/      # Shared components
-│   │   ├── hooks/           # Custom React hooks
-│   │   ├── libs/            # API client and utilities
-│   │   └── types/           # TypeScript definitions
-│   └── views/               # ERB templates
-├── db/                      # Database migrations and seeds
-├── spec/                    # RSpec test suite (584 examples)
-├── features/                # Cucumber tests
-└── config/                  # Rails configuration
+│   ├── controllers/     # MVC controllers
+│   ├── models/           # ActiveRecord models
+│   ├── services/         # Business logic & AI agents
+│   ├── javascript/       # React/TypeScript frontend
+│   └── views/            # ERB templates
+├── db/                   # Database migrations and seeds
+├── spec/                  # RSpec test suite
+├── features/              # Cucumber tests
+└── config/                # Rails configuration
 ```
 
 ## AI Agent System
 
-### Agent Pipeline
-The system uses a multi-agent pipeline to process leads:
+Multi-agent pipeline: **SearchAgent** → **WriterAgent** → **CritiqueAgent** → **DesignAgent**
 
-1. **SearchAgent** - Researches companies using Tavily API
-   - Fetches recent news and information about target companies
-   - Returns sources, company data, and research results
+- **SearchAgent** - Researches companies using Tavily API
+- **WriterAgent** - Generates personalized emails using Gemini API
+- **CritiqueAgent** - Reviews email quality and selects best variant
+- **DesignAgent** - Applies markdown formatting
 
-2. **WriterAgent** - Generates personalized emails using Gemini API
-   - Creates B2B outreach emails based on research
-   - Personalizes content for target company and recipient
-   - Generates subject lines and email body
-
-3. **CritiqueAgent** - Reviews email quality
-   - Evaluates email effectiveness and personalization
-   - Provides feedback and improvement suggestions
-   - Scores email quality
-   - Selects best variant from multiple revisions
-
-4. **DesignAgent** - Applies markdown formatting
-   - Adds bold, italic, links, and other formatting
-   - Enhances email readability and engagement
-   - Outputs formatted email content
-   - Configurable formatting options (format, allow_bold, allow_italic, allow_bullets, cta_style, font_family)
-
-### Orchestration
-- **Orchestrator** - Coordinates the full pipeline (SEARCH → WRITER → CRITIQUE → DESIGN)
-- **LeadAgentService** - Manages agent execution for individual leads
-- **Stage Progression:** `queued → searched → written → critiqued → designed → completed`
-
-### Agent Configuration
-- Each campaign has agent configurations (AgentConfig)
-- Agents can be enabled/disabled per campaign
-- Custom settings per agent (search depth, email length, critique strictness, etc.)
-
-## Database Management
-
-### Models
-- **User** - User authentication and API key storage
-- **Campaign** - Marketing campaigns with shared settings
-- **Lead** - Lead information (name, email, company, title, stage, quality)
-- **AgentConfig** - Agent configuration per campaign
-- **AgentOutput** - Agent execution results and outputs
-
-### Migrations
-```bash
-rails db:migrate        # Run migrations
-rails db:rollback       # Rollback last migration
-rails db:schema:load    # Load schema from db/schema.rb
-```
-
-### Seeds
-```bash
-rails db:seed
-```
-
-Creates:
-- Admin user (`admin@example.com`)
-- Sample campaign with default agent configs
-- Sample leads
-- Agent configurations (SEARCH, WRITER, CRITIQUE)
-
-### Schema
-- PostgreSQL with JSONB for settings and output data
-- Foreign key constraints for data integrity
-- Indexes on frequently queried fields
-
-## UI Components
-
-### Main Components
-- **CampaignDashboard** - Main dashboard with campaigns and leads
-- **CampaignForm** - Create/edit campaigns
-- **CampaignSidebar** - Campaign list and navigation
-- **ProgressTable** - Lead status and progress tracking
-- **LeadForm** - Add/edit leads
-- **AgentDashboard** - Agent execution and outputs
-- **AgentOutputModal** - View agent outputs
-- **AgentSettingsModal** - Configure agent settings
-- **ApiKeyModal** - Manage API keys
-- **Navigation** - Main navigation bar
-- **EmptyState** - Empty state placeholder
-- **Background** - Animated background component
-
-### Technology
-- **React 18** - UI framework
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Styling
-- **Shakapacker (Webpack 5)** - Asset compilation
+Stage progression: `queued → searched → written → critiqued → designed → completed`
 
 ## Testing
 
-The project includes comprehensive test coverage across three testing frameworks:
-
-### RSpec
-- **776 examples, 0 failures** ✅
-- **100.0% line coverage** (1424/1424 lines)
-- Tests cover models, controllers, services, and integration scenarios
-- Comprehensive coverage of all AI agents (Search, Writer, Critique, Design)
-- Full pipeline progression testing (queued → searched → written → critiqued → designed)
-- Run: `bundle exec rspec`
-- Coverage report: `coverage/index.html`
-
-### Cucumber
-- **247 scenarios** with **1862 steps** - **100% passing** ✅
-- **85.25% line coverage** (1214/1424 lines)
-- User acceptance tests covering:
-  - Authentication and authorization
-  - Campaign CRUD operations (create, read, update, delete)
-  - Lead management (create, update, delete, validation)
-  - Agent workflows (run agents, retrieve outputs, update outputs, disabled agents)
-  - Lead stage progression (queued → searched → written → critiqued → designed → completed)
-  - DESIGN agent execution and stage progression (newly added)
-  - Orchestrator standalone service testing (newly added)
-  - AgentOutput model status methods (completed?, failed?, pending?)
-  - Controller error handling and edge cases
-  - API key management (store and retrieve)
-  - UI layout and assets (title, meta, icons, React mount)
-  - Dashboard empty state
-  - Input validation and authorization boundaries
-  - Agent execution with error handling and disabled agent skipping
-  - Email sending functionality
-- Run: `bundle exec cucumber`
-- Run with coverage (SimpleCov): `COVERAGE=true bundle exec cucumber`
-- View report: `coverage/index.html`
-
-
-### Jest
-- **210 tests passed, 20 test suites** ✅
-- Tests cover React components, hooks, and utilities
-- Comprehensive component testing including CampaignDashboard, AgentDashboard, AgentOutputModal, and more
-- Custom hooks testing (useCampaigns, useLeads, useApiKeys, useSelection, useTypewriter)
-- Run: `yarn test`
-- Coverage: `yarn test:coverage`
-
-
-## API Endpoints
-
-### Campaigns
-- `GET /api/v1/campaigns` - List campaigns
-- `POST /api/v1/campaigns` - Create campaign
-- `PUT /api/v1/campaigns/:id` - Update campaign
-- `DELETE /api/v1/campaigns/:id` - Delete campaign
-- `POST /api/v1/campaigns/:id/send_emails` - Send emails to ready leads
-
-### Leads
-- `GET /api/v1/leads` - List leads
-- `POST /api/v1/leads` - Create lead
-- `PUT /api/v1/leads/:id` - Update lead
-- `DELETE /api/v1/leads/:id` - Delete lead
-- `POST /api/v1/leads/:id/run_agents` - Execute AI agents
-- `GET /api/v1/leads/:id/agent_outputs` - Retrieve agent outputs
-- `PATCH /api/v1/leads/:id/update_agent_output` - Update agent output (WRITER, SEARCH, DESIGN)
-
-### Agent Configs
-- `GET /api/v1/campaigns/:campaign_id/agent_configs` - List agent configs
-- `GET /api/v1/campaigns/:campaign_id/agent_configs/:id` - Get agent config
-- `POST /api/v1/campaigns/:campaign_id/agent_configs` - Create agent config
-- `PUT /api/v1/campaigns/:campaign_id/agent_configs/:id` - Update agent config
-- `DELETE /api/v1/campaigns/:campaign_id/agent_configs/:id` - Delete agent config
-
-### API Keys
-- `GET /api/v1/api_keys` - Get API keys
-- `PUT /api/v1/api_keys` - Update API keys
-
-## Key Features
-
-- **Campaign Management** - Create and manage marketing campaigns
-- **Lead Processing** - Add and track leads with automated AI processing
-- **AI Agent System** - Automated research, writing, design formatting, and critique
-- **Email Generation** - Personalized B2B outreach emails
-- **Email Sending** - Send formatted emails to leads with markdown support
-- **User Authentication** - Secure user registration and login (Devise)
-- **API Key Management** - Store and manage API keys per user
-- **Real-time Progress Tracking** - Monitor lead processing status and quality metrics
-- **Agent Configuration** - Customize agent settings per campaign
-- **Responsive Design** - Mobile-first UI with Tailwind CSS
-
-## Security
-
-- CSRF protection enabled
-- User authentication with Devise
-- Rate limiting with Rack::Attack
-- Content Security Policy (CSP)
-- User-scoped data access
-- SSL enforced in production
-- API key encryption (stored in database)
+```bash
+bundle exec rspec      # RSpec tests
+yarn test              # Jest tests
+bundle exec cucumber   # Cucumber tests
+```
 
 ## Available Scripts
 
@@ -390,65 +185,68 @@ rails server                 # Start Rails server
 rails console                # Open Rails console
 
 # Testing
-bundle exec rspec            # Run RSpec tests (584 examples, 0 failures, 81.64% coverage)
-yarn test                    # Run Jest tests (210 tests passed, 20 test suites)
+bundle exec rspec            # Run RSpec tests
+yarn test                    # Run Jest tests
 yarn test:coverage           # Run Jest tests with coverage
-bundle exec cucumber         # Run Cucumber tests (120 scenarios, 654 steps, 100% passing)
-COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (76.14% line coverage)
+bundle exec cucumber         # Run Cucumber tests
 ```
 
 ## Deployment
 
-### Heroku
-- **Database:** PostgreSQL (Heroku Essential-0 plan)
-- **Redis:** Caching and rate limiting
-- **Asset Pipeline:** Optimized CSS and JavaScript compilation
-- **SSL/HTTPS:** Secure connections enforced
-- **Environment Variables:** Secure API key management via Heroku Config Vars
-- **Buildpacks:** Node.js and Ruby buildpacks configured
-- **Asset Precompilation:** Optimized for production performance
 
-### Production Checklist
-- [ ] Set all required environment variables
-- [ ] Configure SMTP for email sending
-- [ ] Set `DISABLE_AUTH=false` or remove it (auth required by default)
-- [ ] Configure `MAILER_HOST` with production domain
-- [ ] Set up SSL/HTTPS
-- [ ] Configure database backups
-- [ ] Set up monitoring and error tracking
 
-## Docker Setup
 
-### Using Docker (Cross-Platform)
 
-The project includes a Dockerfile for containerized deployment. **Docker works the same on Mac, Windows, and Linux** - it doesn't require MSYS2.
+## Deployment
 
-**To build and run with Docker:**
+**Platform:** Heroku  
+**URL:** https://campaign-saas-7460a258bf90.herokuapp.com/
+
+Set environment variables via Heroku Config Vars:
 ```bash
-# Build the image
-docker build -t campaign_manager .
+heroku config:set GEMINI_API_KEY="your_key"
+heroku config:set TAVILY_API_KEY="your_key"
+```
 
-# Run the container
+## Docker
+
+```bash
+docker build -t campaign_manager .
 docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value> --name campaign_manager campaign_manager
 ```
 
-**Note:** For development, you can also use Docker Compose (if configured) or run the app natively as shown in the Quick Start section above.
-
-### Windows-Specific Helpers
-
-If you're on **Windows using MSYS2** (not required for Docker), there are helper scripts in `scripts/windows/`:
-- `fix-msys2-mirrors.sh` - Fixes MSYS2 mirror configuration issues
-- `fix-msys2-mirrors.ps1` - PowerShell version of the fix script
-- `MSYS2_TROUBLESHOOTING.md` - Troubleshooting guide for MSYS2
-
-**These scripts are only needed if:**
-- You're developing on Windows
-- You're using MSYS2 (not WSL or Docker)
-- You're experiencing pacman mirror connection issues
-
-**Mac and Linux users:** You don't need these scripts - use Docker or run natively.
-
 ## Troubleshooting
+
+### Node.js Version Issues
+
+If you see an error like "Node.js version 20.0.0 or higher is required" during `yarn install`:
+
+1. **Check your current Node.js version:**
+   ```bash
+   node --version
+   ```
+
+2. **If version is too old (< 20.0.0), install the latest LTS:**
+   ```bash
+   # Option A: Download from https://nodejs.org/
+   # Option B: Using nvm (if installed)
+   nvm install 24
+   nvm use 24
+   # Or simply: nvm use (if .nvmrc exists)
+   ```
+
+3. **Verify the installation:**
+   ```bash
+   node --version  # Should show v20.x.x or higher
+   ```
+
+4. **Clear yarn cache and retry:**
+   ```bash
+   yarn cache clean
+   yarn install
+   ```
+
+**Note:** The `preinstall` script in `package.json` automatically checks Node.js version before installing dependencies. This ensures compatibility with Shakapacker (Webpack 5) which requires Node.js 20+.
 
 ### Database Connection Issues
 
@@ -461,29 +259,6 @@ If you see PostgreSQL connection errors:
 
 If port 3000 is already in use:
 ```bash
-# Use a different port
 rails server -p 3001
 ```
 
-### Windows MSYS2 Issues
-
-If you're on Windows using MSYS2 and experiencing pacman mirror issues, see `scripts/windows/MSYS2_TROUBLESHOOTING.md` or run:
-```bash
-bash scripts/windows/fix-msys2-mirrors.sh
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License.
-
----
-
-**Built with Rails, React, TypeScript, and Tailwind CSS**

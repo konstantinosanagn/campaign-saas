@@ -209,7 +209,9 @@ module Api
         #         cta_softness, num_variants_per_lead, product_info, sender_company
         # SEARCH: search_depth, max_queries_per_lead, extracted_fields, on_low_info_behavior
         # CRITIQUE: checks (hash), strictness, min_score_for_send, rewrite_policy, variant_selection
-        # DESIGN: format, allow_bold, allow_italic, allow_bullets, cta_style, font_family
+        # DESIGN: format, allow_bold/allowBold, allow_italic/allowItalic, allow_bullets/allowBullets, 
+        #         cta_style/ctaStyle, font_family/fontFamily
+        # Note: DESIGN agent settings accept both camelCase (from frontend) and snake_case (for consistency)
         settings_params.permit(
           # WRITER agent settings
           :tone, :sender_persona, :email_length, :personalization_level,
@@ -219,8 +221,13 @@ module Api
           :search_depth, :max_queries_per_lead, :on_low_info_behavior,
           # CRITIQUE agent settings
           :strictness, :min_score_for_send, :rewrite_policy, :variant_selection,
-          # DESIGN agent settings
-          :format, :allow_bold, :allow_italic, :allow_bullets, :cta_style, :font_family,
+          # DESIGN agent settings - accept both camelCase (from frontend) and snake_case
+          :format, 
+          :allow_bold, :allowBold,
+          :allow_italic, :allowItalic,
+          :allow_bullets, :allowBullets,
+          :cta_style, :ctaStyle,
+          :font_family, :fontFamily,
           # Nested structures
           checks: {},
           extracted_fields: []
