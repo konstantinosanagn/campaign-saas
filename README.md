@@ -414,6 +414,37 @@ COVERAGE=true bundle exec cucumber  # Run Cucumber tests with code coverage (76.
 - [ ] Configure database backups
 - [ ] Set up monitoring and error tracking
 
+## Docker Setup
+
+### Using Docker (Cross-Platform)
+
+The project includes a Dockerfile for containerized deployment. **Docker works the same on Mac, Windows, and Linux** - it doesn't require MSYS2.
+
+**To build and run with Docker:**
+```bash
+# Build the image
+docker build -t campaign_manager .
+
+# Run the container
+docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value> --name campaign_manager campaign_manager
+```
+
+**Note:** For development, you can also use Docker Compose (if configured) or run the app natively as shown in the Quick Start section above.
+
+### Windows-Specific Helpers
+
+If you're on **Windows using MSYS2** (not required for Docker), there are helper scripts in `scripts/windows/`:
+- `fix-msys2-mirrors.sh` - Fixes MSYS2 mirror configuration issues
+- `fix-msys2-mirrors.ps1` - PowerShell version of the fix script
+- `MSYS2_TROUBLESHOOTING.md` - Troubleshooting guide for MSYS2
+
+**These scripts are only needed if:**
+- You're developing on Windows
+- You're using MSYS2 (not WSL or Docker)
+- You're experiencing pacman mirror connection issues
+
+**Mac and Linux users:** You don't need these scripts - use Docker or run natively.
+
 ## Troubleshooting
 
 ### Database Connection Issues
@@ -429,6 +460,13 @@ If port 3000 is already in use:
 ```bash
 # Use a different port
 rails server -p 3001
+```
+
+### Windows MSYS2 Issues
+
+If you're on Windows using MSYS2 and experiencing pacman mirror issues, see `scripts/windows/MSYS2_TROUBLESHOOTING.md` or run:
+```bash
+bash scripts/windows/fix-msys2-mirrors.sh
 ```
 
 ## Contributing
