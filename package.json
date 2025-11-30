@@ -75,7 +75,7 @@
   "scripts": {
     "preinstall": "test -f scripts/check-node-version.js && node scripts/check-node-version.js || true",
     "webpack": "webpack --config config/webpack/production.js",
-    "build": "yarn webpack",
+    "build": "webpack --config config/webpack/production.js",
     "lint": "eslint \"app/javascript/**/*.{js,jsx,ts,tsx}\"",
     "test": "jest",
     "test:watch": "jest --watch",
