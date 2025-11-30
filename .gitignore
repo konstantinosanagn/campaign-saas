@@ -99,29 +99,11 @@ useApiKeys-simple.test.ts
 *_coverage.png
 *_pass.png
 *_fail.png
-COVERAGE_REPORT.md
-CUCUMBER_COVERAGE_GAPS.md
 UNCOVERED_LINES_REPORT.txt
-*COVERAGE_SUMMARY.md
-GENERATED_TEST_CASES_SUMMARY.md
-HIGH_PRIORITY_IMPROVEMENTS.md
 
-# Temporary commit files
-commit_message.txt
-
-# Generated analysis/report files
-PROJECT_ANALYSIS.md
-
-# Temporary summary/status documentation files (root level only)
-/*_SUMMARY.md
-/*_STATUS.md
-/*_FIXES_SUMMARY.md
-/*_TESTING_STATUS.md
-
-# Session-specific documentation and guides
-features/COVERAGE_ANALYSIS.md
-features/HOW_TO_CHECK_COVERAGE.md
-features/SIMPLECOV_GUIDE.md
+# Documentation files (ignore all .md files except README.md)
+*.md
+!README.md
 
 # Legacy config files (removed, but ignore if they reappear)
 .babelrc.js
