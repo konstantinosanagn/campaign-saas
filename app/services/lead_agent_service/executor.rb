@@ -14,6 +14,7 @@ require_relative "../agents/design_agent"
 
 class LeadAgentService::Executor
   include AgentConstants
+  extend SettingsHelper  # Use extend for class methods
 
   ##
   # Executes the SearchAgent
@@ -28,9 +29,9 @@ class LeadAgentService::Executor
       recipient_name: lead.name,
       job_title: lead.title || "",
       email: lead.email,
-      tone: agent_config&.settings&.dig("tone"),
-      persona: agent_config&.settings&.dig("sender_persona"),
-      goal: (lead.campaign.shared_settings || {})["primary_goal"]
+      tone: SettingsHelper.get_setting(agent_config&.settings, :tone) || SettingsHelper.get_setting(agent_config&.settings, "tone"),
+      persona: SettingsHelper.get_setting(agent_config&.settings, :sender_persona) || SettingsHelper.get_setting(agent_config&.settings, "sender_persona"),
+      goal: SettingsHelper.get_setting(lead.campaign.shared_settings || {}, :primary_goal) || SettingsHelper.get_setting(lead.campaign.shared_settings || {}, "primary_goal")
     )
   end
 
@@ -61,12 +62,11 @@ class LeadAgentService::Executor
     Rails.logger.info("WriterAgent Executor - Agent Config ID: #{agent_config&.id}")
     Rails.logger.info("WriterAgent Executor - Raw shared_settings from DB: #{raw_shared_settings.inspect}")
     Rails.logger.info("WriterAgent Executor - Final shared_settings: #{shared_settings.inspect}")
-    Rails.logger.info("WriterAgent Executor - primary_goal value: #{shared_settings["primary_goal"]}")
+    Rails.logger.info("WriterAgent Executor - primary_goal value: #{SettingsHelper.get_setting(shared_settings, :primary_goal) || SettingsHelper.get_setting(shared_settings, 'primary_goal')}")
     Rails.logger.info("WriterAgent Executor - agent_config settings (after reload): #{settings.inspect}")
-    Rails.logger.info("WriterAgent Executor - num_variants_per_lead: #{settings["num_variants_per_lead"] || settings[:num_variants_per_lead] || 'NOT SET (will default to 2)'}")
 
-    product_info   = shared_settings["product_info"]   || settings["product_info"]
-    sender_company = shared_settings["sender_company"] || settings["sender_company"]
+    product_info   = SettingsHelper.get_setting(shared_settings, :product_info) || SettingsHelper.get_setting(shared_settings, "product_info") || SettingsHelper.get_setting(settings, :product_info)
+    sender_company = SettingsHelper.get_setting(shared_settings, :sender_company) || SettingsHelper.get_setting(shared_settings, "sender_company") || SettingsHelper.get_setting(settings, :sender_company)
 
     # If no search_output, return early but WITH config and shared_settings
     unless search_output
@@ -118,14 +118,11 @@ class LeadAgentService::Executor
     agent_config.reload if agent_config
     # Prepare writer output for critique
     # Handle both string and symbol keys from JSONB storage
-    email_content = writer_output&.dig("email") ||
-                    writer_output&.dig(:email) ||
-                    writer_output&.dig("formatted_email") ||
-                    writer_output&.dig(:formatted_email) ||
-                    ""
+    email_content = SettingsHelper.get_setting(writer_output, :email) || SettingsHelper.get_setting(writer_output, "email") ||
+                    SettingsHelper.get_setting(writer_output, :formatted_email) || SettingsHelper.get_setting(writer_output, "formatted_email") || ""
 
     # Get variants if they exist
-    variants = writer_output&.dig("variants") || writer_output&.dig(:variants) || []
+    variants = SettingsHelper.get_setting(writer_output, :variants) || SettingsHelper.get_setting(writer_output, "variants") || []
 
     article = {
       "email_content" => email_content,
@@ -161,23 +158,16 @@ class LeadAgentService::Executor
     # Prepare critique output for design
     # Prefer selected_variant if available, otherwise use email_content or email
     # Handle both string and symbol keys from JSONB storage
-    email_content = critique_output&.dig("selected_variant") ||
-                    critique_output&.dig(:selected_variant) ||
-                    critique_output&.dig("email_content") ||
-                    critique_output&.dig(:email_content) ||
-                    critique_output&.dig("email") ||
-                    critique_output&.dig(:email) ||
-                    ""
+    email_content = SettingsHelper.get_setting(critique_output, :selected_variant) || SettingsHelper.get_setting(critique_output, "selected_variant") ||
+                    SettingsHelper.get_setting(critique_output, :email_content) || SettingsHelper.get_setting(critique_output, "email_content") ||
+                    SettingsHelper.get_setting(critique_output, :email) || SettingsHelper.get_setting(critique_output, "email") || ""
 
     # Fallback to WRITER output if critique_output doesn't have email
     if email_content.blank?
       writer_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_WRITER)
       if writer_output
-        email_content = writer_output.output_data["email"] ||
-                       writer_output.output_data[:email] ||
-                       writer_output.output_data["formatted_email"] ||
-                       writer_output.output_data[:formatted_email] ||
-                       ""
+        email_content = SettingsHelper.get_setting(writer_output.output_data, :email) || SettingsHelper.get_setting(writer_output.output_data, "email") ||
+                       SettingsHelper.get_setting(writer_output.output_data, :formatted_email) || SettingsHelper.get_setting(writer_output.output_data, "formatted_email") || ""
       end
     end
 

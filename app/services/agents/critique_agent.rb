@@ -11,6 +11,7 @@ module Agents
   # of json output
   class CritiqueAgent
     include HTTParty
+    include SettingsHelper
     base_uri "https://generativelanguage.googleapis.com/v1beta"
 
     # Initialize the CritiqueAgent with API key and model
@@ -27,18 +28,18 @@ module Agents
     # @param config [Hash, nil] Agent configuration with settings
     def critique(article, config: nil)
       # Get settings from config or use defaults
-      settings = config&.dig("settings") || config&.dig(:settings) || {}
-      checks = settings["checks"] || settings[:checks] || {}
-      check_personalization = checks["check_personalization"] != false # Default true
-      check_brand_voice = checks["check_brand_voice"] != false # Default true
-      check_spamminess = checks["check_spamminess"] != false # Default true
-      strictness = settings["strictness"] || settings[:strictness] || "moderate"
-      min_score = (settings["min_score_for_send"] || settings[:min_score_for_send] || 6).to_i
-      rewrite_policy = settings["rewrite_policy"] || settings[:rewrite_policy] || "rewrite_if_bad"
-      variant_selection = settings["variant_selection"] || settings[:variant_selection] || "highest_overall_score"
+      settings = get_setting(config, :settings) || get_setting(config, "settings") || {}
+      checks = get_setting(settings, :checks) || get_setting(settings, "checks") || {}
+      check_personalization = get_setting(checks, :check_personalization) != false # Default true
+      check_brand_voice = get_setting(checks, :check_brand_voice) != false # Default true
+      check_spamminess = get_setting(checks, :check_spamminess) != false # Default true
+      strictness = get_setting_with_default(settings, :strictness, "moderate")
+      min_score = (get_setting_with_default(settings, :min_score_for_send, 6)).to_i
+      rewrite_policy = get_setting_with_default(settings, :rewrite_policy, "rewrite_if_bad")
+      variant_selection = get_setting_with_default(settings, :variant_selection, "highest_overall_score")
 
       # Handle variants if present
-      variants = article["variants"] || article[:variants] || []
+      variants = get_setting(article, :variants) || get_setting(article, "variants") || []
       email_content = article["email_content"].to_s
 
       # If we have variants, critique all of them and select the best one
@@ -146,7 +147,7 @@ module Agents
       parsed = response.parsed_response
       text = parsed.dig("candidates", 0, "content", "parts", 0, "text").to_s.strip
 
-      number_of_revisions = article["number_of_revisions"] || article[:number_of_revisions]
+      number_of_revisions = get_setting(article, :number_of_revisions) || get_setting(article, "number_of_revisions")
       revision_count = number_of_revisions.to_i
 
       # Extract score from critique if present (look for patterns like "Score: 7/10" or "7/10")

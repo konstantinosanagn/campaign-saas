@@ -50,6 +50,7 @@ KEY FEATURES:
 module Agents
   class WriterAgent
     include HTTParty
+    include SettingsHelper
     base_uri "https://generativelanguage.googleapis.com/v1beta"
 
     def initialize(api_key:, model: "gemini-2.5-flash")
@@ -65,39 +66,20 @@ module Agents
       focus_areas = search_results[:inferred_focus_areas] || []
 
       # Get settings from config or use defaults
-      settings = config&.dig("settings") || config&.dig(:settings) || {}
-      brand_voice = shared_settings&.dig("brand_voice") || shared_settings&.dig(:brand_voice) || {}
-
-      # Log settings for debugging
-      @logger.info("WriterAgent - Received settings: #{settings.inspect}")
-      @logger.info("WriterAgent - Settings keys: #{settings.keys.inspect}")
-      @logger.info("WriterAgent - num_variants_per_lead (string key): #{settings["num_variants_per_lead"]}")
-      @logger.info("WriterAgent - num_variants_per_lead (symbol key): #{settings[:num_variants_per_lead]}")
+      settings = get_setting(config, :settings) || get_setting(config, "settings") || {}
+      brand_voice = dig_setting(shared_settings, :brand_voice) || dig_setting(shared_settings, "brand_voice") || {}
 
       # Use config settings, fallback to shared_settings, then defaults
-      tone = settings["tone"] || settings[:tone] || brand_voice["tone"] || brand_voice[:tone] || "professional"
-      sender_persona = settings["sender_persona"] || settings[:sender_persona] || brand_voice["persona"] || brand_voice[:persona] || "founder"
-      email_length = settings["email_length"] || settings[:email_length] || "short"
-      personalization_level = settings["personalization_level"] || settings[:personalization_level] || "medium"
+      tone = get_setting_with_default(settings, :tone) || get_setting_with_default(brand_voice, :tone, "professional")
+      sender_persona = get_setting_with_default(settings, :sender_persona) || get_setting_with_default(brand_voice, :persona, "founder")
+      email_length = get_setting_with_default(settings, :email_length, "short")
+      personalization_level = get_setting_with_default(settings, :personalization_level, "medium")
 
       # Get primary_cta_type with proper fallback chain
       # Priority: agent_config settings > shared_settings > default
-      primary_cta_type = if settings["primary_cta_type"] || settings[:primary_cta_type]
-                          settings["primary_cta_type"] || settings[:primary_cta_type]
-      elsif shared_settings
-                          # Try multiple access patterns for shared_settings
-                          shared_settings["primary_goal"] ||
-                          shared_settings[:primary_goal] ||
-                          shared_settings.dig("primary_goal") ||
-                          shared_settings.dig(:primary_goal)
-      end
+      primary_cta_type = get_setting(settings, :primary_cta_type) || get_setting(settings, "primary_cta_type")
+      primary_cta_type ||= get_setting(shared_settings, :primary_goal) || get_setting(shared_settings, "primary_goal")
       primary_cta_type ||= "book_call"  # Default fallback
-
-      # Log for debugging
-      @logger.info("WriterAgent settings - primary_cta_type: #{primary_cta_type}")
-      @logger.info("WriterAgent shared_settings: #{shared_settings.inspect}")
-      @logger.info("WriterAgent shared_settings primary_goal (string): #{shared_settings&.dig("primary_goal")}")
-      @logger.info("WriterAgent shared_settings primary_goal (symbol): #{shared_settings&.dig(:primary_goal)}")
 
       # Validate that we got the right CTA type
       unless [ "book_call", "get_reply", "get_click" ].include?(primary_cta_type)
@@ -105,12 +87,10 @@ module Agents
         primary_cta_type = "book_call"
       end
 
-      cta_softness = settings["cta_softness"] || settings[:cta_softness] || "balanced"
+      cta_softness = get_setting_with_default(settings, :cta_softness, "balanced")
 
       # Get num_variants_per_lead - handle both string and symbol keys, and ensure it's a number
-      num_variants_raw = settings["num_variants_per_lead"] || settings[:num_variants_per_lead]
-      @logger.info("WriterAgent - num_variants_raw value: #{num_variants_raw.inspect} (class: #{num_variants_raw.class})")
-
+      num_variants_raw = get_setting(settings, :num_variants_per_lead)
       num_variants = if num_variants_raw.nil?
                        2  # Default
       else
@@ -118,11 +98,10 @@ module Agents
       end
 
       num_variants = [ 1, [ num_variants, 3 ].min ].max # Clamp between 1 and 3
-      @logger.info("WriterAgent - Final num_variants: #{num_variants}")
 
       # Get product_info and sender_company from shared_settings as fallback
-      product_info = product_info || shared_settings&.dig("product_info") || shared_settings&.dig(:product_info) || settings["product_info"] || settings[:product_info]
-      sender_company = sender_company || shared_settings&.dig("sender_company") || shared_settings&.dig(:sender_company) || settings["sender_company"] || settings[:sender_company]
+      product_info = product_info || get_setting(shared_settings, :product_info) || get_setting(shared_settings, "product_info") || get_setting(settings, :product_info)
+      sender_company = sender_company || get_setting(shared_settings, :sender_company) || get_setting(shared_settings, "sender_company") || get_setting(settings, :sender_company)
 
       # Generate multiple variants if requested
       variants = []

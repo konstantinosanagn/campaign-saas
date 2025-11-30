@@ -102,17 +102,89 @@ If you prefer manual setup:
 - **Password:** `password123`
 - Auto-login enabled (no authentication required)
 
-### Default API Keys
-API keys are automatically populated for the admin user:
-- **LLM_API_KEY:** `AIzaSyAmvrDiciuHNW_Pjy9_h5jUGw_2R2k6-xI`
-- **TAVILY_API_KEY:** `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`
+### API Keys
+**Important:** API keys are no longer automatically assigned in development. You must manually add them:
 
-**Note:** Click on user profile to add/update API keys manually if needed.
+1. Start the application and log in as `admin@example.com`
+2. Click on your user profile (top right)
+3. Navigate to the API Keys section
+4. Add your API keys:
+   - **Gemini API Key** (for Writer, Critique, and Design agents)
+   - **Tavily API Key** (for Search agent)
+
+Get your API keys:
+- **Gemini API Key:** https://aistudio.google.com/app/apikey
+- **Tavily API Key:** https://tavily.com/
+
+### Email Sending Setup
+
+The application uses **Gmail OAuth** for sending emails. There are two ways to set this up:
+
+#### Option 1: Use Your Own Gmail Account (Recommended for Development)
+
+1. **Set up Google OAuth Client:**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Navigate to **APIs & Services** → **Credentials**
+   - Create a new **OAuth 2.0 Client ID** (or use existing)
+   - Application type: **Web application**
+   - Add authorized redirect URI:
+     ```
+     http://localhost:3000/users/auth/google_oauth2/callback
+     ```
+   - Copy the **Client ID** and **Client Secret**
+
+2. **Configure in `.env`:**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Add to your `.env` file:
+   ```env
+   GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your-client-secret
+   ```
+
+3. **Connect Gmail in the App:**
+   - Log in to the application
+   - Click on your user profile (top right)
+   - Click **"Connect Gmail"** button
+   - Authorize the application to send emails on your behalf
+   - Your Gmail account will now be used for sending campaign emails
+
+#### Option 2: Use Default System Sender (For Testing)
+
+If you don't want to connect your own Gmail, you can use a default system sender:
+
+1. **Set up a system Gmail account:**
+   - Create a Gmail account (e.g., `campaignsenderagent@gmail.com`)
+   - Set up Google OAuth for this account (same steps as Option 1)
+   - Connect this account via Google OAuth in the app
+
+2. **Configure in `.env`:**
+   ```env
+   DEFAULT_GMAIL_SENDER=campaignsenderagent@gmail.com
+   ```
+
+3. **The system will:**
+   - Automatically use this account when users haven't connected their own Gmail
+   - Display "Using default sender" in the UI
+   - Hide the "Connect Gmail" button when default sender is available
+
+**Note:** The default sender must be a user in the database with Gmail OAuth connected. You can create this user via Google OAuth login or manually in the database.
+
+#### Email Sending Priority
+
+The application tries email sending methods in this order:
+
+1. **User's Gmail OAuth** (if user connected their Gmail via Google login)
+2. **Default Gmail Sender** (if `DEFAULT_GMAIL_SENDER` is configured and that user has Gmail connected)
+3. **SMTP Fallback** (if neither Gmail option is available)
 
 ### Authentication
 - `DISABLE_AUTH` is automatically `true` in development
 - No login required - automatically logged in as admin user
 - Admin user is auto-created on first access
+- **For Google OAuth testing:** Set `DISABLE_AUTH=false` in `.env` to test the full OAuth flow
 
 ## Production Mode
 
@@ -122,18 +194,55 @@ API keys are automatically populated for the admin user:
 - Users must register/login to access the application
 
 ### Required Environment Variables
-A .env file including the following environment variable is required:
-```bash
-GMAIL_CLIENT_ID=104902845705-j48s5c8e64ccoic198g5gqmb8lfvf4re.apps.googleusercontent.com
-GMAIL_CLIENT_SECRET=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
 
-# Optional: Disable authentication (production only)
-DISABLE_AUTH=true
+For production, set these environment variables in Heroku:
+
+```bash
+# Google OAuth (required for Gmail sending)
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+
+# Optional: Default Gmail sender (system account)
+DEFAULT_GMAIL_SENDER=campaignsenderagent@gmail.com
+
+# API Keys (user-specific, but can set defaults)
+GEMINI_API_KEY=your-gemini-key
+TAVILY_API_KEY=your-tavily-key
+
+# Optional: Disable authentication (testing only)
+DISABLE_AUTH=false
 ```
 
-### Gmail OAuth Test Mode
+### Google OAuth Setup for Production
 
-⚠️ Currently in Google OAuth Test Mode. Only `campaignsaastester@gmail.com` is authorized for Gmail OAuth.
+1. **Create OAuth 2.0 Client in Google Cloud Console:**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Navigate to **APIs & Services** → **Credentials**
+   - Create **OAuth 2.0 Client ID** (Web application)
+   - Add authorized redirect URI:
+     ```
+     https://your-app-name.herokuapp.com/users/auth/google_oauth2/callback
+     ```
+   - Enable **Gmail API** in the APIs & Services section
+
+2. **Set environment variables in Heroku:**
+   ```bash
+   heroku config:set GOOGLE_CLIENT_ID="your-client-id" -a campaign-saas
+   heroku config:set GOOGLE_CLIENT_SECRET="your-client-secret" -a campaign-saas
+   heroku config:set DEFAULT_GMAIL_SENDER="system-email@gmail.com" -a campaign-saas
+   ```
+
+3. **Run database migrations:**
+   ```bash
+   heroku run rails db:migrate -a campaign-saas
+   ```
+
+### Email Sending in Production
+
+- Users can connect their Gmail via **"Continue with Google"** login
+- If a user hasn't connected Gmail, the system uses the `DEFAULT_GMAIL_SENDER` (if configured)
+- All emails are sent via **Gmail API** (not SMTP) for better deliverability
+- Gmail tokens are automatically refreshed when they expire
 
 ## Project Structure
 
@@ -196,11 +305,38 @@ bundle exec cucumber         # Run Cucumber tests
 **Platform:** Heroku  
 **URL:** https://campaign-saas-7460a258bf90.herokuapp.com/
 
+### Required Environment Variables
+
 Set environment variables via Heroku Config Vars:
+
 ```bash
-heroku config:set GEMINI_API_KEY="your_key"
-heroku config:set TAVILY_API_KEY="your_key"
+# Google OAuth (required for Gmail sending)
+heroku config:set GOOGLE_CLIENT_ID="your-client-id" -a campaign-saas
+heroku config:set GOOGLE_CLIENT_SECRET="your-client-secret" -a campaign-saas
+
+# Optional: Default Gmail sender
+heroku config:set DEFAULT_GMAIL_SENDER="system-email@gmail.com" -a campaign-saas
+
+# API Keys (optional - users can add their own)
+heroku config:set GEMINI_API_KEY="your_key" -a campaign-saas
+heroku config:set TAVILY_API_KEY="your_key" -a campaign-saas
 ```
+
+### Database Migrations
+
+After deploying new migrations, run:
+
+```bash
+heroku run rails db:migrate -a campaign-saas
+```
+
+### Post-Deployment Checklist
+
+1. ✅ Run database migrations
+2. ✅ Set Google OAuth credentials
+3. ✅ Configure default Gmail sender (optional)
+4. ✅ Test Google OAuth login
+5. ✅ Verify Gmail sending works
 
 ## Docker
 

@@ -5,9 +5,16 @@ require_relative "agents/critique_agent"
 =begin
 ORCHESTRATOR
 
+NOTE: This is a TEST-ONLY service for feature testing and development.
+The main application uses LeadAgentService for production workflows with database-backed leads/campaigns.
+
 OVERVIEW:
 The Orchestrator coordinates the multi-agent pipeline to generate personalized B2B marketing emails
 for target companies. It manages the flow from company name input → research → email generation → quality check.
+This is a standalone service that does NOT interact with the database - it's used for:
+- Feature tests (see features/orchestrator_execution.feature)
+- RSpec unit tests (see spec/services/orchestrator_spec.rb)
+- Development/testing agent pipeline independently of campaigns/leads
 
 WORKFLOW:
 1. Takes company name and optional recipient as input

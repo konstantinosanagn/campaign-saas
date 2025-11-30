@@ -76,6 +76,10 @@ RSpec.configure do |config|
   # Include Devise helpers for request specs
   config.include Devise::Test::IntegrationHelpers, type: :request
 
+  # Include ActiveJob test helpers for job testing
+  config.include ActiveJob::TestHelper, type: :job
+  config.include ActiveJob::TestHelper, type: :service
+  config.include ActiveJob::TestHelper, type: :request
 
   # Global cleanup to prevent test leakage
   config.after(:each) do

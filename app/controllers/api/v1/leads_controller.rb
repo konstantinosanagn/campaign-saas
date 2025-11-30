@@ -321,6 +321,100 @@ module Api
         render json: AgentOutputSerializer.serialize(agent_output), status: :ok
       end
 
+      ##
+      # POST /api/v1/leads/batch_run_agents
+      # Runs agents for multiple leads in parallel batches
+      #
+      # Request body:
+      #   {
+      #     leadIds: [1, 2, 3],
+      #     campaignId: 1,
+      #     batchSize: 10 (optional)
+      #   }
+      #
+      # Returns:
+      #   {
+      #     success: true,
+      #     total: 10,
+      #     queued: 8,
+      #     failed: 2,
+      #     results: [...]
+      #   }
+      def batch_run_agents
+        lead_ids = params[:leadIds] || params[:lead_ids] || []
+        campaign_id = params[:campaignId] || params[:campaign_id]
+        batch_size = (params[:batchSize] || params[:batch_size] || BatchLeadProcessingService.recommended_batch_size).to_i
+
+        unless campaign_id
+          render json: { errors: [ "campaignId is required" ] }, status: :unprocessable_entity
+          return
+        end
+
+        unless lead_ids.is_a?(Array) && lead_ids.any?
+          render json: { errors: [ "leadIds must be a non-empty array" ] }, status: :unprocessable_entity
+          return
+        end
+
+        # Verify campaign ownership
+        campaign = current_user.campaigns.find_by(id: campaign_id)
+        unless campaign
+          render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
+          return
+        end
+
+        # Validate API keys before processing (to avoid queuing jobs that will fail)
+        unless ApiKeyService.keys_available?(current_user)
+          missing_keys = ApiKeyService.missing_keys(current_user)
+          render json: {
+            success: false,
+            error: "Missing API keys: #{missing_keys.join(', ')}. Please add them in the API Keys section.",
+            total: lead_ids.length,
+            queued: 0,
+            failed: 0
+          }, status: :unprocessable_entity
+          return
+        end
+
+        begin
+          # Process leads in batches
+          result = BatchLeadProcessingService.process_leads(
+            lead_ids,
+            campaign,
+            current_user,
+            batch_size: batch_size
+          )
+
+          if result[:error]
+            render json: {
+              success: false,
+              error: result[:error],
+              total: result[:total],
+              queued: result[:queued_count] || 0,
+              failed: result[:failed_count] || 0
+            }, status: :unprocessable_entity
+          else
+            render json: {
+              success: true,
+              total: result[:total],
+              queued: result[:queued_count],
+              failed: result[:failed_count],
+              queuedLeads: result[:queued],
+              failedLeads: result[:failed]
+            }, status: :accepted
+          end
+        rescue => e
+          Rails.logger.error("BatchLeadProcessingService error: #{e.class} - #{e.message}")
+          Rails.logger.error(e.backtrace.join("\n"))
+          render json: {
+            success: false,
+            error: "Failed to process batch: #{e.message}",
+            total: lead_ids.length,
+            queued: 0,
+            failed: 0
+          }, status: :internal_server_error
+        end
+      end
+
       private
 
       def lead_params

@@ -475,4 +475,197 @@ RSpec.describe Api::V1::LeadsController, type: :request do
       end
     end
   end
+
+  describe 'POST #batch_run_agents' do
+    let!(:lead1) { create(:lead, campaign: campaign, stage: 'queued') }
+    let!(:lead2) { create(:lead, campaign: campaign, stage: 'queued') }
+    let!(:lead3) { create(:lead, campaign: campaign, stage: 'queued') }
+    let(:batch_params) do
+      {
+        leadIds: [lead1.id, lead2.id, lead3.id],
+        campaignId: campaign.id
+      }
+    end
+
+    context 'when authenticated' do
+      before { sign_in user }
+
+      context 'with valid API keys' do
+        before do
+          user.update!(llm_api_key: 'test-gemini-key', tavily_api_key: 'test-tavily-key')
+        end
+
+        it 'returns accepted status' do
+          post '/api/v1/leads/batch_run_agents',
+               params: batch_params,
+               headers: { 'Accept' => 'application/json' }
+
+          expect(response).to have_http_status(:accepted)
+        end
+
+        it 'enqueues jobs for all leads' do
+          expect {
+            post '/api/v1/leads/batch_run_agents',
+                 params: batch_params,
+                 headers: { 'Accept' => 'application/json' }
+          }.to have_enqueued_job(AgentExecutionJob).at_least(:times)
+        end
+
+        it 'returns success response with queued leads' do
+          post '/api/v1/leads/batch_run_agents',
+               params: batch_params,
+               headers: { 'Accept' => 'application/json' }
+
+          json_response = JSON.parse(response.body)
+          expect(json_response['success']).to be true
+          expect(json_response['total']).to eq(3)
+          expect(json_response['queued']).to eq(3)
+          expect(json_response['failed']).to eq(0)
+          expect(json_response['queuedLeads'].length).to eq(3)
+        end
+
+        it 'includes job IDs in response' do
+          post '/api/v1/leads/batch_run_agents',
+               params: batch_params,
+               headers: { 'Accept' => 'application/json' }
+
+          json_response = JSON.parse(response.body)
+          expect(json_response['queuedLeads'].all? { |q| q['job_id'].present? }).to be true
+        end
+
+        context 'with custom batch size' do
+          it 'uses custom batch size' do
+            custom_params = batch_params.merge(batchSize: 5)
+
+            post '/api/v1/leads/batch_run_agents',
+                 params: custom_params,
+                 headers: { 'Accept' => 'application/json' }
+
+            expect(response).to have_http_status(:accepted)
+            json_response = JSON.parse(response.body)
+            expect(json_response['queued']).to eq(3)
+          end
+        end
+      end
+
+      context 'when API keys are missing' do
+        before do
+          user.update!(llm_api_key: nil, tavily_api_key: nil)
+        end
+
+        it 'returns 422 with error message' do
+          post '/api/v1/leads/batch_run_agents',
+               params: batch_params,
+               headers: { 'Accept' => 'application/json' }
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          json_response = JSON.parse(response.body)
+          expect(json_response['success']).to be false
+          expect(json_response['error']).to be_present
+          expect(json_response['total']).to eq(3)
+          expect(json_response['queued']).to eq(0)
+        end
+
+        it 'does not enqueue any jobs' do
+          expect {
+            post '/api/v1/leads/batch_run_agents',
+                 params: batch_params,
+                 headers: { 'Accept' => 'application/json' }
+          }.not_to have_enqueued_job(AgentExecutionJob)
+        end
+      end
+
+      context 'when campaign does not belong to user' do
+        let(:other_campaign) { create(:campaign, user: other_user) }
+        let(:invalid_params) do
+          {
+            leadIds: [lead1.id, lead2.id],
+            campaignId: other_campaign.id
+          }
+        end
+
+        it 'returns 404 not found' do
+          post '/api/v1/leads/batch_run_agents',
+               params: invalid_params,
+               headers: { 'Accept' => 'application/json' }
+
+          expect(response).to have_http_status(:not_found)
+          json_response = JSON.parse(response.body)
+          expect(json_response['errors']).to include('Campaign not found or unauthorized')
+        end
+      end
+
+      context 'when leadIds is missing' do
+        it 'returns 422 with error' do
+          invalid_params = { campaignId: campaign.id }
+
+          post '/api/v1/leads/batch_run_agents',
+               params: invalid_params,
+               headers: { 'Accept' => 'application/json' }
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          json_response = JSON.parse(response.body)
+          expect(json_response['errors']).to include('leadIds must be a non-empty array')
+        end
+      end
+
+      context 'when leadIds is empty array' do
+        it 'returns 422 with error' do
+          invalid_params = { leadIds: [], campaignId: campaign.id }
+
+          post '/api/v1/leads/batch_run_agents',
+               params: invalid_params,
+               headers: { 'Accept' => 'application/json' }
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          json_response = JSON.parse(response.body)
+          expect(json_response['errors']).to include('leadIds must be a non-empty array')
+        end
+      end
+
+      context 'when campaignId is missing' do
+        it 'returns 422 with error' do
+          invalid_params = { leadIds: [lead1.id] }
+
+          post '/api/v1/leads/batch_run_agents',
+               params: invalid_params,
+               headers: { 'Accept' => 'application/json' }
+
+          expect(response).to have_http_status(:unprocessable_entity)
+          json_response = JSON.parse(response.body)
+          expect(json_response['errors']).to include('campaignId is required')
+        end
+      end
+
+      context 'with leads from different campaign' do
+        let(:other_campaign) { create(:campaign, user: user) }
+        let!(:other_lead) { create(:lead, campaign: other_campaign) }
+
+        it 'filters to only leads from specified campaign' do
+          mixed_params = {
+            leadIds: [lead1.id, lead2.id, other_lead.id],
+            campaignId: campaign.id
+          }
+
+          post '/api/v1/leads/batch_run_agents',
+               params: mixed_params,
+               headers: { 'Accept' => 'application/json' }
+
+          json_response = JSON.parse(response.body)
+          expect(json_response['total']).to eq(2)  # Only lead1 and lead2
+          expect(json_response['queued']).to eq(2)
+        end
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401 unauthorized' do
+        post '/api/v1/leads/batch_run_agents',
+             params: batch_params,
+             headers: { 'Accept' => 'application/json' }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
 end

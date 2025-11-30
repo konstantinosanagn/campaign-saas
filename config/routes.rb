@@ -34,6 +34,9 @@ Rails.application.routes.draw do
       end
 
       resources :leads, only: [ :index, :create, :update, :destroy ] do
+        collection do
+          post :batch_run_agents
+        end
         member do
           post :run_agents
           get :agent_outputs

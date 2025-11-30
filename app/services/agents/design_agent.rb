@@ -42,6 +42,7 @@ KEY FEATURES:
 module Agents
   class DesignAgent
     include HTTParty
+    include SettingsHelper
     base_uri "https://generativelanguage.googleapis.com/v1beta"
 
     def initialize(api_key:, model: "gemini-2.5-flash")
@@ -51,13 +52,13 @@ module Agents
     end
 
     def run(writer_output, config: nil)
-      email_content = writer_output[:email] || writer_output["email"] || ""
-      company = writer_output[:company] || writer_output["company"]
-      recipient = writer_output[:recipient] || writer_output["recipient"]
+      email_content = get_setting(writer_output, :email) || get_setting(writer_output, "email") || ""
+      company = get_setting(writer_output, :company) || get_setting(writer_output, "company")
+      recipient = get_setting(writer_output, :recipient) || get_setting(writer_output, "recipient")
 
       # Extract settings from config (handle both camelCase and snake_case)
-      settings = config&.dig(:settings) || config&.dig("settings") || {}
-      format = settings[:format] || settings["format"] || "formatted"
+      settings = get_setting(config, :settings) || get_setting(config, "settings") || {}
+      format = get_setting_with_default(settings, :format, "formatted")
 
       # If email is empty, return original output with format
       if email_content.blank?
@@ -70,11 +71,14 @@ module Agents
         }
       end
       # Default to true unless explicitly set to false (check all key variations)
-      allow_bold = !(settings[:allow_bold] == false || settings["allow_bold"] == false || settings[:allowBold] == false || settings["allowBold"] == false)
-      allow_italic = !(settings[:allow_italic] == false || settings["allow_italic"] == false || settings[:allowItalic] == false || settings["allowItalic"] == false)
-      allow_bullets = !(settings[:allow_bullets] == false || settings["allow_bullets"] == false || settings[:allowBullets] == false || settings["allowBullets"] == false)
-      cta_style = settings[:cta_style] || settings["cta_style"] || settings[:ctaStyle] || settings["ctaStyle"] || "link"
-      font_family = settings[:font_family] || settings["font_family"] || settings[:fontFamily] || settings["fontFamily"]
+      allow_bold_val = get_setting(settings, :allow_bold) || get_setting(settings, :allowBold) || get_setting(settings, "allow_bold") || get_setting(settings, "allowBold")
+      allow_bold = allow_bold_val != false
+      allow_italic_val = get_setting(settings, :allow_italic) || get_setting(settings, :allowItalic) || get_setting(settings, "allow_italic") || get_setting(settings, "allowItalic")
+      allow_italic = allow_italic_val != false
+      allow_bullets_val = get_setting(settings, :allow_bullets) || get_setting(settings, :allowBullets) || get_setting(settings, "allow_bullets") || get_setting(settings, "allowBullets")
+      allow_bullets = allow_bullets_val != false
+      cta_style = get_setting(settings, :cta_style) || get_setting(settings, :ctaStyle) || get_setting(settings, "cta_style") || get_setting(settings, "ctaStyle") || "link"
+      font_family = get_setting(settings, :font_family) || get_setting(settings, :fontFamily) || get_setting(settings, "font_family") || get_setting(settings, "fontFamily")
 
       prompt = build_prompt(email_content, company, recipient, format: format, allow_bold: allow_bold, allow_italic: allow_italic, allow_bullets: allow_bullets, cta_style: cta_style, font_family: font_family)
 

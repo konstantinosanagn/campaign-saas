@@ -112,6 +112,12 @@ commit_message.txt
 # Generated analysis/report files
 PROJECT_ANALYSIS.md
 
+# Temporary summary/status documentation files (root level only)
+/*_SUMMARY.md
+/*_STATUS.md
+/*_FIXES_SUMMARY.md
+/*_TESTING_STATUS.md
+
 # Session-specific documentation and guides
 features/COVERAGE_ANALYSIS.md
 features/HOW_TO_CHECK_COVERAGE.md
@@ -201,7 +207,6 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-# Local testing documentation and scripts
-TESTING_PRODUCTION.md
+# Local testing scripts (temporary development scripts)
 test-production.ps1
 test-production.sh
