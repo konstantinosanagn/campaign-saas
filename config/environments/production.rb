@@ -14,8 +14,12 @@ Rails.application.configure do
     config.active_storage.service = :local
   end
 
-  config.assume_ssl = true
-  config.force_ssl = true
+  # Allow disabling SSL for local production testing
+  # Set DISABLE_SSL=true environment variable to disable SSL enforcement
+  unless ENV["DISABLE_SSL"] == "true"
+    config.assume_ssl = true
+    config.force_ssl = true
+  end
 
   config.log_tags = [ :request_id ]
   config.logger   = ActiveSupport::TaggedLogging.logger(STDOUT)

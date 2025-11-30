@@ -1,5 +1,6 @@
 import { useCallback, useState, useRef, useEffect } from 'react'
 import { useAgentExecution } from '@/hooks/useAgentExecution'
+import apiClient from '@/libs/utils/apiClient'
 import type { Lead } from '@/types'
 
 export function useAgentActions(
@@ -40,22 +41,70 @@ export function useAgentActions(
 
   const waitForLeadCompletion = useCallback(
     async (leadId: number, startingStage: string | null, getLatestLead: () => Lead | undefined) => {
-      const MAX_ATTEMPTS = 40
-      const POLL_INTERVAL_MS = 3000
+      const MAX_ATTEMPTS = 60 // Increased to allow more time for agent execution
+      const POLL_INTERVAL_MS = 2000 // 2 seconds between polls
       let currentStage = startingStage
 
+      // Determine which agent we're waiting for based on starting stage
+      const getExpectedAgent = (stage: string | null): string | null => {
+        if (stage === 'queued') return 'SEARCH'
+        if (stage === 'searched') return 'WRITER'
+        if (stage === 'written') return 'CRITIQUE'
+        if (stage === 'critiqued') return 'DESIGN'
+        return null
+      }
+      const expectedAgent = getExpectedAgent(startingStage)
+
+      // Helper to get latest lead from refreshed data
+      const getUpdatedLead = async (): Promise<Lead | undefined> => {
+        const refreshedLeads = await refreshLeads({ silent: true })
+        if (refreshedLeads) {
+          return refreshedLeads.find((lead) => lead.id === leadId)
+        }
+        return getLatestLead() // Fallback to closure if refreshLeads returns undefined
+      }
+
+      // Helper to check if agent output exists (indicates completion even if stage didn't update)
+      const checkAgentOutput = async (agentName: string | null): Promise<boolean> => {
+        if (!agentName) return false
+        try {
+          const response = await apiClient.get<{ outputs: Array<{ agentName: string; status: string }> }>(`leads/${leadId}/agent_outputs`)
+          if (response.data?.outputs) {
+            const output = response.data.outputs.find((o: { agentName: string }) => o.agentName === agentName)
+            return output?.status === 'completed' || output?.status === 'failed'
+          }
+        } catch (err) {
+          // Silently fail - agent outputs check is optional
+          console.debug(`[AgentPolling] Could not check agent output for ${agentName}:`, err)
+        }
+        return false
+      }
+
       try {
+        // Check immediately before waiting (in case agent completed very quickly)
+        let latestLead = await getUpdatedLead()
+        if (latestLead && currentStage !== latestLead.stage) {
+          console.log(`[AgentPolling] Lead ${leadId} stage changed immediately from "${startingStage}" to "${latestLead.stage}". Agent completed.`)
+          return // Exit early if stage already changed
+        }
+
+        // Also check if agent output exists immediately
+        if (expectedAgent && await checkAgentOutput(expectedAgent)) {
+          console.log(`[AgentPolling] Lead ${leadId} has ${expectedAgent} output, agent completed.`)
+          return
+        }
+
         for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
           if (!isMountedRef.current) {
             return
           }
 
           await new Promise((resolve) => window.setTimeout(resolve, POLL_INTERVAL_MS))
-          await refreshLeads({ silent: true })
-          const latestLead = getLatestLead()
+          latestLead = await getUpdatedLead()
 
           if (!latestLead) {
             // Lead not found, stop polling
+            console.log(`[AgentPolling] Lead ${leadId} not found, stopping polling.`)
             break
           }
 
@@ -69,6 +118,12 @@ export function useAgentActions(
             break
           }
 
+          // Check if agent output exists (fallback if stage didn't update)
+          if (expectedAgent && await checkAgentOutput(expectedAgent)) {
+            console.log(`[AgentPolling] Lead ${leadId} has ${expectedAgent} output (stage: "${latestLead.stage}"), agent completed.`)
+            break
+          }
+
           // Check if we've reached a final stage (all agents done)
           const reachedFinalStage = latestLead.stage === 'completed' || latestLead.stage === 'designed'
           if (reachedFinalStage) {
@@ -76,9 +131,14 @@ export function useAgentActions(
             break
           }
 
+          // Log progress every 10 attempts for debugging (reduced frequency)
+          if (attempt > 0 && attempt % 10 === 0) {
+            console.log(`[AgentPolling] Lead ${leadId} still at stage "${latestLead.stage}" (attempt ${attempt + 1}/${MAX_ATTEMPTS}, waiting for ${expectedAgent || 'unknown'} agent)`)
+          }
+
           // Timeout warning on last attempt
           if (attempt === MAX_ATTEMPTS - 1) {
-            console.warn(`[AgentPolling] Lead ${leadId} is still processing after ${MAX_ATTEMPTS * (POLL_INTERVAL_MS / 1000)} seconds.`)
+            console.warn(`[AgentPolling] Lead ${leadId} timeout after ${MAX_ATTEMPTS * (POLL_INTERVAL_MS / 1000)} seconds. Current stage: "${latestLead.stage}", started at: "${startingStage}", expected agent: ${expectedAgent || 'unknown'}`)
           }
         }
       } catch (pollError) {
@@ -86,6 +146,7 @@ export function useAgentActions(
       } finally {
         // Always remove the loading cube when polling stops
         if (isMountedRef.current) {
+          console.log(`[AgentPolling] Stopping polling for lead ${leadId}, removing loading state.`)
           removeRunningLeadId(leadId)
         }
       }
