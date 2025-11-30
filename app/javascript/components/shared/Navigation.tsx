@@ -16,10 +16,18 @@ interface NavigationProps {
     name?: string | null;
     workspace_name?: string | null;
     job_title?: string | null;
+    gmail_email?: string | null;
+    can_send_gmail?: boolean;
   };
+  defaultGmailSenderAvailable?: boolean;
+  defaultGmailSenderEmail?: string | null;
 }
 
-export default function Navigation({ user }: NavigationProps = {}) {
+export default function Navigation({ 
+  user, 
+  defaultGmailSenderAvailable = false, 
+  defaultGmailSenderEmail = null 
+}: NavigationProps = {}) {
   const { keys: apiKeys, saveKeys } = useApiKeys()
   const [activeDropdown, setActiveDropdown] = useState<DropdownType | null>(null)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
@@ -31,6 +39,27 @@ export default function Navigation({ user }: NavigationProps = {}) {
   })
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const userDropdownRef = useRef<HTMLDivElement>(null)
+
+  const handleConnectGmail = () => {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/users/auth/google_oauth2";
+
+    const csrfToken = document
+      .querySelector('meta[name="csrf-token"]')
+      ?.getAttribute("content");
+
+    if (csrfToken) {
+      const csrfInput = document.createElement("input");
+      csrfInput.type = "hidden";
+      csrfInput.name = "authenticity_token";
+      csrfInput.value = csrfToken;
+      form.appendChild(csrfInput);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+  };
   const dropdownRefs = {
     tavily: useRef<HTMLDivElement>(null),
     gemini: useRef<HTMLDivElement>(null)
@@ -415,8 +444,56 @@ export default function Navigation({ user }: NavigationProps = {}) {
                 
                 {/* User dropdown menu */}
                 {userDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-gray-200 bg-white shadow-lg z-[9999]">
+                  <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-gray-200 bg-white shadow-lg z-[9999]">
                     <div className="py-1">
+                      {/* Gmail Status */}
+                      <div className="px-4 py-2 border-b border-gray-200">
+                        <div className="text-xs font-medium text-gray-500 mb-1">Email Provider</div>
+                        <div className="text-sm text-gray-900">
+                          {user?.can_send_gmail ? (
+                            <span className="flex items-center gap-2">
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              <span>
+                                Gmail connected
+                                {user.gmail_email && (
+                                  <span className="text-gray-500 text-xs block mt-0.5">
+                                    {user.gmail_email}
+                                  </span>
+                                )}
+                              </span>
+                            </span>
+                          ) : defaultGmailSenderAvailable && defaultGmailSenderEmail ? (
+                            <span className="flex items-center gap-2">
+                              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              <span>
+                                Using default sender
+                                <span className="text-gray-500 text-xs block mt-0.5">
+                                  {defaultGmailSenderEmail}
+                                </span>
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-2">
+                              <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                              <span>Gmail not connected</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Connect Gmail Button */}
+                      {!user?.can_send_gmail && !defaultGmailSenderAvailable && (
+                        <div className="px-4 py-2 border-b border-gray-200">
+                          <button
+                            type="button"
+                            onClick={handleConnectGmail}
+                            className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium"
+                          >
+                            Connect Gmail
+                          </button>
+                        </div>
+                      )}
+                      
                       <button
                         type="button"
                         onClick={handleSignOut}

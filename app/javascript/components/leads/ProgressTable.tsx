@@ -1,26 +1,148 @@
 'use client'
 
 import React from 'react'
-import type { Lead } from '@/types'
+import type { Lead, AgentConfig } from '@/types'
 import Cube from '@/components/shared/Cube'
+import { baseAgents } from '@/libs/constants/agents'
 
 interface ProgressTableProps {
   leads: Lead[]
   onRunLead: (leadId: number) => void
+  onSendEmail?: (leadId: number) => void
   onLeadClick: (lead: Lead) => void
   onStageClick: (lead: Lead) => void
   selectedLeads: number[]
   onToggleSelection?: (leadId: number) => void
   onToggleMultiple?: (ids: number[], shouldSelect: boolean) => void
   runningLeadIds?: number[]
+  sendingEmails?: boolean
+  sendingLeadId?: number | null
+  agentConfigs?: AgentConfig[]
 }
 
-function ProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLeads, onToggleSelection, onToggleMultiple, runningLeadIds = [] }: ProgressTableProps) {
+function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClick, selectedLeads, onToggleSelection, onToggleMultiple, runningLeadIds = [], sendingEmails = false, sendingLeadId = null, agentConfigs = [] }: ProgressTableProps) {
   
-  // Check if a lead can be sent via email (only designed/completed stage)
-  // Note: All leads can be selected, but only designed/completed leads can be sent emails
+  // Check if a lead can be sent via email (designed/completed stage, or critiqued if DESIGN is disabled)
+  // Note: All leads can be selected, but only ready leads can be sent emails
   const canSendEmail = (lead: Lead): boolean => {
-    return lead.stage === 'designed' || lead.stage === 'completed'
+    // Normal case: designed or completed stage
+    if (lead.stage === 'designed' || lead.stage === 'completed') {
+      return true
+    }
+    
+    // Special case: critiqued stage but DESIGN agent is disabled
+    if (lead.stage === 'critiqued') {
+      const designConfig = agentConfigs?.find(c => c.agentName === 'DESIGN')
+      if (designConfig && !designConfig.enabled) {
+        return true
+      }
+    }
+    
+    return false
+  }
+
+  // Map agent config names to baseAgents names (DESIGN vs DESIGNER)
+  const getAgentConfigName = (agentName: string): string => {
+    if (agentName === 'DESIGN') return 'DESIGNER'
+    return agentName
+  }
+
+  // Check if an agent is enabled
+  const isAgentEnabled = (agentName: string): boolean => {
+    // Map agent names: DESIGN -> DESIGN, DESIGNER -> DESIGN (for config lookup)
+    const configAgentName = agentName === 'DESIGNER' ? 'DESIGN' : agentName
+    const config = agentConfigs.find(c => c.agentName === configAgentName)
+    // If no config exists, assume enabled (default behavior)
+    return config ? config.enabled : true
+  }
+
+  // Determine next agent based on stage
+  const getNextAgent = (stage: string): string | null => {
+    switch (stage) {
+      case 'queued':
+        return 'SEARCH'
+      case 'searched':
+        return 'WRITER'
+      case 'written':
+        return 'CRITIQUE'
+      case 'critiqued':
+        return 'DESIGN'
+      case 'designed':
+        return 'SENDER'
+      case 'completed':
+        return 'SENDER'
+      default:
+        return null
+    }
+  }
+
+  // Find next enabled agent, skipping disabled ones
+  const getNextEnabledAgent = (stage: string): string | null => {
+    const agentOrder = ['SEARCH', 'WRITER', 'CRITIQUE', 'DESIGN', 'SENDER']
+    const nextAgent = getNextAgent(stage)
+    
+    if (!nextAgent) return null
+    
+    // SENDER is always available (no config needed)
+    if (nextAgent === 'SENDER') return 'SENDER'
+    
+    // Check if the next agent is enabled
+    if (isAgentEnabled(nextAgent)) {
+      return nextAgent
+    }
+    
+    // If disabled, find the next enabled agent in the sequence
+    const currentIndex = agentOrder.indexOf(nextAgent)
+    if (currentIndex === -1) return null
+    
+    for (let i = currentIndex + 1; i < agentOrder.length; i++) {
+      const agent = agentOrder[i]
+      if (agent === 'SENDER') return 'SENDER' // SENDER is always available
+      if (isAgentEnabled(agent)) {
+        return agent
+      }
+    }
+    
+    // If no enabled agent found, return SENDER if we're at designed/completed
+    // Also return SENDER if at critiqued stage but DESIGN is disabled
+    if (stage === 'designed' || stage === 'completed') {
+      return 'SENDER'
+    }
+    
+    // Special case: critiqued stage but DESIGN is disabled
+    if (stage === 'critiqued') {
+      const designConfig = agentConfigs?.find(c => c.agentName === 'DESIGN')
+      if (designConfig && !designConfig.enabled) {
+        return 'SENDER'
+      }
+    }
+    
+    return null
+  }
+
+  // Get icon for next agent
+  const getNextAgentIcon = (lead: Lead): { icon: string; agentName: string } | null => {
+    const nextAgent = getNextEnabledAgent(lead.stage)
+    if (!nextAgent) return null
+    
+    // Map DESIGN to DESIGNER for baseAgents lookup
+    const agentNameForLookup = nextAgent === 'DESIGN' ? 'DESIGNER' : nextAgent
+    const agent = baseAgents.find(a => a.name === agentNameForLookup)
+    
+    if (agent) {
+      return { icon: agent.icon, agentName: nextAgent }
+    }
+    
+    return null
+  }
+
+  // Handle action button click
+  const handleActionClick = (lead: Lead) => {
+    if (canSendEmail(lead) && onSendEmail) {
+      onSendEmail(lead.id)
+    } else {
+      onRunLead(lead.id)
+    }
   }
   
   return (
@@ -149,20 +271,33 @@ function ProgressTable({ leads, onRunLead, onLeadClick, onStageClick, selectedLe
                 </td>
                 <td className="px-4 py-3 text-gray-500">{lead.quality || '-'}</td>
                 <td className="px-4 py-3">
-                  {runningLeadIds.includes(lead.id) ? (
+                  {runningLeadIds.includes(lead.id) || sendingLeadId === lead.id ? (
                     <div className="inline-flex items-center justify-center w-8 h-8">
                       <Cube variant="black" size="small" />
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => onRunLead(lead.id)}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-600 hover:text-black hover:bg-transparent transition-colors duration-200 group"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 group-hover:fill-black transition-all duration-300 ease-in-out">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-                      </svg>
-                    </button>
-                  )}
+                  ) : (() => {
+                    const nextAgentIcon = getNextAgentIcon(lead)
+                    if (!nextAgentIcon) {
+                      return null // No next agent available
+                    }
+                    
+                    const actionTitle = canSend 
+                      ? "Send email" 
+                      : `Run ${nextAgentIcon.agentName} agent`
+                    
+                    return (
+                      <button
+                        onClick={() => handleActionClick(lead)}
+                        disabled={sendingEmails || sendingLeadId !== null}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-600 hover:text-black hover:bg-transparent transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={actionTitle}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6 group-hover:fill-black transition-all duration-300 ease-in-out">
+                          <path strokeLinecap="round" strokeLinejoin="round" d={nextAgentIcon.icon} />
+                        </svg>
+                      </button>
+                    )
+                  })()}
                 </td>
               </tr>
             )})}

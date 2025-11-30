@@ -43,7 +43,44 @@ class LeadAgentService::Executor
   # @param search_output [Hash] The search agent output
   # @return [Hash] Writer results
   def self.execute_writer_agent(writer_agent, lead, agent_config, search_output)
-    return writer_agent.run({ company: lead.company, sources: [] }, recipient: lead.name, company: lead.company) unless search_output
+    # Reload agent_config to ensure we have the latest settings (avoid stale cache)
+    agent_config.reload if agent_config
+    
+    # Reload campaign association to ensure we have latest shared_settings
+    lead.association(:campaign).reload if lead.association(:campaign).loaded?
+    campaign = lead.campaign
+    # Use read_attribute to get raw DB value, not the getter with defaults
+    raw_shared_settings = campaign.read_attribute(:shared_settings) || {}
+    shared_settings = raw_shared_settings.is_a?(Hash) && !raw_shared_settings.empty? ? raw_shared_settings : {}
+
+    # Get settings after reload to ensure fresh data
+    settings = agent_config&.settings || {}
+    
+    # Log for debugging
+    Rails.logger.info("WriterAgent Executor - Campaign ID: #{campaign.id}")
+    Rails.logger.info("WriterAgent Executor - Agent Config ID: #{agent_config&.id}")
+    Rails.logger.info("WriterAgent Executor - Raw shared_settings from DB: #{raw_shared_settings.inspect}")
+    Rails.logger.info("WriterAgent Executor - Final shared_settings: #{shared_settings.inspect}")
+    Rails.logger.info("WriterAgent Executor - primary_goal value: #{shared_settings["primary_goal"]}")
+    Rails.logger.info("WriterAgent Executor - agent_config settings (after reload): #{settings.inspect}")
+    Rails.logger.info("WriterAgent Executor - num_variants_per_lead: #{settings["num_variants_per_lead"] || settings[:num_variants_per_lead] || 'NOT SET (will default to 2)'}")
+
+    product_info   = shared_settings["product_info"]   || settings["product_info"]
+    sender_company = shared_settings["sender_company"] || settings["sender_company"]
+
+    # If no search_output, return early but WITH config and shared_settings
+    unless search_output
+      Rails.logger.info("WriterAgent Executor - No search_output available, using empty sources but WITH config")
+      return writer_agent.run(
+        { company: lead.company, sources: [] },
+        recipient: lead.name,
+        company: lead.company,
+        product_info: product_info,
+        sender_company: sender_company,
+        config: { settings: settings },
+        shared_settings: shared_settings
+      )
+    end
 
     search_output = search_output.deep_symbolize_keys
     # Extract unified sources (recipient + company)
@@ -56,24 +93,6 @@ class LeadAgentService::Executor
       sources: combined_sources,
       inferred_focus_areas: search_output[:inferred_focus_areas]
     }
-
-    settings        = agent_config&.settings || {}
-    # Reload campaign association to ensure we have latest shared_settings
-    lead.association(:campaign).reload if lead.association(:campaign).loaded?
-    campaign = lead.campaign
-    # Use read_attribute to get raw DB value, not the getter with defaults
-    raw_shared_settings = campaign.read_attribute(:shared_settings) || {}
-    shared_settings = raw_shared_settings.is_a?(Hash) && !raw_shared_settings.empty? ? raw_shared_settings : {}
-
-    # Log for debugging
-    Rails.logger.info("WriterAgent Executor - Campaign ID: #{campaign.id}")
-    Rails.logger.info("WriterAgent Executor - Raw shared_settings from DB: #{raw_shared_settings.inspect}")
-    Rails.logger.info("WriterAgent Executor - Final shared_settings: #{shared_settings.inspect}")
-    Rails.logger.info("WriterAgent Executor - primary_goal value: #{shared_settings["primary_goal"]}")
-    Rails.logger.info("WriterAgent Executor - agent_config settings: #{settings.inspect}")
-
-    product_info   = shared_settings["product_info"]   || settings["product_info"]
-    sender_company = shared_settings["sender_company"] || settings["sender_company"]
 
     writer_agent.run(
       search_results,
@@ -95,6 +114,8 @@ class LeadAgentService::Executor
   # @param writer_output [Hash] The writer agent output
   # @return [Hash] Critique results
   def self.execute_critique_agent(critique_agent, lead, agent_config, writer_output)
+    # Reload agent_config to ensure we have the latest settings (avoid stale cache)
+    agent_config.reload if agent_config
     # Prepare writer output for critique
     # Handle both string and symbol keys from JSONB storage
     email_content = writer_output&.dig("email") ||
@@ -112,8 +133,9 @@ class LeadAgentService::Executor
       "number_of_revisions" => 0
     }
 
-    # Pass config to critique_agent
+    # Pass config to critique_agent (use reloaded settings)
     config_hash = agent_config ? { settings: agent_config.settings } : nil
+    Rails.logger.info("CritiqueAgent Executor - Agent Config ID: #{agent_config&.id}, settings: #{config_hash&.dig(:settings)&.inspect}")
     result = critique_agent.run(article, config: config_hash)
 
     # If a variant was selected, update the email content
@@ -134,6 +156,8 @@ class LeadAgentService::Executor
   # @param critique_output [Hash] The critique agent output
   # @return [Hash] Design results
   def self.execute_design_agent(design_agent, lead, agent_config, critique_output)
+    # Reload agent_config to ensure we have the latest settings (avoid stale cache)
+    agent_config.reload if agent_config
     # Prepare critique output for design
     # Prefer selected_variant if available, otherwise use email_content or email
     # Handle both string and symbol keys from JSONB storage
@@ -168,8 +192,9 @@ class LeadAgentService::Executor
       recipient: recipient
     }
 
-    # Pass config to design_agent
+    # Pass config to design_agent (use reloaded settings)
     config_hash = agent_config ? { settings: agent_config.settings } : nil
+    Rails.logger.info("DesignAgent Executor - Agent Config ID: #{agent_config&.id}, settings: #{config_hash&.dig(:settings)&.inspect}")
     design_agent.run(design_input, config: config_hash)
   end
 

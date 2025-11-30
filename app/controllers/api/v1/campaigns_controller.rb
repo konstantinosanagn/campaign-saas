@@ -60,6 +60,13 @@ module Api
             failed: result[:failed],
             errors: result[:errors]
           }, status: :ok
+        rescue GmailAuthorizationError => e
+          # Gmail token revoked/invalid - credentials already cleared by EmailSenderService
+          render json: {
+            success: false,
+            error: e.message,
+            requires_reconnect: true
+          }, status: :unauthorized
         rescue => e
           render json: {
             success: false,

@@ -1,3 +1,6 @@
+# Exception for Gmail authorization errors
+require_relative "../../../exceptions/gmail_authorization_error"
+
 module Api
   module V1
     class BaseController < ApplicationController

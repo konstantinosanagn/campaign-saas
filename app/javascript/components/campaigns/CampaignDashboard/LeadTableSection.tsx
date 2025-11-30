@@ -1,6 +1,6 @@
 import React from 'react'
 import ProgressTable from '@/components/leads/ProgressTable'
-import type { Lead } from '@/types'
+import type { Lead, AgentConfig } from '@/types'
 
 interface LeadTableSectionProps {
   selectedCampaign: number | null
@@ -8,10 +8,14 @@ interface LeadTableSectionProps {
   selectedLeads: number[]
   runningLeadIds: number[]
   onRunLead: (leadId: number) => void
+  onSendEmail?: (leadId: number) => void
   onLeadClick: (lead: Lead) => void
   onStageClick: (lead: Lead) => void
   onToggleSelection: (leadId: number) => void
   onToggleMultiple: (startIndex: number, endIndex: number) => void
+  sendingEmails?: boolean
+  sendingLeadId?: number | null
+  agentConfigs?: AgentConfig[]
 }
 
 export default function LeadTableSection({
@@ -20,10 +24,14 @@ export default function LeadTableSection({
   selectedLeads,
   runningLeadIds,
   onRunLead,
+  onSendEmail,
   onLeadClick,
   onStageClick,
   onToggleSelection,
   onToggleMultiple,
+  sendingEmails,
+  sendingLeadId,
+  agentConfigs,
 }: LeadTableSectionProps) {
   if (selectedCampaign === null) {
     return null
@@ -49,12 +57,16 @@ export default function LeadTableSection({
       <ProgressTable
         leads={filteredLeads}
         onRunLead={onRunLead}
+        onSendEmail={onSendEmail}
         onLeadClick={onLeadClick}
         onStageClick={onStageClick}
         selectedLeads={selectedLeads}
         onToggleSelection={onToggleSelection}
         onToggleMultiple={onToggleMultiple}
         runningLeadIds={runningLeadIds}
+        sendingEmails={sendingEmails}
+        sendingLeadId={sendingLeadId}
+        agentConfigs={agentConfigs}
       />
     </div>
   )

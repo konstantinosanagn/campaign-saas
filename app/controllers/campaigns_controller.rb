@@ -25,25 +25,11 @@ class CampaignsController < ApplicationController
   end
 
   def current_user
-    # Get the authenticated user from Devise directly using warden to avoid recursion
-    # warden.user accesses Devise's session directly without calling current_user
-    authenticated_user = nil
+    # Use ApplicationController's current_user method, which properly handles Devise authentication
+    # Only override for the admin fallback in development when auth is disabled
+    authenticated_user = super
 
-    # Try to get user from Devise's warden (bypasses our overridden current_user)
-    # This is the safest way to avoid infinite recursion
-    if respond_to?(:warden) && warden
-      authenticated_user = warden.user
-    end
-
-    # Normalize the user if needed (from ApplicationController)
-    authenticated_user = normalize_user(authenticated_user) if authenticated_user
-    authenticated_user = ensure_admin_profile!(authenticated_user)
-
-    # If we have an authenticated user (from Devise session), use them
-    # This will be the case when a user has logged in, even in development
-    return authenticated_user if authenticated_user.present?
-
-    # Only use admin user as fallback in development when no user is authenticated
+    # Only use admin user as fallback in development when no user is authenticated and auth is disabled
     # This is for convenience when testing without logging in
     if skip_auth? && authenticated_user.nil?
       # Always use admin@example.com in development mode for testing

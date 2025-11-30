@@ -30,12 +30,17 @@ gem "tailwindcss-rails"
 
 # Authentication
 gem "devise"
+gem "omniauth"
+gem "omniauth-google-oauth2"
+# For OmniAuth 2.x + Rails
+gem "omniauth-rails_csrf_protection", "~> 1.0"
 
 # Rate limiting
 gem "rack-attack"
 
 # HTTP client for API calls
 gem "httparty"
+gem "faraday"
 
 # OAuth for email sending (Gmail/Google Workspace)
 gem "googleauth"

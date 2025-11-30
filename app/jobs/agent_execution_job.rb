@@ -42,6 +42,12 @@ class AgentExecutionJob < ApplicationJob
     # Reload user to ensure we have fresh data
     user = User.find(user_id)
 
+    # Reload lead one more time to ensure we have the absolute latest data
+    # This is critical when leads are deleted and recreated with the same ID
+    lead.reload if lead
+    # Clear agent_outputs association cache to ensure fresh queries
+    lead.association(:agent_outputs).reset if lead
+
     # Check API keys before running agents - raise ArgumentError if missing
     # This will cause the job to be discarded (discard_on ArgumentError)
     ApiKeyService.get_gemini_api_key(user)

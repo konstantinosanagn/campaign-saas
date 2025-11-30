@@ -28,10 +28,18 @@ interface CampaignDashboardProps {
     name?: string | null
     workspace_name?: string | null
     job_title?: string | null
+    gmail_email?: string | null
+    can_send_gmail?: boolean
   }
+  defaultGmailSenderAvailable?: boolean
+  defaultGmailSenderEmail?: string | null
 }
 
-export default function CampaignDashboard({ user }: CampaignDashboardProps = {}) {
+export default function CampaignDashboard({ 
+  user, 
+  defaultGmailSenderAvailable = false, 
+  defaultGmailSenderEmail = null 
+}: CampaignDashboardProps = {}) {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isEditFormOpen, setIsEditFormOpen] = useState(false)
   const [isLeadFormOpen, setIsLeadFormOpen] = useState(false)
@@ -103,9 +111,23 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
   }, [leads, selectedCampaign, campaignObj])
 
   // Ready leads calculation
+  // A lead is ready if it's at designed/completed stage, or critiqued stage with DESIGN disabled
   const isLeadReady = useCallback((lead: Lead) => {
-    return lead.stage === 'designed' || lead.stage === 'completed'
-  }, [])
+    // Normal case: designed or completed stage
+    if (lead.stage === 'designed' || lead.stage === 'completed') {
+      return true
+    }
+    
+    // Special case: critiqued stage but DESIGN agent is disabled
+    if (lead.stage === 'critiqued') {
+      const designConfig = configs.find(c => c.agentName === 'DESIGN')
+      if (designConfig && !designConfig.enabled) {
+        return true
+      }
+    }
+    
+    return false
+  }, [configs])
 
   const readyLeadsCount = useMemo(() => {
     return filteredLeads.filter(isLeadReady).length
@@ -118,7 +140,7 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
   }, [filteredLeads, selectedLeads, isLeadReady])
 
   // Email actions hook
-  const { sendingEmails, handleSendEmails, handleSendSelectedEmails } = useEmailActions(
+  const { sendingEmails, sendingLeadId, handleSendEmails, handleSendSelectedEmails, handleSendSingleEmail } = useEmailActions(
     campaignObj,
     readyLeadsCount,
     selectedReadyLeads,
@@ -333,7 +355,11 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
 
   return (
     <>
-      <Navigation user={user} />
+      <Navigation 
+        user={user} 
+        defaultGmailSenderAvailable={defaultGmailSenderAvailable}
+        defaultGmailSenderEmail={defaultGmailSenderEmail}
+      />
       <main className="relative overflow-hidden">
         <Background />
         <div className="relative z-10">
@@ -369,6 +395,9 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
                     runningLeadIds={runningLeadIds}
                     filteredLeads={filteredLeads}
                     campaignObj={campaignObj}
+                    user={user}
+                    defaultGmailSenderAvailable={defaultGmailSenderAvailable}
+                    defaultGmailSenderEmail={defaultGmailSenderEmail}
                     onEditSelectedLead={handleEditSelectedLead}
                     onDeleteSelectedLeads={handleDeleteSelectedLeads}
                     onRunAllAgents={handleRunAllAgentsWrapper}
@@ -392,10 +421,14 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
                         selectedLeads={selectedLeads}
                         runningLeadIds={runningLeadIds}
                         onRunLead={handleRunLeadWrapper}
+                        onSendEmail={handleSendSingleEmail}
                         onLeadClick={handleLeadClick}
                         onStageClick={handleStageClick}
                         onToggleSelection={toggleSelection}
                         onToggleMultiple={toggleMultiple}
+                        sendingEmails={sendingEmails}
+                        sendingLeadId={sendingLeadId}
+                        agentConfigs={configs}
                       />
                     ) : (
                       <EmptyState />

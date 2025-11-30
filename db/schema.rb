@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_13_004103) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_30_080040) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -73,17 +73,20 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_13_004103) do
     t.string "encrypted_password", default: "", null: false
     t.string "first_name"
     t.text "gmail_access_token"
+    t.string "gmail_email"
     t.text "gmail_refresh_token"
     t.datetime "gmail_token_expires_at"
     t.string "job_title"
     t.string "last_name"
     t.string "llm_api_key"
     t.string "name"
+    t.string "provider"
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
     t.string "send_from_email"
     t.string "tavily_api_key"
+    t.string "uid"
     t.datetime "updated_at", null: false
     t.string "workspace_name"
     t.index ["email"], name: "index_users_on_email", unique: true

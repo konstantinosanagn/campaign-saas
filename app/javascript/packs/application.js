@@ -30,6 +30,7 @@ import ReactDOM from 'react-dom'
 import CampaignDashboard from '../components/campaigns/CampaignDashboard'
 import PlaceholderRoot from '../components/shared/PlaceholderRoot'
 import AuthPage from '../components/auth/AuthPage'
+import ProfileCompletionForm from '../components/profiles/ProfileCompletionForm'
 
 // Expose React for react-rails UJS
 window.React = React
@@ -39,6 +40,7 @@ window.ReactDOM = ReactDOM
 window.CampaignDashboard = CampaignDashboard
 window.PlaceholderRoot = PlaceholderRoot
 window.AuthPage = AuthPage
+window.ProfileCompletionForm = ProfileCompletionForm
 
 // Auto-register React components from app/javascript/components
 // This uses require.context to find components, with fallback to window globals

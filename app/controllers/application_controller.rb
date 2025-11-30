@@ -5,12 +5,6 @@ class ApplicationController < ActionController::Base
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 
-  DEFAULT_DEV_LLM_KEY = "AIzaSyAmvrDiciuHNW_Pjy9_h5jUGw_2R2k6-xI"
-  DEFAULT_DEV_TAVILY_KEY = "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"
-
-  # Development helper: ensure users have default API keys in development
-  before_action :ensure_default_api_keys_for_dev, if: -> { Rails.env.development? }
-
   # Override Devise path helpers to use custom routes in production
   def new_user_session_path(*args)
     if Rails.env.production?
@@ -37,24 +31,6 @@ class ApplicationController < ActionController::Base
 
   private
 
-  def ensure_default_api_keys_for_dev
-    # Double-check we're in development mode (safety check)
-    return unless Rails.env.development?
-
-    user = current_user
-    return unless user
-
-    # In development, give all users default API keys for convenience
-    # This should NEVER run in production
-    updates = {}
-    updates[:llm_api_key] = DEFAULT_DEV_LLM_KEY if user.llm_api_key.blank?
-    updates[:tavily_api_key] = DEFAULT_DEV_TAVILY_KEY if user.tavily_api_key.blank?
-
-    return if updates.empty?
-
-    user.update(updates)
-  end
-
   def normalize_user(user)
     return user if user.is_a?(User) || user.nil?
     return nil unless user.respond_to?(:[])
@@ -63,5 +39,10 @@ class ApplicationController < ActionController::Base
     return nil if user_id.blank?
 
     User.find_by(id: user_id) || nil
+  end
+
+  # The path used after sign in
+  def after_sign_in_path_for(resource)
+    root_path
   end
 end

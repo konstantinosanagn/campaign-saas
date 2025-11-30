@@ -10,6 +10,12 @@ interface ActionBarProps {
   runningLeadIds: number[]
   filteredLeads: Lead[]
   campaignObj: { id: number } | null
+  user?: {
+    gmail_email?: string | null
+    can_send_gmail?: boolean
+  }
+  defaultGmailSenderAvailable?: boolean
+  defaultGmailSenderEmail?: string | null
   onEditSelectedLead: () => void
   onDeleteSelectedLeads: () => void
   onRunAllAgents: () => void
@@ -27,6 +33,9 @@ export default function ActionBar({
   runningLeadIds,
   filteredLeads,
   campaignObj,
+  user,
+  defaultGmailSenderAvailable = false,
+  defaultGmailSenderEmail = null,
   onEditSelectedLead,
   onDeleteSelectedLeads,
   onRunAllAgents,
@@ -34,10 +43,61 @@ export default function ActionBar({
   onSendSelectedEmails,
   onEmailConfigClick,
 }: ActionBarProps) {
+  const handleConnectGmail = () => {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/users/auth/google_oauth2";
+
+    const csrfToken = document
+      .querySelector('meta[name="csrf-token"]')
+      ?.getAttribute("content");
+
+    if (csrfToken) {
+      const csrfInput = document.createElement("input");
+      csrfInput.type = "hidden";
+      csrfInput.name = "authenticity_token";
+      csrfInput.value = csrfToken;
+      form.appendChild(csrfInput);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+  };
+
   return (
     <div className="border-b border-gray-200 p-4 py-4">
       <div className="flex items-center justify-between">
-        <div className="flex-1"></div>
+        <div className="flex-1">
+          {/* Sender info */}
+          {(readyLeadsCount > 0 || selectedReadyLeads.length > 0) && (
+            <div className="text-sm text-gray-600">
+              {user?.can_send_gmail && user?.gmail_email ? (
+                <p>
+                  Emails will be sent from{' '}
+                  <span className="font-semibold">{user.gmail_email}</span> via Gmail.
+                </p>
+              ) : defaultGmailSenderAvailable && defaultGmailSenderEmail ? (
+                <p>
+                  Emails will be sent from{' '}
+                  <span className="font-semibold">{defaultGmailSenderEmail}</span> via Gmail.
+                </p>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <p>
+                    Emails will be sent from the default campaign sender.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleConnectGmail}
+                    className="text-blue-600 hover:text-blue-700 underline text-sm font-medium"
+                  >
+                    Connect Gmail
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="flex space-x-3 ml-auto">
           {selectedLeads.length > 0 && (

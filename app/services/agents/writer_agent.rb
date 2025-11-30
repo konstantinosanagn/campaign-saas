@@ -68,6 +68,12 @@ module Agents
       settings = config&.dig("settings") || config&.dig(:settings) || {}
       brand_voice = shared_settings&.dig("brand_voice") || shared_settings&.dig(:brand_voice) || {}
 
+      # Log settings for debugging
+      @logger.info("WriterAgent - Received settings: #{settings.inspect}")
+      @logger.info("WriterAgent - Settings keys: #{settings.keys.inspect}")
+      @logger.info("WriterAgent - num_variants_per_lead (string key): #{settings["num_variants_per_lead"]}")
+      @logger.info("WriterAgent - num_variants_per_lead (symbol key): #{settings[:num_variants_per_lead]}")
+
       # Use config settings, fallback to shared_settings, then defaults
       tone = settings["tone"] || settings[:tone] || brand_voice["tone"] || brand_voice[:tone] || "professional"
       sender_persona = settings["sender_persona"] || settings[:sender_persona] || brand_voice["persona"] || brand_voice[:persona] || "founder"
@@ -100,8 +106,19 @@ module Agents
       end
 
       cta_softness = settings["cta_softness"] || settings[:cta_softness] || "balanced"
-      num_variants = (settings["num_variants_per_lead"] || settings[:num_variants_per_lead] || 2).to_i
+      
+      # Get num_variants_per_lead - handle both string and symbol keys, and ensure it's a number
+      num_variants_raw = settings["num_variants_per_lead"] || settings[:num_variants_per_lead]
+      @logger.info("WriterAgent - num_variants_raw value: #{num_variants_raw.inspect} (class: #{num_variants_raw.class})")
+      
+      num_variants = if num_variants_raw.nil?
+                       2  # Default
+                     else
+                       num_variants_raw.to_i  # Convert to integer (handles both string "1" and integer 1)
+                     end
+      
       num_variants = [ 1, [ num_variants, 3 ].min ].max # Clamp between 1 and 3
+      @logger.info("WriterAgent - Final num_variants: #{num_variants}")
 
       # Get product_info and sender_company from shared_settings as fallback
       product_info = product_info || shared_settings&.dig("product_info") || shared_settings&.dig(:product_info) || settings["product_info"] || settings[:product_info]

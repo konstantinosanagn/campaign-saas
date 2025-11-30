@@ -43,6 +43,22 @@ class Users::SessionsController < Devise::SessionsController
     end
   end
 
+  # Clean up remember_me after sign in if it wasn't checked
+  after_action :cleanup_remember_me_if_not_checked, only: [:create]
+
+  def cleanup_remember_me_if_not_checked
+    return unless user_signed_in? && !remember_me_was_checked
+
+    # Clear the database field
+    if current_user.remember_created_at.present?
+      current_user.update_column(:remember_created_at, nil)
+    end
+    # Clear the cookie
+    cookie_name = "remember_user_token"
+    cookies.delete(cookie_name, domain: :all)
+    cookies.delete(cookie_name)
+  end
+
   # Override destroy (sign out) to ensure remember_me is cleared
   def destroy
     # Get the user before signing out
@@ -113,20 +129,10 @@ class Users::SessionsController < Devise::SessionsController
 
   protected
 
-  # The path used after sign in
+  # The path used after sign in (delegates to ApplicationController)
   def after_sign_in_path_for(resource)
-    # After sign in, if remember_me was not checked, ensure it's cleared
-    if resource && !remember_me_was_checked
-      # Clear the database field
-      if resource.remember_created_at.present?
-        resource.update_column(:remember_created_at, nil)
-      end
-      # Clear the cookie
-      cookie_name = "remember_user_token"
-      cookies.delete(cookie_name, domain: :all)
-      cookies.delete(cookie_name)
-    end
-    root_path
+    # Cleanup is handled in after_action callback
+    super
   end
 
   # The path used after sign out

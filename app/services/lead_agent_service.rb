@@ -35,6 +35,12 @@ class LeadAgentService
     # @param user [User] Current user containing API keys
     # @return [Hash] Result with status, outputs, and updated lead
     def run_agents_for_lead(lead, campaign, user)
+      # Reload lead to ensure we have the latest data, especially after deletions/recreations
+      # This prevents using stale data from cached associations
+      lead.reload
+      # Clear agent_outputs association cache to ensure fresh queries
+      lead.association(:agent_outputs).reset
+
       # Validate API keys before starting
       unless ApiKeyService.keys_available?(user)
         missing_keys = ApiKeyService.missing_keys(user)
@@ -92,17 +98,44 @@ class LeadAgentService
           break
         end
 
-        # Get agent config for this campaign
+        # Get agent config for this campaign (reloads association to avoid stale cache)
         agent_config = LeadAgentService::ConfigManager.get_agent_config(campaign, next_agent)
 
-        # Skip if agent is disabled - advance stage and continue to next agent
-        if agent_config&.disabled?
-          # Still advance stage for disabled agents
-          LeadAgentService::StageManager.advance_stage(lead, next_agent)
-          lead.reload
-          # Continue to next agent without executing
-          next
+        # Debug logging for agent config status
+        Rails.logger.info("[LeadAgentService] Checking agent #{next_agent} for campaign #{campaign.id}")
+        Rails.logger.info("[LeadAgentService] Agent config ID: #{agent_config&.id}, campaign_id: #{agent_config&.campaign_id}, enabled value: #{agent_config&.enabled.inspect}, enabled class: #{agent_config&.enabled.class}")
+        Rails.logger.info("[LeadAgentService] agent_config.enabled? = #{agent_config&.enabled?}, agent_config.disabled? = #{agent_config&.disabled?}")
+
+        # Verify config belongs to the correct campaign (safety check)
+        if agent_config && agent_config.campaign_id != campaign.id
+          Rails.logger.error("[LeadAgentService] CRITICAL: Agent config #{agent_config.id} belongs to campaign #{agent_config.campaign_id}, but we're processing campaign #{campaign.id}")
+          raise "Agent config campaign mismatch"
         end
+
+        # Skip if agent is disabled
+        # Use explicit boolean check to be absolutely sure
+        is_disabled = agent_config && (agent_config.enabled == false || agent_config.disabled?)
+        if is_disabled
+          Rails.logger.info("[LeadAgentService] Agent #{next_agent} is disabled (enabled=#{agent_config.enabled.inspect}), skipping")
+          
+          # Special handling for DESIGN agent: skip "designed" stage entirely, go straight to "completed"
+          if next_agent == AgentConstants::AGENT_DESIGN
+            Rails.logger.info("[LeadAgentService] DESIGN agent is disabled, skipping 'designed' stage and advancing to 'completed'")
+            lead.update!(stage: AgentConstants::STAGE_COMPLETED)
+            lead.reload
+            # Break out of loop since we've reached the final stage
+            break
+          else
+            # For other agents, advance stage normally
+            Rails.logger.info("[LeadAgentService] Agent #{next_agent} is disabled, advancing stage")
+            LeadAgentService::StageManager.advance_stage(lead, next_agent)
+            lead.reload
+            # Continue to next agent without executing
+            next
+          end
+        end
+
+        Rails.logger.info("[LeadAgentService] Agent #{next_agent} is enabled (enabled=#{agent_config&.enabled.inspect}), proceeding with execution")
 
         # Execute the agent (this is the first enabled agent we found)
         begin

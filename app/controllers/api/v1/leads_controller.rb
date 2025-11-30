@@ -78,6 +78,12 @@ module Api
           return
         end
 
+        # Reload lead to ensure fresh data and clear any stale agent_outputs cache
+        # This is critical when leads are deleted and recreated
+        lead.reload
+        # Also clear the agent_outputs association cache to ensure fresh queries
+        lead.association(:agent_outputs).reset
+
         # Get the campaign
         campaign = lead.campaign
 
@@ -219,6 +225,13 @@ module Api
               error: result[:error]
             }, status: :unprocessable_entity
           end
+        rescue GmailAuthorizationError => e
+          # Gmail token revoked/invalid - credentials already cleared by EmailSenderService
+          render json: {
+            success: false,
+            error: e.message,
+            requires_reconnect: true
+          }, status: :unauthorized
         rescue => e
           render json: {
             success: false,

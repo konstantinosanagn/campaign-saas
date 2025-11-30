@@ -17,6 +17,7 @@ export function useEmailActions(
   clearSelection: () => void
 ) {
   const [sendingEmails, setSendingEmails] = useState(false)
+  const [sendingLeadId, setSendingLeadId] = useState<number | null>(null)
 
   const handleSendEmails = useCallback(async () => {
     if (!campaignObj?.id || readyLeadsCount === 0) {
@@ -63,7 +64,7 @@ export function useEmailActions(
 
   const handleSendSelectedEmails = useCallback(async () => {
     if (selectedReadyLeads.length === 0) {
-      alert('Please select at least one lead in "designed" or "completed" stage to send emails.')
+      alert('Please select at least one ready lead to send emails.')
       return
     }
 
@@ -126,9 +127,48 @@ export function useEmailActions(
     }
   }, [selectedReadyLeads, refreshLeads, clearSelection])
 
+  const handleSendSingleEmail = useCallback(async (leadId: number) => {
+    if (!confirm('Send email to this lead?')) {
+      return
+    }
+
+    try {
+      setSendingLeadId(leadId) // Track which specific lead is being sent
+      const response = await fetch(`/api/v1/leads/${leadId}/send_email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        }
+      })
+
+      const data = await response.json()
+      if (response.ok && data.success) {
+        alert(data.message || 'Email sent successfully!')
+        // Refresh leads to get updated stage
+        await refreshLeads()
+      } else {
+        // Handle Gmail authorization error
+        if (response.status === 401 && data.requires_reconnect) {
+          alert(`Email send failed: ${data.error}\n\nPlease reconnect your Gmail account.`)
+        } else {
+          alert(`Failed to send email: ${data.error || 'Unknown error'}`)
+        }
+      }
+    } catch (error) {
+      console.error('Error sending email:', error)
+      alert(`Error sending email: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setSendingLeadId(null) // Clear the sending lead ID
+    }
+  }, [refreshLeads])
+
   return {
     sendingEmails,
+    sendingLeadId,
     handleSendEmails,
     handleSendSelectedEmails,
+    handleSendSingleEmail,
   }
 }

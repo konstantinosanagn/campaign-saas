@@ -1,7 +1,8 @@
 Rails.application.routes.draw do
   devise_for :users, controllers: {
     sessions: "users/sessions",
-    registrations: "users/registrations"
+    registrations: "users/registrations",
+    omniauth_callbacks: "users/omniauth_callbacks"
   }
 
   # Custom authentication routes for production
@@ -14,6 +15,10 @@ Rails.application.routes.draw do
   end
 
   root "campaigns#index"
+
+  # Profile completion routes
+  get  "/complete-profile", to: "profiles#edit",   as: :complete_profile
+  patch "/complete-profile", to: "profiles#update"
 
   resources :campaigns do
     resources :leads

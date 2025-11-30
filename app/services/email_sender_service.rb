@@ -8,8 +8,11 @@
 #   EmailSenderService.send_emails_for_campaign(campaign)
 #   # Returns: { sent: 5, failed: 2, errors: [...] }
 #
+require_relative "../exceptions/gmail_authorization_error"
+
 class EmailSenderService
   include AgentConstants
+  extend MarkdownHelper
   class << self
     ##
     # Sends emails to all ready leads in a campaign
@@ -94,12 +97,23 @@ class EmailSenderService
     # A lead is ready if:
     # 1. It has reached 'designed' or 'completed' stage
     # 2. It has a completed DESIGN output (preferred) or WRITER output (fallback)
+    # 3. If at 'critiqued' stage, check if DESIGN agent is disabled (then allow sending)
     #
     # @param lead [Lead] The lead to check
     # @return [Boolean] True if lead is ready to send
     def lead_ready?(lead)
-      # Must be at designed or completed stage
-      return false unless lead.stage.in?([ AgentConstants::STAGE_DESIGNED, AgentConstants::STAGE_COMPLETED ])
+      # Check if lead is at a sendable stage
+      sendable_stages = [ AgentConstants::STAGE_DESIGNED, AgentConstants::STAGE_COMPLETED ]
+      
+      # Also allow "critiqued" stage if DESIGN agent is disabled for this campaign
+      if lead.stage == AgentConstants::STAGE_CRITIQUED
+        design_config = lead.campaign.agent_configs.find_by(agent_name: AgentConstants::AGENT_DESIGN)
+        if design_config&.disabled?
+          sendable_stages << AgentConstants::STAGE_CRITIQUED
+        end
+      end
+      
+      return false unless lead.stage.in?(sendable_stages)
 
       # Check for DESIGN output first (preferred)
       design_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED)
@@ -141,12 +155,78 @@ class EmailSenderService
       raise "No email content found for lead #{lead.id}" if email_content.blank?
 
       user = lead.campaign.user
-      # Use configured send_from_email, fallback to user email, then default
-      from_email = user&.send_from_email.presence || user&.email.presence || ApplicationMailer.default[:from]
+      raise "Campaign has no associated user" unless user
+
+      # Extract subject and body from email_content
+      subject = extract_subject(email_content, lead.campaign.title, lead.name)
+      text_body = markdown_to_text(email_content)
+      html_body = markdown_to_html(email_content)
+
+      # Try new Gmail sending method first (user-level Gmail OAuth from Google login)
+      if user.can_send_gmail?
+        Rails.logger.info("[EmailSender] User #{user.id} has Gmail connected, using user.send_gmail!")
+        begin
+          user.send_gmail!(
+            to: lead.email,
+            subject: subject,
+            text_body: text_body,
+            html_body: html_body
+          )
+          Rails.logger.info("[EmailSender] Email sent successfully via user Gmail to #{lead.email}")
+          # Update lead stage to completed after successful send
+          lead.update!(stage: AgentConstants::STAGE_COMPLETED)
+          Rails.logger.info("[EmailSender] Updated lead #{lead.id} stage to 'completed'")
+          return
+        rescue GmailAuthorizationError => e
+          Rails.logger.warn("[EmailSender] Gmail authorization error for user #{user.id}: #{e.message}")
+          # Clear stored Gmail credentials
+          user.update!(
+            gmail_access_token: nil,
+            gmail_refresh_token: nil,
+            gmail_token_expires_at: nil,
+            gmail_email: nil
+          )
+          Rails.logger.info("[EmailSender] Cleared Gmail credentials for user #{user.id}")
+          # Re-raise to be handled by controller
+          raise e
+        end
+      end
+
+      # Fallback to default Gmail sender (system account) if configured
+      default_sender_email = ENV["DEFAULT_GMAIL_SENDER"]
+      if default_sender_email.present?
+        default_sender = User.find_by(email: default_sender_email)
+        if default_sender&.can_send_gmail?
+          Rails.logger.info("[EmailSender] User #{user.id} does not have Gmail connected, using default sender: #{default_sender_email}")
+          begin
+            default_sender.send_gmail!(
+              to: lead.email,
+              subject: subject,
+              text_body: text_body,
+              html_body: html_body
+            )
+            Rails.logger.info("[EmailSender] Email sent successfully via default Gmail sender to #{lead.email}")
+            # Update lead stage to completed after successful send
+            lead.update!(stage: AgentConstants::STAGE_COMPLETED)
+            Rails.logger.info("[EmailSender] Updated lead #{lead.id} stage to 'completed'")
+            return
+          rescue GmailAuthorizationError => e
+            Rails.logger.warn("[EmailSender] Default Gmail sender authorization error: #{e.message}")
+            # Don't clear default sender credentials, just log and continue to SMTP fallback
+            Rails.logger.info("[EmailSender] Falling back to SMTP due to default sender error")
+          end
+        else
+          Rails.logger.warn("[EmailSender] Default Gmail sender (#{default_sender_email}) not found or not configured, falling back to SMTP")
+        end
+      end
+
+      # Fallback to existing SMTP/OAuth flow for users without Gmail connected
+      Rails.logger.info("[EmailSender] User #{user.id} does not have Gmail connected, falling back to SMTP")
+      from_email = user.send_from_email.presence || user.email.presence || ApplicationMailer.default[:from]
 
       # 👉 Minimal change: use from_email to find OAuth user
       Rails.logger.info("[EmailSender] Using from_email: #{from_email}")
-      Rails.logger.info("[EmailSender] Campaign owner: user #{user&.id} (#{user&.email}), send_from_email: #{user&.send_from_email}")
+      Rails.logger.info("[EmailSender] Campaign owner: user #{user.id} (#{user.email}), send_from_email: #{user.send_from_email}")
       oauth_user = User.find_by(email: from_email)
       Rails.logger.info("[EmailSender] OAuth user lookup: #{oauth_user&.id} (#{oauth_user&.email})")
 
@@ -162,6 +242,9 @@ class EmailSenderService
         if access_token
           Rails.logger.info("[EmailSender] Using Gmail API to send email (OAuth configured) as #{from_email}")
           send_via_gmail_api(lead, email_content, from_email, oauth_user, access_token)
+          # Update lead stage to completed after successful send
+          lead.update!(stage: AgentConstants::STAGE_COMPLETED)
+          Rails.logger.info("[EmailSender] Updated lead #{lead.id} stage to 'completed'")
           return
         else
           Rails.logger.warn("[EmailSender] OAuth configured but valid_access_token returned nil for user #{oauth_user.id}")
@@ -196,6 +279,10 @@ class EmailSenderService
       Rails.logger.info("[EmailSender] Pre-mail config - smtp_settings address: #{ActionMailer::Base.smtp_settings[:address]}")
 
       # Send email using CampaignMailer
+      Rails.logger.info(
+        "[CampaignMailer] Sending email user_id=#{user.id} to=#{lead.email} via SMTP fallback"
+      )
+
       mail = CampaignMailer.send_email(
         to: lead.email,
         recipient_name: lead.name,
@@ -219,6 +306,9 @@ class EmailSenderService
         Rails.logger.info("[EmailSender] Attempting to deliver mail via #{ActionMailer::Base.delivery_method}...")
         mail.deliver_now
         Rails.logger.info("[EmailSender] Mail delivered successfully via #{ActionMailer::Base.delivery_method}")
+        # Update lead stage to completed after successful send
+        lead.update!(stage: AgentConstants::STAGE_COMPLETED)
+        Rails.logger.info("[EmailSender] Updated lead #{lead.id} stage to 'completed'")
       rescue Net::SMTPAuthenticationError => e
         Rails.logger.error("[EmailSender] SMTP Authentication Error: #{e.class} - #{e.message}")
         Rails.logger.error("[EmailSender] Response code: #{e.response.code if e.respond_to?(:response)}")
@@ -394,6 +484,23 @@ class EmailSenderService
         authentication: ENV.fetch("SMTP_AUTHENTICATION", "plain").to_sym,
         enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "true") == "true"
       }
+    end
+
+    ##
+    # Extracts subject from email content or builds it from campaign/recipient
+    def extract_subject(email_content, campaign_title, recipient_name)
+      # Try to extract subject from email content (format: "Subject: ...")
+      if email_content =~ /^Subject:\s*(.+)$/i
+        return $1.strip
+      end
+
+      # Fallback: build subject like CampaignMailer does
+      base = campaign_title.presence || "Campaign Outreach"
+      if recipient_name.present? && recipient_name.strip.present?
+        "#{base} – Outreach for #{recipient_name}"
+      else
+        "#{base} – Outreach Update"
+      end
     end
   end
 end

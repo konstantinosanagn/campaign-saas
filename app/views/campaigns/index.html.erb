@@ -5,8 +5,12 @@
       last_name: @user.respond_to?(:last_name) ? @user.last_name : nil,
       name: @user.respond_to?(:name) ? @user.name : nil,
       workspace_name: @user.respond_to?(:workspace_name) ? @user.workspace_name : nil,
-      job_title: @user.respond_to?(:job_title) ? @user.job_title : nil
-    } : {}
+      job_title: @user.respond_to?(:job_title) ? @user.job_title : nil,
+      gmail_email: @user.respond_to?(:gmail_email) ? @user.gmail_email : nil,
+      can_send_gmail: @user.respond_to?(:can_send_gmail?) ? @user.can_send_gmail? : false
+    } : {},
+    defaultGmailSenderAvailable: default_gmail_sender_available?,
+    defaultGmailSenderEmail: default_gmail_sender_email
   }) %>
 </div>
 

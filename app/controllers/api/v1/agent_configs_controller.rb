@@ -115,9 +115,22 @@ module Api
         # Agent name cannot be changed
         update_params = agent_config_params.except(:agent_name, :agentName)
 
+        # Ensure enabled is explicitly set if provided (Rails permit might exclude false values)
+        if agent_config_params.key?(:enabled) || agent_config_params.key?("enabled")
+          enabled_value = agent_config_params[:enabled] || agent_config_params["enabled"]
+          update_params[:enabled] = enabled_value unless enabled_value.nil?
+        end
+
+        # Log the update params for debugging
+        Rails.logger.info("[AgentConfigsController] Updating config #{config.id} (#{config.agent_name}) with params: #{update_params.inspect}")
+        
         if config.update(update_params)
+          # Reload to ensure we have the latest values
+          config.reload
+          Rails.logger.info("[AgentConfigsController] Config updated successfully: enabled=#{config.enabled}")
           render json: AgentConfigSerializer.serialize(config), status: :ok
         else
+          Rails.logger.error("[AgentConfigsController] Config update failed: #{config.errors.full_messages.join(', ')}")
           render json: { errors: config.errors.full_messages }, status: :unprocessable_entity
         end
       end

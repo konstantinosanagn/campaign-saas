@@ -35,11 +35,15 @@ class AgentConfig < ApplicationRecord
 
   # Status query methods
   def enabled?
-    enabled == true
+    # Handle both boolean true and string "true" (JSONB might store as string)
+    val = enabled
+    val == true || val == "true" || val == 1
   end
 
   def disabled?
-    enabled == false
+    # Handle both boolean false and string "false" (JSONB might store as string)
+    val = enabled
+    val == false || val == "false" || val == 0 || val.nil?
   end
 
   # Safe accessor methods for JSONB settings

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "omniauth-google-oauth2"
+
 # Assuming you have not yet modified this file, each configuration option below
 # is set to its default value. Note that some are commented out while others
 # are not: uncommented lines are intended to protect your configuration from
@@ -273,6 +275,14 @@ Devise.setup do |config|
   # Add a new OmniAuth provider. Check the wiki for more information on setting
   # up on your models and hooks.
   # config.omniauth :github, 'APP_ID', 'APP_SECRET', scope: 'user,public_repo'
+  config.omniauth :google_oauth2,
+                  ENV["GOOGLE_CLIENT_ID"],
+                  ENV["GOOGLE_CLIENT_SECRET"],
+                  {
+                    scope: "email,profile,openid https://www.googleapis.com/auth/gmail.send",
+                    access_type: "offline",
+                    prompt: "consent"
+                  }
 
   # ==> Warden configuration
   # If you want to use other strategies, that are not supported by Devise, or

@@ -1,6 +1,20 @@
 # This file should ensure the existence of records required to run the application in every environment (production,
 # development, test). The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
 
+# Create or find default Gmail sender user (system account for sending emails)
+default_sender_email = ENV.fetch("DEFAULT_GMAIL_SENDER", "campaignsenderagent@gmail.com")
+default_sender = User.find_by(email: default_sender_email) || User.create!(
+  email: default_sender_email,
+  password: Devise.friendly_token[0, 20], # Random password, won't be used for login
+  password_confirmation: Devise.friendly_token[0, 20],
+  name: "Default Campaign Sender",
+  first_name: "Campaign",
+  last_name: "Sender",
+  workspace_name: "System",
+  job_title: "Email Sender"
+)
+Rails.logger.info("Default Gmail sender user: #{default_sender.email} (ID: #{default_sender.id})")
+
 # Create or find admin user
 admin_user = User.find_by(email: 'admin@example.com') || User.create!(
   email: "admin@example.com",
