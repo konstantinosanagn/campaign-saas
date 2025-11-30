@@ -63,9 +63,9 @@
     "ts-jest": "^29.1.1",
     "types": "^0.1.1"
   },
-  "packageManager": "yarn@1.22.22",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.0.0",
+    "yarn": ">=1.22.0"
   },
   "resolutions": {
     "react": "18.3.1",
