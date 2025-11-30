@@ -3,7 +3,6 @@
   "private": true,
   "version": "0.1.0",
   "license": "MIT",
-  "packageManager": "yarn@1.22.22",
   "dependencies": {
     "@babel/core": "^7",
     "@babel/plugin-proposal-nullish-coalescing-operator": "^7",
