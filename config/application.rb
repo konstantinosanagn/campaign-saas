@@ -14,6 +14,10 @@ require "action_view/railtie"
 require "action_cable/engine"
 # require "rails/test_unit/railtie"
 
+# Configure Shakapacker to use yarn when packageManager is not set
+# This must be done before Bundler.require loads Shakapacker
+ENV['PACKAGE_JSON_FALLBACK_MANAGER'] ||= 'yarn' if File.exist?(Rails.root.join('yarn.lock'))
+
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
