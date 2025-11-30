@@ -200,3 +200,8 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Local testing documentation and scripts
+TESTING_PRODUCTION.md
+test-production.ps1
+test-production.sh
