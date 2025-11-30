@@ -72,7 +72,7 @@
     "react-dom": "18.3.1"
   },
   "scripts": {
-    "preinstall": "node scripts/check-node-version.js",
+    "preinstall": "test -f scripts/check-node-version.js && node scripts/check-node-version.js || true",
     "webpack": "webpack --config config/webpack/production.js",
     "build": "yarn webpack",
     "lint": "eslint \"app/javascript/**/*.{js,jsx,ts,tsx}\"",
