@@ -14,12 +14,12 @@ require "action_view/railtie"
 require "action_cable/engine"
 # require "rails/test_unit/railtie"
 
-# Configure Shakapacker to use yarn when packageManager is not set
+# Configure Shakapacker to use npm when packageManager is not set
 # This must be done before Bundler.require loads Shakapacker
 # Use __dir__ instead of Rails.root since Rails isn't loaded yet
 # Note: This can be overridden by Heroku config var: PACKAGE_JSON_FALLBACK_MANAGER
-yarn_lock_path = File.join(__dir__, '..', 'yarn.lock')
-ENV['PACKAGE_JSON_FALLBACK_MANAGER'] ||= 'yarn' if File.exist?(yarn_lock_path)
+package_lock_path = File.join(__dir__, "..", "package-lock.json")
+ENV["PACKAGE_JSON_FALLBACK_MANAGER"] ||= "npm" if File.exist?(package_lock_path)
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
