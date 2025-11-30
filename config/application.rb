@@ -17,6 +17,7 @@ require "action_cable/engine"
 # Configure Shakapacker to use yarn when packageManager is not set
 # This must be done before Bundler.require loads Shakapacker
 # Use __dir__ instead of Rails.root since Rails isn't loaded yet
+# Note: This can be overridden by Heroku config var: PACKAGE_JSON_FALLBACK_MANAGER
 yarn_lock_path = File.join(__dir__, '..', 'yarn.lock')
 ENV['PACKAGE_JSON_FALLBACK_MANAGER'] ||= 'yarn' if File.exist?(yarn_lock_path)
 
