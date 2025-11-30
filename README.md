@@ -19,7 +19,7 @@ A modern SaaS application for managing AI-powered marketing campaigns with intel
   - Check your version: `node --version`
   - Download latest LTS: https://nodejs.org/
   - Or use nvm: `nvm install 24 && nvm use 24`
-- **Yarn:** 1.22.x
+- **npm:** 10.7.0+ (comes with Node.js)
 
 ## Installation
 
@@ -46,7 +46,7 @@ bin/setup --skip-server
 
 # 4. Install JavaScript dependencies
 #    This will automatically check Node.js version and fail if < 20.0.0
-yarn install
+npm install
 
 # 5. Start the application (requires two terminals)
 # Terminal 1: Webpack frontend (hot reload)
@@ -71,14 +71,14 @@ If you prefer manual setup:
      - Check version: `node --version`
      - Download: https://nodejs.org/
      - Or use nvm: `nvm install 24 && nvm use 24`
-     - The `yarn install` command will automatically verify Node.js version
+     - The `npm install` command will automatically verify Node.js version
    - PostgreSQL 12+
-   - Yarn 1.22.x
+   - npm 10.7.0+ (comes with Node.js)
 
 2. **Install dependencies:**
    ```bash
    bundle install
-   yarn install
+   npm install
    ```
 
 3. **Setup database:**
@@ -166,7 +166,7 @@ Stage progression: `queued → searched → written → critiqued → designed �
 
 ```bash
 bundle exec rspec      # RSpec tests
-yarn test              # Jest tests
+npm test               # Jest tests
 bundle exec cucumber   # Cucumber tests
 ```
 
@@ -186,16 +186,10 @@ rails console                # Open Rails console
 
 # Testing
 bundle exec rspec            # Run RSpec tests
-yarn test                    # Run Jest tests
-yarn test:coverage           # Run Jest tests with coverage
+npm test                     # Run Jest tests
+npm run test:coverage        # Run Jest tests with coverage
 bundle exec cucumber         # Run Cucumber tests
 ```
-
-## Deployment
-
-
-
-
 
 ## Deployment
 
@@ -219,7 +213,7 @@ docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value> --name campaign_manager campa
 
 ### Node.js Version Issues
 
-If you see an error like "Node.js version 20.0.0 or higher is required" during `yarn install`:
+If you see an error like "Node.js version 20.0.0 or higher is required" during `npm install`:
 
 1. **Check your current Node.js version:**
    ```bash
@@ -240,10 +234,10 @@ If you see an error like "Node.js version 20.0.0 or higher is required" during `
    node --version  # Should show v20.x.x or higher
    ```
 
-4. **Clear yarn cache and retry:**
+4. **Clear npm cache and retry:**
    ```bash
-   yarn cache clean
-   yarn install
+   npm cache clean --force
+   npm install
    ```
 
 **Note:** The `preinstall` script in `package.json` automatically checks Node.js version before installing dependencies. This ensures compatibility with Shakapacker (Webpack 5) which requires Node.js 20+.
