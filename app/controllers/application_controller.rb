@@ -5,7 +5,7 @@ class ApplicationController < ActionController::Base
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 
-  DEFAULT_DEV_LLM_KEY = "AIzaSyCtqoCmJ9r5zxSSYu27Kxffa5HaXDrlKvE"
+  DEFAULT_DEV_LLM_KEY = "AIzaSyAmvrDiciuHNW_Pjy9_h5jUGw_2R2k6-xI"
   DEFAULT_DEV_TAVILY_KEY = "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"
 
   # Development helper: ensure users have default API keys in development

@@ -58,7 +58,19 @@ class LeadAgentService::Executor
     }
 
     settings        = agent_config&.settings || {}
-    shared_settings = lead.campaign.shared_settings || {}
+    # Reload campaign association to ensure we have latest shared_settings
+    lead.association(:campaign).reload if lead.association(:campaign).loaded?
+    campaign = lead.campaign
+    # Use read_attribute to get raw DB value, not the getter with defaults
+    raw_shared_settings = campaign.read_attribute(:shared_settings) || {}
+    shared_settings = raw_shared_settings.is_a?(Hash) && !raw_shared_settings.empty? ? raw_shared_settings : {}
+
+    # Log for debugging
+    Rails.logger.info("WriterAgent Executor - Campaign ID: #{campaign.id}")
+    Rails.logger.info("WriterAgent Executor - Raw shared_settings from DB: #{raw_shared_settings.inspect}")
+    Rails.logger.info("WriterAgent Executor - Final shared_settings: #{shared_settings.inspect}")
+    Rails.logger.info("WriterAgent Executor - primary_goal value: #{shared_settings["primary_goal"]}")
+    Rails.logger.info("WriterAgent Executor - agent_config settings: #{settings.inspect}")
 
     product_info   = shared_settings["product_info"]   || settings["product_info"]
     sender_company = shared_settings["sender_company"] || settings["sender_company"]

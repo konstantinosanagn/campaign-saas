@@ -55,6 +55,7 @@ module Agents
     def initialize(api_key:, model: "gemini-2.5-flash")
       @api_key = api_key
       @model = model
+      @logger = ::Logger.new($stdout)
       raise ArgumentError, "Gemini API key is required" if @api_key.blank?
     end
 
@@ -72,7 +73,32 @@ module Agents
       sender_persona = settings["sender_persona"] || settings[:sender_persona] || brand_voice["persona"] || brand_voice[:persona] || "founder"
       email_length = settings["email_length"] || settings[:email_length] || "short"
       personalization_level = settings["personalization_level"] || settings[:personalization_level] || "medium"
-      primary_cta_type = settings["primary_cta_type"] || settings[:primary_cta_type] || shared_settings&.dig("primary_goal") || shared_settings&.dig(:primary_goal) || "book_call"
+      
+      # Get primary_cta_type with proper fallback chain
+      # Priority: agent_config settings > shared_settings > default
+      primary_cta_type = if settings["primary_cta_type"] || settings[:primary_cta_type]
+                          settings["primary_cta_type"] || settings[:primary_cta_type]
+                        elsif shared_settings
+                          # Try multiple access patterns for shared_settings
+                          shared_settings["primary_goal"] || 
+                          shared_settings[:primary_goal] || 
+                          shared_settings.dig("primary_goal") ||
+                          shared_settings.dig(:primary_goal)
+                        end
+      primary_cta_type ||= "book_call"  # Default fallback
+      
+      # Log for debugging
+      @logger.info("WriterAgent settings - primary_cta_type: #{primary_cta_type}")
+      @logger.info("WriterAgent shared_settings: #{shared_settings.inspect}")
+      @logger.info("WriterAgent shared_settings primary_goal (string): #{shared_settings&.dig("primary_goal")}")
+      @logger.info("WriterAgent shared_settings primary_goal (symbol): #{shared_settings&.dig(:primary_goal)}")
+      
+      # Validate that we got the right CTA type
+      unless ["book_call", "get_reply", "get_click"].include?(primary_cta_type)
+        @logger.warn("WriterAgent - Invalid primary_cta_type: #{primary_cta_type}, defaulting to 'book_call'")
+        primary_cta_type = "book_call"
+      end
+      
       cta_softness = settings["cta_softness"] || settings[:cta_softness] || "balanced"
       num_variants = (settings["num_variants_per_lead"] || settings[:num_variants_per_lead] || 2).to_i
       num_variants = [ 1, [ num_variants, 3 ].min ].max # Clamp between 1 and 3
@@ -83,12 +109,20 @@ module Agents
 
       # Generate multiple variants if requested
       variants = []
+      @logger.info("WriterAgent - Generating #{num_variants} variant(s) with primary_cta_type: #{primary_cta_type}")
+      
       num_variants.times do |variant_index|
         prompt = build_prompt(
           company_name, sources, recipient, company_name,
           product_info, sender_company, tone, sender_persona, email_length,
           personalization_level, primary_cta_type, cta_softness, variant_index, num_variants, focus_areas
         )
+        
+        # Log a snippet of the prompt to verify CTA instruction is included
+        if variant_index == 0  # Only log for first variant to avoid spam
+          cta_snippet = prompt.match(/CALL-TO-ACTION.*?END CTA REQUIREMENT/m)
+          @logger.info("WriterAgent - CTA instruction in prompt: #{cta_snippet ? cta_snippet[0][0..200] : 'NOT FOUND'}")
+        end
 
         # Build full prompt with system instructions
         full_prompt = "You are an expert B2B marketing email writer who creates personalized, empathetic, and engaging outreach emails that build authentic customer relationships and drive engagement.\n\n#{prompt}"
@@ -115,7 +149,33 @@ module Agents
           }.to_json
         )
 
-        parsed_response = JSON.parse(response.body)
+        # Check HTTP status code first
+        unless response.success?
+          error_body = begin
+            JSON.parse(response.body)
+          rescue JSON::ParserError
+            response.body
+          end
+          error_message = error_body.is_a?(Hash) ? error_body["error"]&.dig("message") || error_body.to_s : error_body.to_s
+          raise "Gemini API error (Status #{response.code}): #{error_message}"
+        end
+
+        # Check if response body is empty
+        if response.body.nil? || response.body.empty?
+          raise "Gemini API returned empty response"
+        end
+
+        parsed_response = begin
+          JSON.parse(response.body)
+        rescue JSON::ParserError => e
+          raise "Failed to parse Gemini API response: #{e.message}. Response body: #{response.body[0..200]}"
+        end
+
+        # Check for API errors in response body
+        if parsed_response["error"]
+          error_msg = parsed_response["error"]["message"] || parsed_response["error"].to_s
+          raise "Gemini API error: #{error_msg}"
+        end
 
         # Extract email text from Gemini response
         candidate = parsed_response.dig("candidates", 0)
@@ -123,7 +183,9 @@ module Agents
         if candidate && candidate["content"] && candidate["content"]["parts"]
           email = candidate["content"]["parts"][0]["text"] || "Failed to generate email"
         else
-          email = "Failed to generate email"
+          # Log the response structure for debugging
+          error_details = parsed_response.to_s[0..500] # First 500 chars
+          raise "Invalid Gemini response structure. Response: #{error_details}"
         end
 
         variants << email
@@ -140,14 +202,20 @@ module Agents
         sender_company: sender_company
       }
     rescue => e
+      # Log error details for debugging
+      error_message = "WriterAgent error: #{e.class}: #{e.message}"
+      @logger.error(error_message)
+      @logger.error("Backtrace: #{e.backtrace.first(5).join("\n")}") if e.backtrace
+      
       {
         company: company || search_results[:company],
         email: "Error generating email: #{e.message}",
         recipient: recipient,
-        sources: search_results[:sources],
+        sources: search_results[:sources] || [],
         product_info: product_info,
         sender_company: sender_company,
-        error: "WriterAgent LLM error: #{e.class}: #{e.message}"
+        error: error_message,
+        variants: []
       }
     end
 
@@ -228,14 +296,14 @@ module Agents
       end
       prompt += "- Length: #{length_guidance}\n"
 
-      # CTA guidance
+      # CTA guidance - make it very explicit and prominent
       cta_guidance = case primary_cta_type
       when "book_call"
-        "Propose a short intro meeting (15-30 minutes). Make it easy to schedule."
+        "CRITICAL: The call-to-action MUST propose scheduling a meeting or call. Use phrases like 'schedule a call', 'book a meeting', 'set up a time', or 'let's connect'. DO NOT include links to demos or landing pages."
       when "get_reply"
-        "Ask for a quick email response. Pose a thoughtful question or request feedback."
+        "CRITICAL: The call-to-action MUST ask for an email response. Use phrases like 'I'd love to hear your thoughts', 'What do you think?', or 'Would you be open to sharing your perspective?'. DO NOT propose meetings or include links."
       when "get_click"
-        "Drive to a link/demo/landing page. Provide clear value proposition for clicking."
+        "CRITICAL: The call-to-action MUST drive the recipient to click a link, visit a demo, or go to a landing page. Use phrases like 'Check out our demo', 'See how it works', 'Explore our solution', or 'Learn more here'. Include a clear link or URL. DO NOT propose scheduling meetings or calls."
       else
         "Clear, compelling CTA that provides next steps"
       end
@@ -251,7 +319,10 @@ module Agents
         "Use balanced approach"
       end
 
-      prompt += "- Call-to-Action: #{cta_guidance}. CTA Softness: #{cta_softness_guidance}\n"
+      prompt += "\n*** CALL-TO-ACTION REQUIREMENT (MUST FOLLOW EXACTLY): ***\n"
+      prompt += "#{cta_guidance}\n"
+      prompt += "CTA Softness Level: #{cta_softness_guidance}\n"
+      prompt += "*** END CTA REQUIREMENT ***\n\n"
 
       # Add variant instruction if generating multiple variants
       if total_variants > 1

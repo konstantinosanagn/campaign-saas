@@ -412,7 +412,8 @@ export default function AgentOutputModal({
                 ? source.publishedAt
                 : undefined
               const scoreDisplay = typeof source.score === 'number' ? source.score.toFixed(2) : undefined
-              const key = url ?? `${title ?? 'source'}-${idx}`
+              // Always include index to ensure unique keys even when URLs are duplicated
+              const key = `${url ?? title ?? 'source'}-${idx}`
 
               return (
                 <div
