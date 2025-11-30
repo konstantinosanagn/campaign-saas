@@ -16,7 +16,9 @@ require "action_cable/engine"
 
 # Configure Shakapacker to use yarn when packageManager is not set
 # This must be done before Bundler.require loads Shakapacker
-ENV['PACKAGE_JSON_FALLBACK_MANAGER'] ||= 'yarn' if File.exist?(Rails.root.join('yarn.lock'))
+# Use __dir__ instead of Rails.root since Rails isn't loaded yet
+yarn_lock_path = File.join(__dir__, '..', 'yarn.lock')
+ENV['PACKAGE_JSON_FALLBACK_MANAGER'] ||= 'yarn' if File.exist?(yarn_lock_path)
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
