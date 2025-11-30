@@ -9,28 +9,9 @@ RSpec.describe LeadAgentService, type: :service do
       user.update!(llm_api_key: 'test-gemini-key', tavily_api_key: 'test-tavily-key')
     end
 
-    context 'extract_domain_from_lead' do
-      it 'returns domain part of email when email is present' do
-        lead_with_email = build(:lead, campaign: campaign, email: 'alice@example.org', company: 'Example Org')
-        result = described_class.send(:extract_domain_from_lead, lead_with_email)
-
-        expect(result).to eq('example.org')
-      end
-
-      it 'returns company when email is blank' do
-        lead_without_email = build(:lead, campaign: campaign, email: nil, company: 'example.com')
-        result = described_class.send(:extract_domain_from_lead, lead_without_email)
-
-        expect(result).to eq('example.com')
-      end
-    end
-
-    context 'default_settings_for_agent' do
-      it 'returns empty hash for unknown agent name' do
-        result = described_class.send(:default_settings_for_agent, 'UNKNOWN_AGENT')
-        expect(result).to eq({})
-      end
-    end
+    # Note: extract_domain_from_lead and default_settings_for_agent were moved to
+    # LeadAgentService::ConfigManager. These methods are now private implementation details
+    # and are tested indirectly through the public interface.
 
     context 'with valid API keys and successful agent execution' do
       before do

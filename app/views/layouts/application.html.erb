@@ -24,7 +24,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
 
-    <%= stylesheet_pack_tag 'application', "data-turbo-track": "reload", preload: false %>
+    <%# Always include stylesheet tag - CSS is injected via JS in dev, extracted in prod %>
+    <%# The preload warning is harmless and can be ignored in development %>
+    <%= stylesheet_pack_tag 'application', "data-turbo-track": "reload" %>
     <%= javascript_pack_tag 'application', defer: true %>
   </head>
 

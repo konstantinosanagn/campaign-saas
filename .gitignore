@@ -48,6 +48,7 @@ package-lock.json
 /public/packs-test
 /public/assets
 /campaign_manager/public/packs/
+/coverage/
 /coverage
 /spec/tmp
 /spec/examples.txt
@@ -131,8 +132,10 @@ lib/coverage_harness.rb
 /webpack-assets-manifest.json
 
 # SimpleCov coverage reports (additional patterns)
+/coverage/
 /.coverage/
 *.coverage
+coverage/
 
 # Rails credentials (additional safety)
 /config/credentials.yml.enc

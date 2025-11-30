@@ -20,6 +20,22 @@ jest.mock('@/hooks/useTypewriter', () => ({
   useTypewriter: jest.fn(),
 }))
 
+jest.mock('@/components/campaigns/CampaignDashboard/useAgentActions', () => ({
+  useAgentActions: jest.fn(),
+}))
+
+jest.mock('@/components/campaigns/CampaignDashboard/useEmailActions', () => ({
+  useEmailActions: jest.fn(),
+}))
+
+jest.mock('@/hooks/useAgentOutputs', () => ({
+  useAgentOutputs: jest.fn(),
+}))
+
+jest.mock('@/hooks/useAgentConfigs', () => ({
+  useAgentConfigs: jest.fn(),
+}))
+
 // Mock child components
 jest.mock('@/components/shared/Navigation', () => {
   return function MockNavigation() {
@@ -117,10 +133,47 @@ jest.mock('@/components/shared/EmptyState', () => {
   }
 })
 
+jest.mock('@/components/campaigns/CampaignDashboard/ActionBar', () => {
+  return function MockActionBar(props: any) {
+    return <div data-testid="action-bar">ActionBar</div>
+  }
+})
+
+jest.mock('@/components/campaigns/CampaignDashboard/LeadTableSection', () => {
+  return function MockLeadTableSection(props: any) {
+    return <div data-testid="lead-table-section">LeadTableSection</div>
+  }
+})
+
+jest.mock('@/components/agents/AgentOutputModal', () => {
+  return function MockAgentOutputModal(props: any) {
+    if (!props.isOpen) return null
+    return <div data-testid="agent-output-modal">AgentOutputModal</div>
+  }
+})
+
+jest.mock('@/components/agents/AgentSettingsModal', () => {
+  return function MockAgentSettingsModal(props: any) {
+    if (!props.isOpen) return null
+    return <div data-testid="agent-settings-modal">AgentSettingsModal</div>
+  }
+})
+
+jest.mock('@/components/shared/EmailConfigModal', () => {
+  return function MockEmailConfigModal(props: any) {
+    if (!props.isOpen) return null
+    return <div data-testid="email-config-modal">EmailConfigModal</div>
+  }
+})
+
 import { useCampaigns } from '@/hooks/useCampaigns'
 import { useLeads } from '@/hooks/useLeads'
 import { useSelection } from '@/hooks/useSelection'
 import { useTypewriter } from '@/hooks/useTypewriter'
+import { useAgentActions } from '@/components/campaigns/CampaignDashboard/useAgentActions'
+import { useEmailActions } from '@/components/campaigns/CampaignDashboard/useEmailActions'
+import { useAgentOutputs } from '@/hooks/useAgentOutputs'
+import { useAgentConfigs } from '@/hooks/useAgentConfigs'
 
 describe('CampaignDashboard', () => {
   const mockCampaigns: Campaign[] = [
@@ -186,6 +239,33 @@ describe('CampaignDashboard', () => {
     })
 
     ;(useTypewriter as jest.Mock).mockImplementation((text: string) => text)
+
+    ;(useAgentActions as jest.Mock).mockReturnValue({
+      agentExecLoading: false,
+      runningLeadIds: [],
+      handleRunLead: jest.fn(),
+      handleRunAllAgents: jest.fn(),
+    })
+
+    ;(useEmailActions as jest.Mock).mockReturnValue({
+      sendingEmails: false,
+      handleSendEmails: jest.fn(),
+      handleSendSelectedEmails: jest.fn(),
+    })
+
+    ;(useAgentOutputs as jest.Mock).mockReturnValue({
+      loading: false,
+      outputs: {},
+      loadAgentOutputs: jest.fn(),
+    })
+
+    ;(useAgentConfigs as jest.Mock).mockReturnValue({
+      configs: [],
+      loading: false,
+      updateConfig: jest.fn(),
+      createConfig: jest.fn(),
+      loadConfigs: jest.fn(),
+    })
   })
 
   afterEach(() => {

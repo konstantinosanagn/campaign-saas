@@ -251,6 +251,7 @@ export default function Navigation({ user }: NavigationProps = {}) {
               onBlur={() => scheduleClose(type)}
               onChange={(event) => handleInputChange(type, event.target.value)}
               placeholder={placeholder}
+              autoComplete="off"
               className={`w-full rounded-md border px-3 py-2 text-sm text-gray-900 placeholder-gray-500 outline-none transition-colors duration-150 ${
                 showError
                   ? 'border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-200 focus:ring-offset-1 focus:ring-offset-white'

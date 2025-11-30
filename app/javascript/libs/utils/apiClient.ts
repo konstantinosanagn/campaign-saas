@@ -50,12 +50,15 @@ class ApiClient {
       if (config.body && typeof config.body === 'object') {
         config.body = JSON.stringify(config.body)
       }
-      console.log('📦 [API Request]', {
-        url,
-        method: config.method,
-        body: config.body,
-        headers: config.headers,
-      })
+      // Only log API requests in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('📦 [API Request]', {
+          url,
+          method: config.method,
+          body: config.body,
+          headers: config.headers,
+        })
+      }
       
       const response = await fetch(url, config)
       

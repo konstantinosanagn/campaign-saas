@@ -69,7 +69,7 @@ export default function ApiKeyModal({ isOpen, onClose, onSave, initialKeys }: Ap
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10001]">
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900">
@@ -150,6 +150,7 @@ export default function ApiKeyModal({ isOpen, onClose, onSave, initialKeys }: Ap
                 onChange={(e) => handleKeyChange('llmApiKey', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500 outline-none ring-1 ring-transparent transition-colors duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
                 placeholder="Enter your LLM API key"
+                autoComplete="off"
                 autoFocus
               />
             </div>
@@ -165,6 +166,7 @@ export default function ApiKeyModal({ isOpen, onClose, onSave, initialKeys }: Ap
                 onChange={(e) => handleKeyChange('tavilyApiKey', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 placeholder-gray-500 outline-none ring-1 ring-transparent transition-colors duration-150 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:ring-offset-1 focus:ring-offset-white"
                 placeholder="Enter your Tavily Search API key"
+                autoComplete="off"
               />
             </div>
 

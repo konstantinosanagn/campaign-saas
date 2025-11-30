@@ -23,6 +23,7 @@ export function useLeads() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const leadsRef = React.useRef<Lead[]>([])
+  const creatingRef = React.useRef(false)
 
   // Keep ref in sync with state
   React.useEffect(() => {
@@ -102,7 +103,18 @@ export function useLeads() {
   const createLead = async (
     data: LeadFormData & { campaignId?: number; website?: string }
   ): Promise<boolean | LeadActionError> => {
+    // Prevent duplicate submissions
+    if (creatingRef.current) {
+      console.warn('Lead creation already in progress, ignoring duplicate request')
+      return {
+        success: false,
+        error: 'Lead creation already in progress',
+        errors: [],
+      }
+    }
+
     try {
+      creatingRef.current = true
       setError(null)
 
       const campaignId = data.campaignId
@@ -110,6 +122,7 @@ export function useLeads() {
         const missingCampaignError = 'Campaign not found or unauthorized'
         setError(missingCampaignError)
         console.error('Failed to create lead:', missingCampaignError)
+        creatingRef.current = false
         return {
           success: false,
           error: missingCampaignError,
@@ -179,6 +192,8 @@ export function useLeads() {
         error: errorMessage,
         errors: [],
       }
+    } finally {
+      creatingRef.current = false
     }
   }
 

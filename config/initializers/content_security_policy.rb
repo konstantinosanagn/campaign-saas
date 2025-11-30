@@ -26,8 +26,12 @@ Rails.application.configure do
     # unsafe-inline is needed for Tailwind's generated classes
     policy.style_src :self, :https, :unsafe_inline
 
-    # Connect (AJAX/fetch): allow same origin and HTTPS
-    policy.connect_src :self, :https
+    # Connect (AJAX/fetch): allow same origin, HTTPS, and WebSocket for webpack-dev-server in development
+    if Rails.env.development?
+      policy.connect_src :self, :https, 'ws://localhost:3035', 'ws://127.0.0.1:3035'
+    else
+      policy.connect_src :self, :https
+    end
 
     # Frame ancestors: prevent clickjacking
     policy.frame_ancestors :none

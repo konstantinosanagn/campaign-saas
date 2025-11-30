@@ -96,11 +96,19 @@ module Agents
 
 
     def run_tavily_search(query)
+      # Tavily API requires the key in Authorization header, not body
+      # Format: "Bearer tvly-{key}" 
+      # The key stored may already include "tvly-" prefix (e.g., "tvly-dev-xxx")
+      # or may be just the key part (e.g., "dev-xxx")
+      auth_key = @tavily_key.start_with?("tvly-") ? @tavily_key : "tvly-#{@tavily_key}"
+      
       response = self.class.post(
         "/search",
-        headers: { "Content-Type" => "application/json" },
+        headers: {
+          "Content-Type" => "application/json",
+          "Authorization" => "Bearer #{auth_key}"
+        },
         body: {
-          api_key: @tavily_key,
           query: query,
           search_depth: "advanced",
           include_answer: false,
@@ -109,17 +117,33 @@ module Agents
         }.to_json
       )
 
+      # Check HTTP status code first
+      unless response.success?
+        error_body = response.parsed_response rescue response.body
+        @logger.error("Tavily API request failed - Status: #{response.code}, Response: #{error_body.inspect}")
+        return []
+      end
+
       begin
-        sources = response.parsed_response["results"]
-        sources&.map do |result|
+        parsed = response.parsed_response
+        sources = parsed["results"]
+        
+        if sources.nil?
+          @logger.warn("Tavily API returned no 'results' field. Full response: #{parsed.inspect}")
+          return []
+        end
+
+        sources.map do |result|
           {
             title: result["title"],
             url: result["url"],
             content: result["content"]
           }
-        end || []
+        end
       rescue => e
         @logger.error("Tavily batch search failed: #{e.message}")
+        @logger.error("Response body: #{response.body.inspect}") if response.respond_to?(:body)
+        @logger.error("Backtrace: #{e.backtrace.first(5).join("\n")}")
         []
       end
     end
