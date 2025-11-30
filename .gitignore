@@ -122,8 +122,6 @@ features/SIMPLECOV_GUIDE.md
 .eslintrc.js
 
 # Coverage analysis scripts
-scripts/
-!scripts/check-node-version.js
 coverage_report.rb
 lib/coverage_harness.rb
 
