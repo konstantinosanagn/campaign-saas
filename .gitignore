@@ -123,6 +123,7 @@ features/SIMPLECOV_GUIDE.md
 
 # Coverage analysis scripts
 scripts/
+!scripts/check-node-version.js
 coverage_report.rb
 lib/coverage_harness.rb
 
