@@ -143,12 +143,19 @@ export function useAgentActions(
     }
   }, [findLeadById, addRunningLeadId, runAgentsForLead, waitForLeadCompletion, refreshLeads, removeRunningLeadId])
 
-  const handleRunAllAgents = useCallback(async (filteredLeads: Lead[], getLatestLead: (leadId: number) => Lead | undefined) => {
+  const handleRunAllAgents = useCallback(async (filteredLeads: Lead[], getLatestLead: (leadId: number) => Lead | undefined, selectedLeadIds?: number[]) => {
     if (!filteredLeads.length) return
 
-    const leadsToRun = filteredLeads
-      .filter((l) => l.stage !== 'completed')
-      .map((l) => l.id)
+    // If specific leads are selected, only run agents for those leads
+    // Otherwise, run for all non-completed leads
+    const leadsToRun = selectedLeadIds && selectedLeadIds.length > 0
+      ? selectedLeadIds.filter((id) => {
+          const lead = filteredLeads.find((l) => l.id === id)
+          return lead && lead.stage !== 'completed'
+        })
+      : filteredLeads
+          .filter((l) => l.stage !== 'completed')
+          .map((l) => l.id)
 
     if (leadsToRun.length === 0) return
 

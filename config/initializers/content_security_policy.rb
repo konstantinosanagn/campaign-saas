@@ -28,7 +28,7 @@ Rails.application.configure do
 
     # Connect (AJAX/fetch): allow same origin, HTTPS, and WebSocket for webpack-dev-server in development
     if Rails.env.development?
-      policy.connect_src :self, :https, 'ws://localhost:3035', 'ws://127.0.0.1:3035'
+      policy.connect_src :self, :https, "ws://localhost:3035", "ws://127.0.0.1:3035"
     else
       policy.connect_src :self, :https
     end

@@ -97,11 +97,11 @@ module Agents
 
     def run_tavily_search(query)
       # Tavily API requires the key in Authorization header, not body
-      # Format: "Bearer tvly-{key}" 
+      # Format: "Bearer tvly-{key}"
       # The key stored may already include "tvly-" prefix (e.g., "tvly-dev-xxx")
       # or may be just the key part (e.g., "dev-xxx")
       auth_key = @tavily_key.start_with?("tvly-") ? @tavily_key : "tvly-#{@tavily_key}"
-      
+
       response = self.class.post(
         "/search",
         headers: {
@@ -127,7 +127,7 @@ module Agents
       begin
         parsed = response.parsed_response
         sources = parsed["results"]
-        
+
         if sources.nil?
           @logger.warn("Tavily API returned no 'results' field. Full response: #{parsed.inspect}")
           return []

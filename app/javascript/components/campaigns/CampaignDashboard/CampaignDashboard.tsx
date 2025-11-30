@@ -288,8 +288,10 @@ export default function CampaignDashboard({ user }: CampaignDashboardProps = {})
   )
 
   const handleRunAllAgentsWrapper = useCallback(() => {
-    handleRunAllAgents(filteredLeads, findLeadById)
-  }, [handleRunAllAgents, filteredLeads, findLeadById])
+    // If leads are selected, run agents only for selected leads
+    // Otherwise, run for all leads
+    handleRunAllAgents(filteredLeads, findLeadById, selectedLeads.length > 0 ? selectedLeads : undefined)
+  }, [handleRunAllAgents, filteredLeads, findLeadById, selectedLeads])
 
   const handleStageClick = useCallback(
     async (lead: Lead) => {

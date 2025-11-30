@@ -73,32 +73,32 @@ module Agents
       sender_persona = settings["sender_persona"] || settings[:sender_persona] || brand_voice["persona"] || brand_voice[:persona] || "founder"
       email_length = settings["email_length"] || settings[:email_length] || "short"
       personalization_level = settings["personalization_level"] || settings[:personalization_level] || "medium"
-      
+
       # Get primary_cta_type with proper fallback chain
       # Priority: agent_config settings > shared_settings > default
       primary_cta_type = if settings["primary_cta_type"] || settings[:primary_cta_type]
                           settings["primary_cta_type"] || settings[:primary_cta_type]
-                        elsif shared_settings
+      elsif shared_settings
                           # Try multiple access patterns for shared_settings
-                          shared_settings["primary_goal"] || 
-                          shared_settings[:primary_goal] || 
+                          shared_settings["primary_goal"] ||
+                          shared_settings[:primary_goal] ||
                           shared_settings.dig("primary_goal") ||
                           shared_settings.dig(:primary_goal)
-                        end
+      end
       primary_cta_type ||= "book_call"  # Default fallback
-      
+
       # Log for debugging
       @logger.info("WriterAgent settings - primary_cta_type: #{primary_cta_type}")
       @logger.info("WriterAgent shared_settings: #{shared_settings.inspect}")
       @logger.info("WriterAgent shared_settings primary_goal (string): #{shared_settings&.dig("primary_goal")}")
       @logger.info("WriterAgent shared_settings primary_goal (symbol): #{shared_settings&.dig(:primary_goal)}")
-      
+
       # Validate that we got the right CTA type
-      unless ["book_call", "get_reply", "get_click"].include?(primary_cta_type)
+      unless [ "book_call", "get_reply", "get_click" ].include?(primary_cta_type)
         @logger.warn("WriterAgent - Invalid primary_cta_type: #{primary_cta_type}, defaulting to 'book_call'")
         primary_cta_type = "book_call"
       end
-      
+
       cta_softness = settings["cta_softness"] || settings[:cta_softness] || "balanced"
       num_variants = (settings["num_variants_per_lead"] || settings[:num_variants_per_lead] || 2).to_i
       num_variants = [ 1, [ num_variants, 3 ].min ].max # Clamp between 1 and 3
@@ -110,14 +110,14 @@ module Agents
       # Generate multiple variants if requested
       variants = []
       @logger.info("WriterAgent - Generating #{num_variants} variant(s) with primary_cta_type: #{primary_cta_type}")
-      
+
       num_variants.times do |variant_index|
         prompt = build_prompt(
           company_name, sources, recipient, company_name,
           product_info, sender_company, tone, sender_persona, email_length,
           personalization_level, primary_cta_type, cta_softness, variant_index, num_variants, focus_areas
         )
-        
+
         # Log a snippet of the prompt to verify CTA instruction is included
         if variant_index == 0  # Only log for first variant to avoid spam
           cta_snippet = prompt.match(/CALL-TO-ACTION.*?END CTA REQUIREMENT/m)
@@ -206,7 +206,7 @@ module Agents
       error_message = "WriterAgent error: #{e.class}: #{e.message}"
       @logger.error(error_message)
       @logger.error("Backtrace: #{e.backtrace.first(5).join("\n")}") if e.backtrace
-      
+
       {
         company: company || search_results[:company],
         email: "Error generating email: #{e.message}",

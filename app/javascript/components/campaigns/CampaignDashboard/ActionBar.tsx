@@ -88,11 +88,25 @@ export default function ActionBar({
             onClick={onRunAllAgents}
             disabled={
               (agentExecLoading || runningLeadIds.length > 0) ||
-              filteredLeads.filter((l) => l.stage !== 'completed').length === 0
+              (selectedLeads.length > 0
+                ? selectedLeads.filter((id) => {
+                    const lead = filteredLeads.find((l) => l.id === id)
+                    return lead && lead.stage !== 'completed'
+                  }).length === 0
+                : filteredLeads.filter((l) => l.stage !== 'completed').length === 0)
             }
             className="px-3 py-1.5 text-sm font-medium text-white bg-black border border-black rounded-full hover:text-black hover:bg-transparent hover:border-black transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-white disabled:hover:bg-black disabled:hover:border-black"
+            title={
+              selectedLeads.length > 0
+                ? `Run agents for ${selectedLeads.length} selected lead(s)`
+                : 'Run agents for all leads'
+            }
           >
-            {(agentExecLoading || runningLeadIds.length > 0) ? 'Running...' : 'Run Agents'}
+            {(agentExecLoading || runningLeadIds.length > 0)
+              ? 'Running...'
+              : selectedLeads.length > 0
+              ? `Run Agents (${selectedLeads.length})`
+              : 'Run Agents'}
           </button>
           {selectedReadyLeads.length > 0 ? (
             <button
