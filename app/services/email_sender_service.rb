@@ -104,7 +104,7 @@ class EmailSenderService
     def lead_ready?(lead)
       # Check if lead is at a sendable stage
       sendable_stages = [ AgentConstants::STAGE_DESIGNED, AgentConstants::STAGE_COMPLETED ]
-      
+
       # Also allow "critiqued" stage if DESIGN agent is disabled for this campaign
       if lead.stage == AgentConstants::STAGE_CRITIQUED
         design_config = lead.campaign.agent_configs.find_by(agent_name: AgentConstants::AGENT_DESIGN)
@@ -112,7 +112,7 @@ class EmailSenderService
           sendable_stages << AgentConstants::STAGE_CRITIQUED
         end
       end
-      
+
       return false unless lead.stage.in?(sendable_stages)
 
       # Check for DESIGN output first (preferred)

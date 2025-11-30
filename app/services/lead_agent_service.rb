@@ -117,7 +117,7 @@ class LeadAgentService
         is_disabled = agent_config && (agent_config.enabled == false || agent_config.disabled?)
         if is_disabled
           Rails.logger.info("[LeadAgentService] Agent #{next_agent} is disabled (enabled=#{agent_config.enabled.inspect}), skipping")
-          
+
           # Special handling for DESIGN agent: skip "designed" stage entirely, go straight to "completed"
           if next_agent == AgentConstants::AGENT_DESIGN
             Rails.logger.info("[LeadAgentService] DESIGN agent is disabled, skipping 'designed' stage and advancing to 'completed'")

@@ -41,12 +41,6 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
     return false
   }
 
-  // Map agent config names to baseAgents names (DESIGN vs DESIGNER)
-  const getAgentConfigName = (agentName: string): string => {
-    if (agentName === 'DESIGN') return 'DESIGNER'
-    return agentName
-  }
-
   // Check if an agent is enabled
   const isAgentEnabled = (agentName: string): boolean => {
     // Map agent names: DESIGN -> DESIGN, DESIGNER -> DESIGN (for config lookup)

@@ -106,17 +106,17 @@ module Agents
       end
 
       cta_softness = settings["cta_softness"] || settings[:cta_softness] || "balanced"
-      
+
       # Get num_variants_per_lead - handle both string and symbol keys, and ensure it's a number
       num_variants_raw = settings["num_variants_per_lead"] || settings[:num_variants_per_lead]
       @logger.info("WriterAgent - num_variants_raw value: #{num_variants_raw.inspect} (class: #{num_variants_raw.class})")
-      
+
       num_variants = if num_variants_raw.nil?
                        2  # Default
-                     else
+      else
                        num_variants_raw.to_i  # Convert to integer (handles both string "1" and integer 1)
-                     end
-      
+      end
+
       num_variants = [ 1, [ num_variants, 3 ].min ].max # Clamp between 1 and 3
       @logger.info("WriterAgent - Final num_variants: #{num_variants}")
 

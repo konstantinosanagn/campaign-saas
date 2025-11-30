@@ -110,6 +110,14 @@ export default function CampaignDashboard({
     return leads.filter((lead) => lead.campaignId === campaignObj.id)
   }, [leads, selectedCampaign, campaignObj])
 
+  const campaignTitle = campaignObj ? campaignObj.title || '' : ''
+  const displayedTitle = useTypewriter(campaignTitle)
+
+  const { loading: outputsLoading, outputs, loadAgentOutputs } = useAgentOutputs()
+  const { configs, loading: configsLoading, updateConfig, createConfig, loadConfigs } = useAgentConfigs(
+    campaignObj?.id || null
+  )
+
   // Ready leads calculation
   // A lead is ready if it's at designed/completed stage, or critiqued stage with DESIGN disabled
   const isLeadReady = useCallback((lead: Lead) => {
@@ -146,14 +154,6 @@ export default function CampaignDashboard({
     selectedReadyLeads,
     refreshLeads,
     clearSelection
-  )
-
-  const campaignTitle = campaignObj ? campaignObj.title || '' : ''
-  const displayedTitle = useTypewriter(campaignTitle)
-
-  const { loading: outputsLoading, outputs, loadAgentOutputs } = useAgentOutputs()
-  const { configs, loading: configsLoading, updateConfig, createConfig, loadConfigs } = useAgentConfigs(
-    campaignObj?.id || null
   )
 
   // Campaign handlers

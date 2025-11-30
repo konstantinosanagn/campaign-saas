@@ -22,7 +22,7 @@ module ApplicationHelper
   def default_gmail_sender_available?
     default_sender_email = ENV["DEFAULT_GMAIL_SENDER"]
     return false unless default_sender_email.present?
-    
+
     default_sender = User.find_by(email: default_sender_email)
     default_sender&.can_send_gmail? || false
   end

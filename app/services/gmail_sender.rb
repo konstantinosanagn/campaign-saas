@@ -40,16 +40,16 @@ class GmailSender
 
     unless response.success?
       Rails.logger.error("[GmailSender] Send failed: #{response.status} #{response.body}")
-      
+
       # Check if this is an authorization error (401, 403)
-      if [401, 403].include?(response.status)
+      if [ 401, 403 ].include?(response.status)
         raise GmailAuthorizationError.new(
           "Gmail access token has been revoked or is invalid. Please reconnect your Gmail account.",
           status_code: response.status,
           response_body: response.body
         )
       end
-      
+
       raise "Gmail send failed (status #{response.status})"
     end
 

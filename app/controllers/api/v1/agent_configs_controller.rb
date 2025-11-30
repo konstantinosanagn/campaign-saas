@@ -123,7 +123,7 @@ module Api
 
         # Log the update params for debugging
         Rails.logger.info("[AgentConfigsController] Updating config #{config.id} (#{config.agent_name}) with params: #{update_params.inspect}")
-        
+
         if config.update(update_params)
           # Reload to ensure we have the latest values
           config.reload

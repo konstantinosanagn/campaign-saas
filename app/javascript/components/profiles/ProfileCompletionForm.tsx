@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
 import AuthInput from '../auth/AuthInput';
 
+// Read-only input component (declared outside to avoid creating during render)
+const ReadOnlyField: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <label className="flex flex-col gap-1 text-xs md:text-sm text-slate-600">
+    <span className="font-medium text-slate-800">{label}</span>
+    <div className="w-full rounded-xl bg-slate-100 border border-slate-200 px-3 py-2 text-sm text-slate-600">
+      {value || '—'}
+    </div>
+  </label>
+);
+
 interface ProfileCompletionFormProps {
   user?: {
     first_name?: string;
@@ -31,16 +41,6 @@ const ProfileCompletionForm: React.FC<ProfileCompletionFormProps> = ({
   const fullName = user.first_name && user.last_name
     ? `${user.first_name} ${user.last_name}`
     : user.first_name || user.last_name || '';
-
-  // Read-only input component
-  const ReadOnlyField: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-    <label className="flex flex-col gap-1 text-xs md:text-sm text-slate-600">
-      <span className="font-medium text-slate-800">{label}</span>
-      <div className="w-full rounded-xl bg-slate-100 border border-slate-200 px-3 py-2 text-sm text-slate-600">
-        {value || '—'}
-      </div>
-    </label>
-  );
 
   // Derive form errors directly from the errors prop
   const derivedFormErrors: Record<string, string> = {};

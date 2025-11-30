@@ -23,16 +23,16 @@ class GoogleOauthTokenRefresher
 
     unless response.success?
       Rails.logger.error("[GoogleOauthTokenRefresher] Refresh failed: #{response.status} #{response.body}")
-      
+
       # Check if this is an authorization error (401, 403, or invalid_grant)
-      if [401, 403].include?(response.status) || response.body.to_s.include?("invalid_grant")
+      if [ 401, 403 ].include?(response.status) || response.body.to_s.include?("invalid_grant")
         raise GmailAuthorizationError.new(
           "Gmail access token has been revoked or is invalid. Please reconnect your Gmail account.",
           status_code: response.status,
           response_body: response.body
         )
       end
-      
+
       raise "Google token refresh failed (status #{response.status})"
     end
 

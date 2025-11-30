@@ -44,7 +44,7 @@ class Users::SessionsController < Devise::SessionsController
   end
 
   # Clean up remember_me after sign in if it wasn't checked
-  after_action :cleanup_remember_me_if_not_checked, only: [:create]
+  after_action :cleanup_remember_me_if_not_checked, only: [ :create ]
 
   def cleanup_remember_me_if_not_checked
     return unless user_signed_in? && !remember_me_was_checked

@@ -3,7 +3,7 @@ class User < ApplicationRecord
   # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable,
-         :omniauthable, omniauth_providers: [:google_oauth2]
+         :omniauthable, omniauth_providers: [ :google_oauth2 ]
 
   has_many :campaigns, dependent: :destroy
 
@@ -28,7 +28,7 @@ class User < ApplicationRecord
       user.first_name ||= auth.info.first_name
     elsif auth.info.name.present?
       # Fallback: try to split full name if first_name not available
-      name_parts = auth.info.name.split(' ', 2)
+      name_parts = auth.info.name.split(" ", 2)
       user.first_name ||= name_parts[0] if name_parts[0].present?
       user.last_name ||= name_parts[1] if name_parts[1].present?
     end

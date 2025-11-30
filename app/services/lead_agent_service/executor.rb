@@ -45,7 +45,7 @@ class LeadAgentService::Executor
   def self.execute_writer_agent(writer_agent, lead, agent_config, search_output)
     # Reload agent_config to ensure we have the latest settings (avoid stale cache)
     agent_config.reload if agent_config
-    
+
     # Reload campaign association to ensure we have latest shared_settings
     lead.association(:campaign).reload if lead.association(:campaign).loaded?
     campaign = lead.campaign
@@ -55,7 +55,7 @@ class LeadAgentService::Executor
 
     # Get settings after reload to ensure fresh data
     settings = agent_config&.settings || {}
-    
+
     # Log for debugging
     Rails.logger.info("WriterAgent Executor - Campaign ID: #{campaign.id}")
     Rails.logger.info("WriterAgent Executor - Agent Config ID: #{agent_config&.id}")
