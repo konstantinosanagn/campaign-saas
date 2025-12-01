@@ -371,6 +371,8 @@ export default function CampaignDashboard({
         const success = await updateConfig(config.id, config)
         if (success) {
           await loadConfigs()
+          // Refresh leads to update availableActions based on new agent config enabled/disabled status
+          await refreshLeads()
         } else {
           const errorMsg = configsError || 'Failed to update agent config'
           console.error('Failed to update agent config:', errorMsg)
@@ -380,6 +382,8 @@ export default function CampaignDashboard({
         const newConfig = await createConfig(config)
         if (newConfig) {
           await loadConfigs()
+          // Refresh leads to update availableActions based on new agent config enabled/disabled status
+          await refreshLeads()
         } else {
           const errorMsg = configsError || 'Failed to create agent config'
           console.error('Failed to create agent config:', errorMsg)
