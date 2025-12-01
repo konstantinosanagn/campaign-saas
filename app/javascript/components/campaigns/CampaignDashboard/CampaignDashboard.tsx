@@ -354,12 +354,16 @@ export default function CampaignDashboard({
     [loadAgentOutputs]
   )
 
-  const handleAgentSettingsClick = useCallback((agentName: 'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE') => {
+  const handleAgentSettingsClick = useCallback(async (agentName: 'SEARCH' | 'WRITER' | 'DESIGNER' | 'CRITIQUE') => {
     console.log('handleAgentSettingsClick called with:', agentName)
     const modalAgentName = agentName === 'DESIGNER' ? 'DESIGN' : agentName
+    
+    // Refresh configs before opening modal to ensure we have the latest (including auto-created ones)
+    await loadConfigs()
+    
     setSettingsModalAgent(modalAgentName as 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE')
     setIsSettingsModalOpen(true)
-  }, [])
+  }, [loadConfigs])
 
   const handleSaveAgentConfig = async (config: AgentConfig) => {
     try {

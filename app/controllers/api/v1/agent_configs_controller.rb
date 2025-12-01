@@ -74,11 +74,35 @@ module Api
         # Check if config already exists - reload association to avoid cache issues
         campaign.agent_configs.reload
         existing_config = campaign.agent_configs.find_by(agent_name: agent_name)
+        
         if existing_config
-          render json: { errors: [ "Agent config already exists for this campaign" ] }, status: :unprocessable_entity
+          # Config already exists - update it instead of creating a new one
+          # This handles the case where ConfigManager auto-created a default config
+          # but the frontend doesn't have it loaded yet
+          Rails.logger.info("[AgentConfigsController] Config already exists (ID: #{existing_config.id}), updating instead of creating")
+          
+          # Get permitted params
+          permitted_params = agent_config_params
+          
+          # Build update hash (excluding agent_name since it can't be changed)
+          update_hash = {}
+          update_hash[:enabled] = permitted_params[:enabled] if permitted_params.key?(:enabled)
+          update_hash[:settings] = permitted_params[:settings] if permitted_params.key?(:settings)
+          
+          Rails.logger.info("[AgentConfigsController] Updating existing config with: #{update_hash.inspect}")
+          
+          if existing_config.update(update_hash)
+            existing_config.reload
+            Rails.logger.info("[AgentConfigsController] Config updated successfully: enabled=#{existing_config.enabled}, settings=#{existing_config.settings.inspect}")
+            render json: AgentConfigSerializer.serialize(existing_config), status: :ok
+          else
+            Rails.logger.error("[AgentConfigsController] Config update failed: #{existing_config.errors.full_messages.join(', ')}")
+            render json: { errors: existing_config.errors.full_messages }, status: :unprocessable_entity
+          end
           return
         end
 
+        # No existing config - create a new one
         config = campaign.agent_configs.build(
           agent_name: agent_name,
           enabled: agent_config_params[:enabled] != false, # Default to true
