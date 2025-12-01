@@ -38,11 +38,11 @@ if (!isValidVersion) {
   console.error('\n❌ Node.js version check failed!\n');
   console.error(`   Current version: ${currentNodeVersion}`);
   console.error(`   Required version: >= ${MIN_NODE_VERSION}\n`);
-  console.error('   This project requires Node.js 20.0.0 or higher.');
-  console.error('   Please install the latest LTS version from: https://nodejs.org/\n');
+  console.error('   This project requires Node.js 20.0.0 or higher (22.x LTS recommended).');
+  console.error('   Please install Node.js 22 LTS from: https://nodejs.org/\n');
   console.error('   Or using nvm:');
-  console.error('     nvm install 24');
-  console.error('     nvm use 24\n');
+  console.error('     nvm install 22');
+  console.error('     nvm use 22\n');
   process.exit(1);
 }
 
