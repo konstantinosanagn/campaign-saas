@@ -17,6 +17,27 @@ class LeadAgentService::Executor
   extend SettingsHelper  # Use extend for class methods
 
   ##
+  # Replaces placeholders in email text with actual user name
+  #
+  # @param text [String] The email text that may contain placeholders
+  # @param sender_name [String] The actual sender's name to use
+  # @return [String] Text with placeholders replaced
+  def self.replace_placeholders(text, sender_name)
+    return text if sender_name.blank? || text.blank?
+
+    # Escape sender_name for use in regex (handle special characters)
+    escaped_name = Regexp.escape(sender_name)
+
+    # Replace common placeholder patterns (case-insensitive)
+    # Patterns: [Your Name], [Sender Name], [Name], etc.
+    text = text.gsub(/\[(?:Your|YOUR|your)\s+(?:Name|NAME|name)\]/i, sender_name)
+    text = text.gsub(/\[(?:Sender|SENDER|sender)\s+(?:Name|NAME|name)\]/i, sender_name)
+    text = text.gsub(/\[(?:Name|NAME|name)\]/i, sender_name)
+
+    text
+  end
+
+  ##
   # Executes the SearchAgent
   #
   # @param search_agent [Agents::SearchAgent] The search agent instance
@@ -72,7 +93,11 @@ class LeadAgentService::Executor
     # If no search_output, return early but WITH config and shared_settings
     unless search_output
       Rails.logger.info("WriterAgent Executor - No search_output available, using empty sources but WITH config")
-      return writer_agent.run(
+      # Get user's name for placeholder replacement
+      user = campaign.user
+      sender_name = user&.name || user&.first_name || ""
+
+      result = writer_agent.run(
         { company: lead.company, sources: [] },
         recipient: lead.name,
         company: lead.company,
@@ -80,8 +105,22 @@ class LeadAgentService::Executor
         sender_company: sender_company,
         config: { settings: settings },
         shared_settings: shared_settings,
-        previous_critique: previous_critique
+        previous_critique: previous_critique,
+        sender_name: sender_name
       )
+
+      # Replace placeholders in generated email with actual user name
+      if sender_name.present? && result.is_a?(Hash)
+        result = result.deep_dup
+        if result[:email].present?
+          result[:email] = replace_placeholders(result[:email], sender_name)
+        end
+        if result[:variants].is_a?(Array)
+          result[:variants] = result[:variants].map { |variant| replace_placeholders(variant, sender_name) }
+        end
+      end
+
+      result
     end
 
     search_output = search_output.deep_symbolize_keys
@@ -96,7 +135,11 @@ class LeadAgentService::Executor
       inferred_focus_areas: search_output[:inferred_focus_areas]
     }
 
-    writer_agent.run(
+    # Get user's name for placeholder replacement
+    user = campaign.user
+    sender_name = user&.name || user&.first_name || ""
+
+    result = writer_agent.run(
       search_results,
       recipient: lead.name,
       company: lead.company,
@@ -104,8 +147,22 @@ class LeadAgentService::Executor
       sender_company: sender_company,
       config: { settings: settings },
       shared_settings: shared_settings,
-      previous_critique: previous_critique
+      previous_critique: previous_critique,
+      sender_name: sender_name
     )
+
+    # Replace placeholders in generated email with actual user name
+    if sender_name.present? && result.is_a?(Hash)
+      result = result.deep_dup
+      if result[:email].present?
+        result[:email] = replace_placeholders(result[:email], sender_name)
+      end
+      if result[:variants].is_a?(Array)
+        result[:variants] = result[:variants].map { |variant| replace_placeholders(variant, sender_name) }
+      end
+    end
+
+    result
   end
 
   ##
@@ -189,6 +246,16 @@ class LeadAgentService::Executor
     company = lead.company
     recipient = lead.name
 
+    # Get user's name for placeholder replacement
+    campaign = lead.campaign
+    user = campaign.user
+    sender_name = user&.name || user&.first_name || ""
+
+    # Replace placeholders in email content before passing to DesignAgent
+    if sender_name.present? && email_content.present?
+      email_content = replace_placeholders(email_content, sender_name)
+    end
+
     # Prepare input hash for design agent
     design_input = {
       email: email_content,
@@ -199,7 +266,20 @@ class LeadAgentService::Executor
     # Pass config to design_agent (use reloaded settings)
     config_hash = agent_config ? { settings: agent_config.settings } : nil
     Rails.logger.info("DesignAgent Executor - Agent Config ID: #{agent_config&.id}, settings: #{config_hash&.dig(:settings)&.inspect}")
-    design_agent.run(design_input, config: config_hash)
+    result = design_agent.run(design_input, config: config_hash)
+
+    # Also replace placeholders in DesignAgent output as a safeguard
+    if sender_name.present? && result.is_a?(Hash)
+      result = result.deep_dup
+      if result[:email].present?
+        result[:email] = replace_placeholders(result[:email], sender_name)
+      end
+      if result[:formatted_email].present?
+        result[:formatted_email] = replace_placeholders(result[:formatted_email], sender_name)
+      end
+    end
+
+    result
   end
 
   ##

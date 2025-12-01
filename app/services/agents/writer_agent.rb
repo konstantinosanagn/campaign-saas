@@ -60,7 +60,7 @@ module Agents
       raise ArgumentError, "Gemini API key is required" if @api_key.blank?
     end
 
-    def run(search_results, recipient: nil, company: nil, product_info: nil, sender_company: nil, config: nil, shared_settings: nil, previous_critique: nil)
+    def run(search_results, recipient: nil, company: nil, product_info: nil, sender_company: nil, config: nil, shared_settings: nil, previous_critique: nil, sender_name: nil)
       # Log if this is a revision run
       if previous_critique.present?
         @logger.info("WriterAgent - REVISION MODE: Received critique feedback (#{previous_critique.length} chars)")
@@ -121,7 +121,7 @@ module Agents
           company_name, sources, recipient, company_name,
           product_info, sender_company, tone, sender_persona, email_length,
           personalization_level, primary_cta_type, cta_softness, variant_index, num_variants, focus_areas,
-          previous_critique: previous_critique
+          previous_critique: previous_critique, sender_name: sender_name
         )
 
         # Log a snippet of the prompt to verify CTA instruction is included
@@ -228,7 +228,7 @@ module Agents
 
     private
 
-    def build_prompt(company_name, sources, recipient, company, product_info, sender_company, tone, sender_persona, email_length, personalization_level, primary_cta_type, cta_softness, variant_index = 0, total_variants = 1, focus_areas = [], previous_critique: nil)
+    def build_prompt(company_name, sources, recipient, company, product_info, sender_company, tone, sender_persona, email_length, personalization_level, primary_cta_type, cta_softness, variant_index = 0, total_variants = 1, focus_areas = [], previous_critique: nil, sender_name: nil)
       # If this is a revision based on critique feedback, adjust the prompt
       if previous_critique.present?
         prompt = "Rewrite and improve a B2B marketing outreach email based on the following critique feedback"
@@ -300,6 +300,11 @@ module Agents
       end
       prompt += "- Tone: #{tone_guidance}\n"
       prompt += "- Sender Persona: Write as a #{sender_persona} (#{sender_persona == 'founder' ? 'thoughtful leader' : sender_persona == 'sales' ? 'helpful sales professional' : 'supportive customer success manager'})\n"
+      
+      # Add sender name to prompt if available
+      if sender_name.present?
+        prompt += "- Sender Name: Your name is #{sender_name}. Use this exact name when signing the email. DO NOT use placeholders like [Your Name] or [Name].\n"
+      end
 
       # Email length guidance
       length_guidance = case email_length
