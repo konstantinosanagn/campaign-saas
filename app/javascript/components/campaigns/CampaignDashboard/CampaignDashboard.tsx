@@ -68,9 +68,28 @@ export default function CampaignDashboard({
   // Agent modals state
   const [isOutputModalOpen, setIsOutputModalOpen] = useState(false)
   const [outputModalLead, setOutputModalLead] = useState<Lead | null>(null)
+  const [outputModalInitialTab, setOutputModalInitialTab] = useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL'>('ALL')
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [settingsModalAgent, setSettingsModalAgent] = useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | null>(null)
   const [isEmailConfigModalOpen, setIsEmailConfigModalOpen] = useState(false)
+
+  // Map lead stage to the appropriate tab in the output modal
+  const getTabForStage = (stage: string): 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL' => {
+    switch (stage) {
+      case 'searched':
+        return 'SEARCH'
+      case 'written':
+        return 'WRITER'
+      case 'critiqued':
+        return 'CRITIQUE'
+      case 'designed':
+        return 'DESIGN'
+      case 'completed':
+        return 'ALL'
+      default:
+        return 'ALL'
+    }
+  }
 
   const { campaigns, createCampaign, updateCampaign, deleteCampaign } = useCampaigns()
   const { leads, createLead, updateLead, deleteLeads, refreshLeads } = useLeads()
@@ -317,6 +336,8 @@ export default function CampaignDashboard({
 
   const handleStageClick = useCallback(
     async (lead: Lead) => {
+      const initialTab = getTabForStage(lead.stage)
+      setOutputModalInitialTab(initialTab)
       setOutputModalLead(lead)
       setIsOutputModalOpen(true)
       await loadAgentOutputs(lead.id)
@@ -478,11 +499,13 @@ export default function CampaignDashboard({
           onClose={() => {
             setIsOutputModalOpen(false)
             setOutputModalLead(null)
+            setOutputModalInitialTab('ALL')
           }}
           leadName={outputModalLead?.name || ''}
           leadId={outputModalLead?.id}
           outputs={outputs}
           loading={outputsLoading}
+          initialTab={outputModalInitialTab}
           onUpdateOutput={async (leadId, agentName, newContent) => {
             const response = await fetch(`/api/v1/leads/${leadId}/update_agent_output`, {
               method: 'PATCH',

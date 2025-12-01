@@ -35,6 +35,7 @@ interface AgentOutputModalProps {
   loading: boolean
   onUpdateOutput?: (leadId: number, agentName: string, newContent: string) => Promise<void>
   onUpdateSearchOutput?: (leadId: number, agentName: string, updatedData: SearchOutputData) => Promise<void>
+  initialTab?: 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL'
 }
 
 const formatTimestamp = (timestamp: string) => {
@@ -161,9 +162,10 @@ export default function AgentOutputModal({
   outputs,
   loading,
   onUpdateOutput,
-  onUpdateSearchOutput
+  onUpdateSearchOutput,
+  initialTab = 'ALL'
 }: AgentOutputModalProps) {
-  const [activeTab, setActiveTab] = React.useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL'>('ALL')
+  const [activeTab, setActiveTab] = React.useState<'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL'>(initialTab)
   const [editingWriterOutput, setEditingWriterOutput] = React.useState(false)
   const [editingDesignOutput, setEditingDesignOutput] = React.useState(false)
   const [editedEmail, setEditedEmail] = React.useState('')
@@ -184,6 +186,9 @@ export default function AgentOutputModal({
         hasLocalChangesRef.current = false
         isInitialLoadRef.current = false
       }
+      
+      // Set the active tab based on initialTab prop
+      setActiveTab(initialTab)
       
       setEditingWriterOutput(false)
       setEditingDesignOutput(false)
@@ -210,7 +215,7 @@ export default function AgentOutputModal({
       setSearchOutputData(null) // Clear data when modal closes
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, outputs, removingSourceIndex]) // Removed searchOutputData from deps to prevent loops
+  }, [isOpen, initialTab, outputs, removingSourceIndex]) // Removed searchOutputData from deps to prevent loops
 
   // Cleanup timeout on unmount
   React.useEffect(() => {
