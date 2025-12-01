@@ -416,7 +416,7 @@ export default function AgentSettingsModal({
       {/* Custom Tooltip - positioned fixed to avoid clipping */}
       {hoveredTooltip && tooltipPosition && (
         <div
-          className="fixed z-[60] px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg shadow-lg transition-all duration-300 ease-in-out opacity-100 translate-y-0"
+          className="fixed z-[10002] px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg shadow-lg transition-all duration-300 ease-in-out opacity-100 translate-y-0"
           style={{
             whiteSpace: 'nowrap',
             top: `${tooltipPosition.top}px`,
@@ -442,7 +442,7 @@ export default function AgentSettingsModal({
       {/* Strictness Tooltip - positioned fixed to avoid clipping */}
       {hoveredStrictnessTooltip && strictnessTooltipPosition && (
         <div
-          className="fixed z-[60] px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg shadow-lg transition-all duration-300 ease-in-out opacity-100 translate-y-0"
+          className="fixed z-[10002] px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg shadow-lg transition-all duration-300 ease-in-out opacity-100 translate-y-0"
           style={{
             whiteSpace: 'nowrap',
             top: `${strictnessTooltipPosition.top}px`,
@@ -471,7 +471,7 @@ export default function AgentSettingsModal({
       {/* On Low Info Behavior Tooltip */}
       {hoveredLowInfoTooltip && lowInfoTooltipPosition && (
         <div
-          className="fixed z-[60] px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg shadow-lg transition-all duration-300 ease-in-out opacity-100 translate-y-0"
+          className="fixed z-[10002] px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg shadow-lg transition-all duration-300 ease-in-out opacity-100 translate-y-0"
           style={{
             whiteSpace: 'normal',
             maxWidth: '300px',
