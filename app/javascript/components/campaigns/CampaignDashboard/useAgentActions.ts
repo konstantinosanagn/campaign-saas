@@ -154,12 +154,12 @@ export function useAgentActions(
     [refreshLeads, removeRunningLeadId]
   )
 
-  const handleRunLead = useCallback(async (leadId: number, getLatestLead: () => Lead | undefined) => {
+  const handleRunLead = useCallback(async (leadId: number, getLatestLead: () => Lead | undefined, agentName?: string) => {
     const initialStage = findLeadById(leadId)?.stage ?? null
     addRunningLeadId(leadId)
     try {
-      console.log('Running agents for lead:', leadId)
-      const result = await runAgentsForLead(leadId)
+      console.log('Running agents for lead:', leadId, agentName ? `with agentName: ${agentName}` : '')
+      const result = await runAgentsForLead(leadId, agentName)
       console.log('Agent execution result:', result)
 
       if (!result) {

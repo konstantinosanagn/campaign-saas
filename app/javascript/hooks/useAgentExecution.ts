@@ -6,13 +6,18 @@ export function useAgentExecution() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
-  const runAgentsForLead = async (leadId: number): Promise<RunAgentsResponse | null> => {
+  const runAgentsForLead = async (leadId: number, agentName?: string): Promise<RunAgentsResponse | null> => {
     try {
       setLoading(true)
       setError(null)
       
-      console.log(`[useAgentExecution] Calling API: leads/${leadId}/run_agents`)
-      const response = await apiClient.post<RunAgentsResponse>(`leads/${leadId}/run_agents`, {})
+      const requestBody: { agentName?: string } = {}
+      if (agentName) {
+        requestBody.agentName = agentName
+      }
+      
+      console.log(`[useAgentExecution] Calling API: leads/${leadId}/run_agents`, agentName ? `with agentName: ${agentName}` : '')
+      const response = await apiClient.post<RunAgentsResponse>(`leads/${leadId}/run_agents`, requestBody)
       console.log(`[useAgentExecution] API Response:`, response)
       
       if (response.error) {

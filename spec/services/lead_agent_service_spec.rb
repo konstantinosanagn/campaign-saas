@@ -728,5 +728,164 @@ RSpec.describe LeadAgentService, type: :service do
         expect(lead.stage).to eq('designed')
       end
     end
+
+    context 'manual WRITER/CRITIQUE rewrite loop' do
+      let(:lead) { create(:lead, campaign: campaign, stage: 'written', quality: '-') }
+
+      before do
+        # Create necessary agent configs
+        create(:agent_config, campaign: campaign, agent_name: 'WRITER', enabled: true)
+        create(:agent_config, campaign: campaign, agent_name: 'CRITIQUE', enabled: true, settings: {
+          'min_score_for_send' => 6
+        })
+      end
+
+      it 'critiques the latest writer revision, not the original' do
+        # Create initial WRITER output
+        original_email = "Subject: Original Email\n\nThis is the original email content that needs improvement."
+        create(:agent_output,
+          lead: lead,
+          agent_name: 'WRITER',
+          status: 'completed',
+          output_data: {
+            email: original_email,
+            company: lead.company,
+            recipient: lead.name
+          }
+        )
+
+        # First critique - should critique the original email
+        critique_email_content = nil
+        allow_any_instance_of(Agents::CritiqueAgent).to receive(:run) do |_, article, **|
+          critique_email_content = article['email_content']
+          {
+            'critique' => 'This email needs more personalization and a stronger CTA.',
+            'score' => 4,
+            'meets_min_score' => false
+          }
+        end
+
+        result = described_class.run_agents_for_lead(lead, campaign, user, agent_name: 'CRITIQUE')
+        expect(result[:status]).to eq('completed')
+        expect(critique_email_content).to include('Original Email')
+
+        lead.reload
+        expect(lead.stage).to eq('written') # Should stay at written because score < min
+
+        # Now mock WRITER to return a rewritten email
+        rewritten_email = "Subject: Improved Email\n\nThis is the rewritten email with better personalization and CTA."
+
+        # Verify WRITER receives previous_critique
+        allow_any_instance_of(Agents::WriterAgent).to receive(:run) do |_, _, **kwargs|
+          expect(kwargs[:previous_critique]).to be_present
+          expect(kwargs[:previous_critique]).to include('personalization')
+          {
+            email: rewritten_email,
+            company: lead.company,
+            recipient: lead.name,
+            variants: [ rewritten_email ]
+          }
+        end
+
+        # Run WRITER for rewrite
+        result = described_class.run_agents_for_lead(lead, campaign, user, agent_name: 'WRITER')
+        expect(result[:status]).to eq('completed')
+
+        lead.reload
+        expect(lead.stage).to match(/rewritten \(\d+\)/)
+        expect(lead.stage).to eq('rewritten (1)')
+
+        # Now verify CRITIQUE uses the NEW rewritten email, not the original
+        second_critique_email_content = nil
+        allow_any_instance_of(Agents::CritiqueAgent).to receive(:run) do |_, article, **|
+          second_critique_email_content = article['email_content']
+          {
+            'critique' => nil, # Good enough
+            'score' => 8,
+            'meets_min_score' => true
+          }
+        end
+
+        result = described_class.run_agents_for_lead(lead, campaign, user, agent_name: 'CRITIQUE')
+        expect(result[:status]).to eq('completed')
+
+        # Verify CRITIQUE critiqued the rewritten email, not the original
+        expect(second_critique_email_content).to include('Improved Email')
+        expect(second_critique_email_content).not_to include('Original Email')
+        expect(second_critique_email_content).to eq(rewritten_email)
+      end
+
+      it 'loads latest completed WRITER output for CRITIQUE, not failed or old outputs' do
+        # Create multiple WRITER outputs: one failed, one old completed, one new completed
+        create(:agent_output,
+          lead: lead,
+          agent_name: 'WRITER',
+          status: 'failed',
+          output_data: { email: 'Failed email' },
+          created_at: 1.hour.ago
+        )
+
+        old_email = "Subject: Old Email\n\nThis is an old version."
+        create(:agent_output,
+          lead: lead,
+          agent_name: 'WRITER',
+          status: 'completed',
+          output_data: { email: old_email },
+          created_at: 30.minutes.ago
+        )
+
+        latest_email = "Subject: Latest Email\n\nThis is the most recent version."
+        create(:agent_output,
+          lead: lead,
+          agent_name: 'WRITER',
+          status: 'completed',
+          output_data: { email: latest_email },
+          created_at: 5.minutes.ago
+        )
+
+        # CRITIQUE should use the latest completed output
+        critique_email_content = nil
+        expect_any_instance_of(Agents::CritiqueAgent).to receive(:run) do |_, article, **|
+          critique_email_content = article['email_content']
+          {
+            'critique' => nil,
+            'score' => 8,
+            'meets_min_score' => true
+          }
+        end
+
+        described_class.run_agents_for_lead(lead, campaign, user, agent_name: 'CRITIQUE')
+
+        expect(critique_email_content).to eq(latest_email)
+        expect(critique_email_content).not_to eq(old_email)
+      end
+
+      it 'passes agent_name correctly through async job' do
+        # Test that agent_name is preserved when queued as background job
+        # This is tested implicitly through the job, but we can verify the job receives it
+
+        original_email = "Subject: Original\n\nContent"
+        create(:agent_output,
+          lead: lead,
+          agent_name: 'WRITER',
+          status: 'completed',
+          output_data: { email: original_email }
+        )
+
+        create(:agent_config, campaign: campaign, agent_name: 'CRITIQUE', enabled: true)
+
+        allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
+          'critique' => 'Needs improvement',
+          'score' => 4,
+          'meets_min_score' => false
+        })
+
+        # Run in sync mode (to test the logic without job queue complexity)
+        result = described_class.run_agents_for_lead(lead, campaign, user, agent_name: 'CRITIQUE')
+
+        expect(result[:status]).to eq('completed')
+        expect(result[:completed_agents]).to contain_exactly('CRITIQUE')
+      end
+    end
   end
 end

@@ -11,6 +11,7 @@ class LeadAgentService::OutputManager
 
   ##
   # Loads previous agent outputs that are needed for the current agent
+  # Always returns the LATEST output (most recent created_at) for each agent
   #
   # @param lead [Lead] The lead containing agent outputs
   # @param current_agent [String] The agent that needs previous outputs
@@ -18,20 +19,41 @@ class LeadAgentService::OutputManager
   def self.load_previous_outputs(lead, current_agent)
     outputs = {}
 
-    # WRITER needs SEARCH output
+    # Helper method to get latest completed output for an agent
+    latest_output = lambda do |agent_name|
+      lead.agent_outputs
+          .where(agent_name: agent_name, status: AgentConstants::STATUS_COMPLETED)
+          .order(created_at: :desc)
+          .first
+    end
+
+    # WRITER needs SEARCH output - get the latest completed one
     if current_agent == AgentConstants::AGENT_WRITER
-      search_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_SEARCH)
-      outputs[AgentConstants::AGENT_SEARCH] = search_output&.output_data
+      search_output = latest_output.call(AgentConstants::AGENT_SEARCH)
+      outputs[AgentConstants::AGENT_SEARCH] = search_output&.output_data || {}
+      Rails.logger.info("[OutputManager] Loading SEARCH output for WRITER: ID=#{search_output.id if search_output}")
     end
 
     if current_agent == AgentConstants::AGENT_CRITIQUE
-      writer_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_WRITER)
-      outputs[AgentConstants::AGENT_WRITER] = writer_output&.output_data
+      # Get the LATEST WRITER output (most recent revision) - only completed outputs
+      writer_output = latest_output.call(AgentConstants::AGENT_WRITER)
+      if writer_output
+        Rails.logger.info("[OutputManager] Loading WRITER output for CRITIQUE: ID=#{writer_output.id}, created_at=#{writer_output.created_at}")
+      else
+        Rails.logger.warn("[OutputManager] No completed WRITER output found for CRITIQUE agent")
+      end
+      outputs[AgentConstants::AGENT_WRITER] = writer_output&.output_data || {}
     end
 
     if current_agent == AgentConstants::AGENT_DESIGN
-      critique_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_CRITIQUE)
-      outputs[AgentConstants::AGENT_CRITIQUE] = critique_output&.output_data
+      # DESIGN needs CRITIQUE output, and might also need WRITER/SEARCH for fallback
+      critique_output = latest_output.call(AgentConstants::AGENT_CRITIQUE)
+      outputs[AgentConstants::AGENT_CRITIQUE] = critique_output&.output_data || {}
+      Rails.logger.info("[OutputManager] Loading CRITIQUE output for DESIGN: ID=#{critique_output.id if critique_output}")
+
+      # Also load WRITER output for fallback (design agent may use it if critique output is empty)
+      writer_output = latest_output.call(AgentConstants::AGENT_WRITER)
+      outputs[AgentConstants::AGENT_WRITER] = (writer_output&.output_data || {}) if writer_output
     end
 
     outputs
@@ -39,19 +61,46 @@ class LeadAgentService::OutputManager
 
   ##
   # Saves agent output to the database
+  # Creates a NEW record each time (allows multiple versions/history)
   #
   # @param lead [Lead] The lead to save output for
   # @param agent_name [String] The agent name
   # @param output_data [Hash] The output data to save
   # @param status [String] The status (completed, failed, pending)
   def self.save_agent_output(lead, agent_name, output_data, status)
-    agent_output = lead.agent_outputs.find_or_initialize_by(agent_name: agent_name)
-    agent_output.assign_attributes(
-      output_data: output_data,
+    # Sanitize output data to remove null bytes that PostgreSQL can't handle
+    sanitized_output = sanitize_for_postgres(output_data)
+
+    # Always create a NEW record - never update existing ones
+    agent_output = lead.agent_outputs.build(
+      agent_name: agent_name,
+      output_data: sanitized_output,
       status: status,
-      error_message: status == AgentConstants::STATUS_FAILED ? output_data[:error] : nil
+      error_message: status == AgentConstants::STATUS_FAILED ? sanitized_output[:error] || sanitized_output["error"] : nil
     )
     agent_output.save!
+    Rails.logger.info("[OutputManager] Created new #{agent_name} output: ID=#{agent_output.id}, created_at=#{agent_output.created_at}")
+    agent_output
+  end
+
+  ##
+  # Recursively sanitizes data to remove null bytes (\u0000) that PostgreSQL can't store
+  # Also removes other problematic Unicode characters
+  #
+  # @param data [Object] The data to sanitize (Hash, Array, String, or other)
+  # @return [Object] Sanitized data
+  def self.sanitize_for_postgres(data)
+    case data
+    when Hash
+      data.transform_values { |v| sanitize_for_postgres(v) }
+    when Array
+      data.map { |v| sanitize_for_postgres(v) }
+    when String
+      # Remove null bytes and other problematic characters
+      data.gsub("\u0000", "").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+    else
+      data
+    end
   end
 
   ##

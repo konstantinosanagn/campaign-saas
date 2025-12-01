@@ -331,10 +331,18 @@ export default function Navigation({
             <div className="flex items-center">
               <a 
                 href="/login" 
-                className="flex-shrink-0 flex items-center px-6 sm:px-8 md:px-10"
+                className="flex-shrink-0 flex items-center px-6 sm:px-8 md:px-10 gap-4 md:gap-5"
                 style={{ cursor: 'pointer' }}
               >
                 <Cube />
+                <div className="flex flex-col">
+                  <span className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                    Campaign AI
+                  </span>
+                  <span className="text-sm md:text-base font-semibold text-slate-900">
+                    Multi-Agent Outreach Studio
+                  </span>
+                </div>
               </a>
             </div>
             <div className="flex items-center gap-6">
@@ -412,8 +420,8 @@ export default function Navigation({
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
                     <div className="text-sm font-medium text-gray-900">
-                      {user?.first_name && user?.last_name
-                        ? `${user.first_name} ${user.last_name}`
+                      {user?.first_name || user?.last_name
+                        ? `${user?.first_name || ''} ${user?.last_name || ''}`.trim()
                         : user?.name || 'User'}
                     </div>
                     <div className="text-xs text-gray-500">
@@ -436,6 +444,8 @@ export default function Navigation({
                   >
                     {user?.first_name && user?.last_name
                       ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
+                      : user?.first_name
+                      ? user.first_name.slice(0, 2).toUpperCase()
                       : user?.name
                       ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
                       : 'U'}

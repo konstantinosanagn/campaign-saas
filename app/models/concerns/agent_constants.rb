@@ -46,6 +46,7 @@ module AgentConstants
   STAGE_CRITIQUED = "critiqued"
   STAGE_DESIGNED = "designed"
   STAGE_COMPLETED = "completed"
+  STAGE_REWRITTEN_PREFIX = "rewritten" # Base prefix for rewritten stages
 
   # Stage progression order
   STAGE_PROGRESSION = [
@@ -56,4 +57,31 @@ module AgentConstants
     STAGE_DESIGNED,
     STAGE_COMPLETED
   ].freeze
+
+  ##
+  # Generates a rewritten stage name with count
+  # @param count [Integer] The rewrite count (1, 2, 3, etc.)
+  # @return [String] Stage name like "rewritten (1)", "rewritten (2)", etc.
+  def self.rewritten_stage_name(count)
+    "#{STAGE_REWRITTEN_PREFIX} (#{count})"
+  end
+
+  ##
+  # Checks if a stage is a rewritten stage
+  # @param stage [String] The stage to check
+  # @return [Boolean] true if stage starts with "rewritten"
+  def self.rewritten_stage?(stage)
+    stage.to_s.start_with?(STAGE_REWRITTEN_PREFIX)
+  end
+
+  ##
+  # Extracts rewrite count from a rewritten stage name
+  # @param stage [String] The stage name (e.g., "rewritten (2)")
+  # @return [Integer, nil] The rewrite count, or nil if not a rewritten stage
+  def self.extract_rewrite_count(stage)
+    return nil unless rewritten_stage?(stage)
+
+    match = stage.match(/rewritten\s*\((\d+)\)/)
+    match ? match[1].to_i : nil
+  end
 end

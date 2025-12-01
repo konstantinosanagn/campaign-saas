@@ -6,6 +6,7 @@
 #
 # Usage:
 #   AgentExecutionJob.perform_later(lead_id, campaign_id, user_id)
+#   AgentExecutionJob.perform_later(lead_id, campaign_id, user_id, agent_name)  # Manual execution
 #
 class AgentExecutionJob < ApplicationJob
   queue_as :default
@@ -22,7 +23,8 @@ class AgentExecutionJob < ApplicationJob
   # @param lead_id [Integer] The ID of the lead to process
   # @param campaign_id [Integer] The ID of the campaign containing agent configs
   # @param user_id [Integer] The ID of the user (for API keys)
-  def perform(lead_id, campaign_id, user_id)
+  # @param agent_name [String, nil] Optional specific agent to run (for manual execution)
+  def perform(lead_id, campaign_id, user_id, agent_name = nil)
     # Reload records to ensure we have fresh data
     lead = Lead.find_by(id: lead_id)
     campaign = Campaign.find_by(id: campaign_id)
@@ -53,9 +55,9 @@ class AgentExecutionJob < ApplicationJob
     ApiKeyService.get_gemini_api_key(user)
     ApiKeyService.get_tavily_api_key(user)
 
-    # Execute agents
+    # Execute agents (pass agent_name if provided for manual execution)
     begin
-      result = LeadAgentService.run_agents_for_lead(lead, campaign, user)
+      result = LeadAgentService.run_agents_for_lead(lead, campaign, user, agent_name: agent_name)
 
       # Log the result
       if result[:status] == "failed"

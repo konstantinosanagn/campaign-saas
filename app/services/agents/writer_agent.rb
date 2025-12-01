@@ -60,7 +60,15 @@ module Agents
       raise ArgumentError, "Gemini API key is required" if @api_key.blank?
     end
 
-    def run(search_results, recipient: nil, company: nil, product_info: nil, sender_company: nil, config: nil, shared_settings: nil)
+    def run(search_results, recipient: nil, company: nil, product_info: nil, sender_company: nil, config: nil, shared_settings: nil, previous_critique: nil)
+      # Log if this is a revision run
+      if previous_critique.present?
+        @logger.info("WriterAgent - REVISION MODE: Received critique feedback (#{previous_critique.length} chars)")
+        @logger.info("WriterAgent - Critique preview: #{previous_critique.first(150)}...")
+      else
+        @logger.info("WriterAgent - INITIAL WRITE MODE: No critique feedback provided")
+      end
+
       company_name = company || search_results[:company]
       sources = search_results[:sources]
       focus_areas = search_results[:inferred_focus_areas] || []
@@ -111,7 +119,8 @@ module Agents
         prompt = build_prompt(
           company_name, sources, recipient, company_name,
           product_info, sender_company, tone, sender_persona, email_length,
-          personalization_level, primary_cta_type, cta_softness, variant_index, num_variants, focus_areas
+          personalization_level, primary_cta_type, cta_softness, variant_index, num_variants, focus_areas,
+          previous_critique: previous_critique
         )
 
         # Log a snippet of the prompt to verify CTA instruction is included
@@ -217,11 +226,22 @@ module Agents
 
     private
 
-    def build_prompt(company_name, sources, recipient, company, product_info, sender_company, tone, sender_persona, email_length, personalization_level, primary_cta_type, cta_softness, variant_index = 0, total_variants = 1, focus_areas = [])
-      prompt = "Write a personalized B2B marketing outreach email"
-      prompt += " to #{recipient}" if recipient
-      prompt += " at #{company}"
-      prompt += ".\n\n"
+    def build_prompt(company_name, sources, recipient, company, product_info, sender_company, tone, sender_persona, email_length, personalization_level, primary_cta_type, cta_softness, variant_index = 0, total_variants = 1, focus_areas = [], previous_critique: nil)
+      # If this is a revision based on critique feedback, adjust the prompt
+      if previous_critique.present?
+        prompt = "Rewrite and improve a B2B marketing outreach email based on the following critique feedback"
+        prompt += " to #{recipient}" if recipient
+        prompt += " at #{company}"
+        prompt += ".\n\n"
+        prompt += "PREVIOUS CRITIQUE FEEDBACK (address all points):\n"
+        prompt += "#{previous_critique}\n\n"
+        prompt += "IMPORTANT: Apply all the feedback from the critique above to create an improved version of the email.\n\n"
+      else
+        prompt = "Write a personalized B2B marketing outreach email"
+        prompt += " to #{recipient}" if recipient
+        prompt += " at #{company}"
+        prompt += ".\n\n"
+      end
 
       # Add sender company and product context if provided
       if sender_company || product_info

@@ -98,14 +98,32 @@ class EmailSenderService
     # 1. It has reached 'designed' or 'completed' stage
     # 2. It has a completed DESIGN output (preferred) or WRITER output (fallback)
     # 3. If at 'critiqued' stage, check if DESIGN agent is disabled (then allow sending)
+    # 4. If CRITIQUE agent has run, the score must meet the minimum threshold
     #
     # @param lead [Lead] The lead to check
     # @return [Boolean] True if lead is ready to send
     def lead_ready?(lead)
+      # Check if lead has a critique output that doesn't meet minimum score (check latest)
+      critique_output = lead.agent_outputs
+                            .where(agent_name: AgentConstants::AGENT_CRITIQUE, status: AgentConstants::STATUS_COMPLETED)
+                            .order(created_at: :desc)
+                            .first
+      if critique_output
+        output_data = critique_output.output_data || {}
+        meets_min_score = output_data["meets_min_score"] || output_data[:meets_min_score]
+
+        # If meets_min_score is explicitly false, don't allow sending
+        if meets_min_score == false
+          Rails.logger.info("[EmailSender] Lead #{lead.id} has critique score below minimum, cannot send")
+          return false
+        end
+      end
+
       # Check if lead is at a sendable stage
       sendable_stages = [ AgentConstants::STAGE_DESIGNED, AgentConstants::STAGE_COMPLETED ]
 
       # Also allow "critiqued" stage if DESIGN agent is disabled for this campaign
+      # But we still check the critique score above
       if lead.stage == AgentConstants::STAGE_CRITIQUED
         design_config = lead.campaign.agent_configs.find_by(agent_name: AgentConstants::AGENT_DESIGN)
         if design_config&.disabled?
@@ -115,14 +133,20 @@ class EmailSenderService
 
       return false unless lead.stage.in?(sendable_stages)
 
-      # Check for DESIGN output first (preferred)
-      design_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED)
+      # Check for DESIGN output first (preferred) - get latest
+      design_output = lead.agent_outputs
+                          .where(agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED)
+                          .order(created_at: :desc)
+                          .first
       if design_output && design_output.output_data["formatted_email"].present?
         return true
       end
 
-      # Fallback to WRITER output if DESIGN is not available
-      writer_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_WRITER, status: AgentConstants::STATUS_COMPLETED)
+      # Fallback to WRITER output if DESIGN is not available - get latest
+      writer_output = lead.agent_outputs
+                          .where(agent_name: AgentConstants::AGENT_WRITER, status: AgentConstants::STATUS_COMPLETED)
+                          .order(created_at: :desc)
+                          .first
       if writer_output && writer_output.output_data["email"].present?
         return true
       end
@@ -142,8 +166,15 @@ class EmailSenderService
     # Sends email to a single lead
     def send_email_to_lead(lead)
       # Get the email content (prefer DESIGN formatted_email, fallback to WRITER email)
-      design_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED)
-      writer_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_WRITER, status: AgentConstants::STATUS_COMPLETED)
+      # Get the LATEST outputs
+      design_output = lead.agent_outputs
+                          .where(agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED)
+                          .order(created_at: :desc)
+                          .first
+      writer_output = lead.agent_outputs
+                          .where(agent_name: AgentConstants::AGENT_WRITER, status: AgentConstants::STATUS_COMPLETED)
+                          .order(created_at: :desc)
+                          .first
 
       email_content = nil
       if design_output && design_output.output_data["formatted_email"].present?

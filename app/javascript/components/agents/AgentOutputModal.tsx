@@ -960,18 +960,53 @@ export default function AgentOutputModal({
     { id: 'DESIGN' as const, label: 'Design', count: outputs.filter(o => o.agentName === 'DESIGN').length },
   ]
 
-  // Sort outputs to match agent execution order: SEARCH → WRITER → CRITIQUE → DESIGN
+  // Sort outputs: Group by agent, show newest first within each group
+  // For ALL tab: Sort groups by agent execution order, then newest first within each
+  // For specific agent tabs: Show newest first
   const agentOrder = ['SEARCH', 'WRITER', 'CRITIQUE', 'DESIGN']
   const sortOutputs = (outputs: AgentOutputType[]) => {
-    return [...outputs].sort((a, b) => {
-      const aIndex = agentOrder.indexOf(a.agentName)
-      const bIndex = agentOrder.indexOf(b.agentName)
-      // If agent not in order list, put it at the end
-      if (aIndex === -1 && bIndex === -1) return 0
-      if (aIndex === -1) return 1
-      if (bIndex === -1) return -1
-      return aIndex - bIndex
-    })
+    if (activeTab === 'ALL') {
+      // Group by agent name, then sort by agent order and within group by date (newest first)
+      const grouped = outputs.reduce((acc, output) => {
+        if (!acc[output.agentName]) {
+          acc[output.agentName] = []
+        }
+        acc[output.agentName].push(output)
+        return acc
+      }, {} as Record<string, AgentOutputType[]>)
+
+      // Sort each group by created_at DESC (newest first)
+      Object.keys(grouped).forEach(agentName => {
+        grouped[agentName].sort((a, b) => {
+          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0
+          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0
+          return bDate - aDate // DESC order (newest first)
+        })
+      })
+
+      // Flatten back to array in agent order, with newest first within each agent
+      const sorted: AgentOutputType[] = []
+      agentOrder.forEach(agentName => {
+        if (grouped[agentName]) {
+          sorted.push(...grouped[agentName])
+        }
+      })
+      // Add any agents not in the order list at the end
+      Object.keys(grouped).forEach(agentName => {
+        if (!agentOrder.includes(agentName)) {
+          sorted.push(...grouped[agentName])
+        }
+      })
+
+      return sorted
+    } else {
+      // For specific agent tabs, just sort by created_at DESC (newest first)
+      return [...outputs].sort((a, b) => {
+        const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0
+        const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0
+        return bDate - aDate // DESC order (newest first)
+      })
+    }
   }
 
   const tabOutputs = sortOutputs(getTabOutputs())

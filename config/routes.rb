@@ -39,6 +39,7 @@ Rails.application.routes.draw do
         end
         member do
           post :run_agents
+          get :available_actions
           get :agent_outputs
           patch :update_agent_output
           post :send_email

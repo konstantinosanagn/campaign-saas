@@ -139,17 +139,26 @@ export default function CampaignDashboard({
 
   // Ready leads calculation
   // A lead is ready if it's at designed/completed stage, or critiqued stage with DESIGN disabled
+  // Also checks that critique score meets minimum threshold if critique has been run
   const isLeadReady = useCallback((lead: Lead) => {
+    // Check if critique score meets minimum (if critique has been run)
+    // If meetsMinScore is explicitly false, don't allow sending
+    if (lead.meetsMinScore === false) {
+      return false
+    }
+    
     // Normal case: designed or completed stage
     if (lead.stage === 'designed' || lead.stage === 'completed') {
       return true
     }
     
     // Special case: critiqued stage but DESIGN agent is disabled
+    // Still requires meetsMinScore to be true (or null/undefined if no critique yet)
     if (lead.stage === 'critiqued') {
       const designConfig = configs.find(c => c.agentName === 'DESIGN')
       if (designConfig && !designConfig.enabled) {
-        return true
+        // Only allow if meetsMinScore is not false
+        return lead.meetsMinScore !== false
       }
     }
     
@@ -322,8 +331,8 @@ export default function CampaignDashboard({
 
   // Agent handlers
   const handleRunLeadWrapper = useCallback(
-    async (leadId: number) => {
-      await handleRunLead(leadId, () => findLeadById(leadId))
+    async (leadId: number, agentName?: string) => {
+      await handleRunLead(leadId, () => findLeadById(leadId), agentName)
     },
     [handleRunLead, findLeadById]
   )

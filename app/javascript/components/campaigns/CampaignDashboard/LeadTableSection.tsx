@@ -7,7 +7,7 @@ interface LeadTableSectionProps {
   filteredLeads: Lead[]
   selectedLeads: number[]
   runningLeadIds: number[]
-  onRunLead: (leadId: number) => void
+  onRunLead: (leadId: number, agentName?: string) => void
   onSendEmail?: (leadId: number) => void
   onLeadClick: (lead: Lead) => void
   onStageClick: (lead: Lead) => void

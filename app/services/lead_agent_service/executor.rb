@@ -42,8 +42,9 @@ class LeadAgentService::Executor
   # @param lead [Lead] The lead to process
   # @param agent_config [AgentConfig] The agent configuration
   # @param search_output [Hash] The search agent output
+  # @param previous_critique [String, nil] Optional critique feedback from previous critique run
   # @return [Hash] Writer results
-  def self.execute_writer_agent(writer_agent, lead, agent_config, search_output)
+  def self.execute_writer_agent(writer_agent, lead, agent_config, search_output, previous_critique: nil)
     # Reload agent_config to ensure we have the latest settings (avoid stale cache)
     agent_config.reload if agent_config
 
@@ -78,7 +79,8 @@ class LeadAgentService::Executor
         product_info: product_info,
         sender_company: sender_company,
         config: { settings: settings },
-        shared_settings: shared_settings
+        shared_settings: shared_settings,
+        previous_critique: previous_critique
       )
     end
 
@@ -101,7 +103,8 @@ class LeadAgentService::Executor
       product_info: product_info,
       sender_company: sender_company,
       config: { settings: settings },
-      shared_settings: shared_settings
+      shared_settings: shared_settings,
+      previous_critique: previous_critique
     )
   end
 
@@ -133,6 +136,13 @@ class LeadAgentService::Executor
     # Pass config to critique_agent (use reloaded settings)
     config_hash = agent_config ? { settings: agent_config.settings } : nil
     Rails.logger.info("CritiqueAgent Executor - Agent Config ID: #{agent_config&.id}, settings: #{config_hash&.dig(:settings)&.inspect}")
+
+    # Log email content snippet for debugging - helps verify we're critiquing the latest version
+    Rails.logger.info(
+      "[CritiqueAgent Executor] Critiquing email for lead_id=#{lead.id}, " \
+      "email snippet=#{email_content.to_s[0..80].inspect}"
+    )
+
     result = critique_agent.run(article, config: config_hash)
 
     # If a variant was selected, update the email content
@@ -163,8 +173,12 @@ class LeadAgentService::Executor
                     SettingsHelper.get_setting(critique_output, :email) || SettingsHelper.get_setting(critique_output, "email") || ""
 
     # Fallback to WRITER output if critique_output doesn't have email
+    # Get the LATEST writer output
     if email_content.blank?
-      writer_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_WRITER)
+      writer_output = lead.agent_outputs
+                          .where(agent_name: AgentConstants::AGENT_WRITER)
+                          .order(created_at: :desc)
+                          .first
       if writer_output
         email_content = SettingsHelper.get_setting(writer_output.output_data, :email) || SettingsHelper.get_setting(writer_output.output_data, "email") ||
                        SettingsHelper.get_setting(writer_output.output_data, :formatted_email) || SettingsHelper.get_setting(writer_output.output_data, "formatted_email") || ""

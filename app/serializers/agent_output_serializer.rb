@@ -6,6 +6,7 @@
 class AgentOutputSerializer < BaseSerializer
   def as_json
     {
+      "id" => @object.id,
       "agentName" => @object.agent_name,
       "status" => @object.status,
       "outputData" => @object.output_data,

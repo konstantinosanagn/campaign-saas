@@ -192,3 +192,27 @@ Temporary Items
 # Local testing scripts (temporary development scripts)
 test-production.ps1
 test-production.sh
+
+# Development utility scripts (not needed in repo)
+check_migration.rb
+
+# Console/REPL output files (accidentally created)
+(lead)
+(*)
+
+# Bootsnap cache
+/tmp/cache/bootsnap/
+
+# Spring server files (Rails)
+/spring/
+.spring
+
+# Byebug history
+.byebug_history
+
+# Windows specific
+desktop.ini
+$RECYCLE.BIN/
+
+# Cursor IDE
+.cursor/

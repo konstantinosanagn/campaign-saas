@@ -26,6 +26,10 @@ export interface Lead {
   campaignId: number
   stage: string
   quality: string | null
+  score?: number | null
+  meetsMinScore?: boolean | null
+  availableActions?: string[]
+  rewriteCount?: number
   errors?: string[]
 }
 
@@ -46,6 +50,7 @@ export interface LeadFormData {
 }
 
 export interface AgentOutput {
+  id?: number
   agentName: string
   status: 'pending' | 'completed' | 'failed'
   outputData: Record<string, unknown> | null

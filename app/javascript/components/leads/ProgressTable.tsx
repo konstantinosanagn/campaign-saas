@@ -3,11 +3,12 @@
 import React from 'react'
 import type { Lead, AgentConfig } from '@/types'
 import Cube from '@/components/shared/Cube'
+import ScoreGauge from '@/components/shared/ScoreGauge'
 import { baseAgents } from '@/libs/constants/agents'
 
 interface ProgressTableProps {
   leads: Lead[]
-  onRunLead: (leadId: number) => void
+  onRunLead: (leadId: number, agentName?: string) => void
   onSendEmail?: (leadId: number) => void
   onLeadClick: (lead: Lead) => void
   onStageClick: (lead: Lead) => void
@@ -24,17 +25,26 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
   
   // Check if a lead can be sent via email (designed/completed stage, or critiqued if DESIGN is disabled)
   // Note: All leads can be selected, but only ready leads can be sent emails
+  // Also checks that critique score meets minimum threshold if critique has been run
   const canSendEmail = (lead: Lead): boolean => {
+    // Check if critique score meets minimum (if critique has been run)
+    // If meetsMinScore is explicitly false, don't allow sending
+    if (lead.meetsMinScore === false) {
+      return false
+    }
+    
     // Normal case: designed or completed stage
     if (lead.stage === 'designed' || lead.stage === 'completed') {
       return true
     }
     
     // Special case: critiqued stage but DESIGN agent is disabled
+    // Still requires meetsMinScore to be true (or null/undefined if no critique yet)
     if (lead.stage === 'critiqued') {
       const designConfig = agentConfigs?.find(c => c.agentName === 'DESIGN')
       if (designConfig && !designConfig.enabled) {
-        return true
+        // Only allow if meetsMinScore is not false
+        return lead.meetsMinScore !== false
       }
     }
     
@@ -115,8 +125,19 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
   }
 
   // Get icon for next agent
+  // Uses availableActions from backend if available, otherwise falls back to stage-based logic
   const getNextAgentIcon = (lead: Lead): { icon: string; agentName: string } | null => {
-    const nextAgent = getNextEnabledAgent(lead.stage)
+    // Check if lead has availableActions from backend (preferred)
+    let nextAgent: string | null = null
+    
+    if (lead.availableActions && lead.availableActions.length > 0) {
+      // Use first available action from backend
+      nextAgent = lead.availableActions[0]
+    } else {
+      // Fallback to stage-based determination
+      nextAgent = getNextEnabledAgent(lead.stage)
+    }
+    
     if (!nextAgent) return null
     
     // Map DESIGN to DESIGNER for baseAgents lookup
@@ -135,7 +156,10 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
     if (canSendEmail(lead) && onSendEmail) {
       onSendEmail(lead.id)
     } else {
-      onRunLead(lead.id)
+      // Get the agent name from the icon to pass to the run function
+      const agentIcon = getNextAgentIcon(lead)
+      const agentName = agentIcon?.agentName
+      onRunLead(lead.id, agentName)
     }
   }
   
@@ -260,10 +284,12 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
                     }}
                     className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-blue-200 hover:text-blue-900 cursor-pointer transition-colors duration-200"
                   >
-                    {lead.stage}
+                    {lead.stage ? lead.stage.charAt(0).toUpperCase() + lead.stage.slice(1) : lead.stage}
                   </button>
                 </td>
-                <td className="px-4 py-3 text-gray-500">{lead.quality || '-'}</td>
+                <td className="px-4 py-3">
+                  <ScoreGauge score={lead.score} size="small" />
+                </td>
                 <td className="px-4 py-3">
                   {runningLeadIds.includes(lead.id) || sendingLeadId === lead.id ? (
                     <div className="inline-flex items-center justify-center w-8 h-8">

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_12_01_000000) do
+ActiveRecord::Schema[8.1].define(version: 2025_12_01_013725) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -38,7 +38,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_01_000000) do
     t.string "status", limit: 20, default: "pending", null: false
     t.datetime "updated_at", null: false
     t.index ["agent_name"], name: "index_agent_outputs_on_agent_name"
-    t.index ["lead_id", "agent_name"], name: "index_agent_outputs_on_lead_id_and_agent_name", unique: true
+    t.index ["lead_id", "agent_name"], name: "index_agent_outputs_on_lead_id_and_agent_name"
     t.index ["lead_id"], name: "index_agent_outputs_on_lead_id"
     t.index ["output_data"], name: "index_agent_outputs_on_output_data_gin", using: :gin
     t.check_constraint "agent_name::text = ANY (ARRAY['SEARCH'::character varying::text, 'WRITER'::character varying::text, 'DESIGN'::character varying::text, 'CRITIQUE'::character varying::text, 'DESIGNER'::character varying::text, 'SENDER'::character varying::text])", name: "check_agent_outputs_agent_name"

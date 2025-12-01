@@ -117,10 +117,13 @@ module Api
           end
         end
 
+        # Get optional agent_name parameter
+        agent_name = params[:agentName] || params[:agent_name]
+
         if use_async
-          # Enqueue background job
+          # Enqueue background job with agent_name parameter
           begin
-            job = AgentExecutionJob.perform_later(lead.id, campaign.id, current_user.id)
+            job = AgentExecutionJob.perform_later(lead.id, campaign.id, current_user.id, agent_name)
 
           render json: {
             status: "queued",
@@ -138,8 +141,8 @@ module Api
         else
           # Run synchronously (for development/test or when explicitly requested)
           begin
-            # Run agents using LeadAgentService
-            result = LeadAgentService.run_agents_for_lead(lead, campaign, current_user)
+            # Run agents using LeadAgentService, passing optional agent_name
+            result = LeadAgentService.run_agents_for_lead(lead, campaign, current_user, agent_name: agent_name)
 
             # Check for service-level errors
             if result[:status] == "failed" && result[:error]
@@ -171,6 +174,35 @@ module Api
       end
 
       ##
+      # GET /api/v1/leads/:id/available_actions
+      # Returns available actions (agents) that can be run for a specific lead
+      # Based on current stage, critique score, and rewrite state
+      def available_actions
+        # Find lead and verify ownership
+        lead = Lead.includes(:campaign, :agent_outputs)
+                   .joins(:campaign)
+                   .where(campaigns: { user_id: current_user.id })
+                   .find_by(id: params[:id])
+
+        unless lead
+          render json: { errors: [ "Lead not found or unauthorized" ] }, status: :not_found
+          return
+        end
+
+        # Reload to ensure fresh data
+        lead.reload
+        lead.association(:agent_outputs).reset
+
+        # Determine available actions using StageManager
+        actions = LeadAgentService::StageManager.determine_available_actions(lead)
+
+        render json: {
+          leadId: lead.id,
+          availableActions: actions
+        }, status: :ok
+      end
+
+      ##
       # GET /api/v1/leads/:id/agent_outputs
       # Returns all agent outputs for a specific lead
       def agent_outputs
@@ -186,8 +218,10 @@ module Api
           return
         end
 
-        # Get all agent outputs for this lead
-        outputs = lead.agent_outputs.map { |output| AgentOutputSerializer.serialize(output) }
+        # Get all agent outputs for this lead, ordered by created_at DESC (newest first)
+        outputs = lead.agent_outputs
+                     .order(created_at: :desc)
+                     .map { |output| AgentOutputSerializer.serialize(output) }
 
         render json: {
           leadId: lead.id,
@@ -269,8 +303,11 @@ module Api
           return
         end
 
-        # Find the agent output
-        agent_output = lead.agent_outputs.find_by(agent_name: agent_name)
+        # Find the latest agent output (most recent)
+        agent_output = lead.agent_outputs
+                           .where(agent_name: agent_name)
+                           .order(created_at: :desc)
+                           .first
 
         unless agent_output
           render json: { errors: [ "Agent output not found" ] }, status: :not_found

@@ -16,6 +16,8 @@ export function useAgentOutputs() {
     try {
       setLoading(true)
       setError(null)
+      // Clear previous outputs immediately to prevent showing stale data from another lead
+      setOutputs([])
       
       const response = await apiClient.get<AgentOutputsResponse>(`leads/${leadId}/agent_outputs`)
       

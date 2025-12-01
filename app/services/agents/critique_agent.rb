@@ -79,11 +79,12 @@ module Agents
 
       5. Deliverability & Technical Health
 
-      You must output string:
+      You MUST respond in the following format:
 
-      - If the email is strong and requires no improvement, return exactly: None
-
-      - Otherwise, output constructive, actionable feedback (under 150 words) explaining how to improve the email. Write professionally and concisely, focusing on what can be changed.
+      - First line: "Score: X/10" where X is an integer from 1 to 10.
+      - Second line:
+        - If the email is strong and requires no improvement, write exactly: "None"
+        - Otherwise, provide constructive, actionable feedback (under 150 words) explaining how to improve the email. Write professionally and concisely, focusing on what can be changed.
 
       Strictness Level: #{strictness_guidance}
 
@@ -152,24 +153,29 @@ module Agents
       # Extract score from critique if present (look for patterns like "Score: 7/10" or "7/10")
       score = extract_score_from_critique(text, min_score)
 
+      # Extract the feedback portion (everything after the score line)
+      feedback_text = extract_feedback_text(text)
+
       # If the number of revisions reaches the max allowed attempts (3) we stop critiquing
-      # to avoid infinite loops. Also, if the critique is "None", we return nil critique.
-      if text.casecmp("none").zero? || revision_count >= 3
-        return { "critique" => nil, "score" => 10, "meets_min_score" => true }
+      # to avoid infinite loops. Also, if the feedback is "None", we return nil critique
+      # but KEEP the computed score.
+      if feedback_text.casecmp("none").zero? || revision_count >= 3
+        meets_min_score = score >= min_score
+        return { "critique" => nil, "score" => score, "meets_min_score" => meets_min_score }
       end
 
       # Check if email meets minimum score requirement
       meets_min_score = score >= min_score
 
-      rewrite_applied = should_rewrite?(rewrite_policy, meets_min_score, text)
+      rewrite_applied = should_rewrite?(rewrite_policy, meets_min_score, feedback_text)
       log("Rewrite triggered (policy=#{rewrite_policy}, meets_min=#{meets_min_score})") if rewrite_applied
-      rewritten_email = rewrite_applied ? rewrite_email(email_content, text, settings) : nil
+      rewritten_email = rewrite_applied ? rewrite_email(email_content, feedback_text, settings) : nil
 
       base_response =
-        if text.empty?
+        if feedback_text.empty?
           { "critique" => nil, "score" => score, "meets_min_score" => meets_min_score }
         else
-          { "critique" => text, "score" => score, "meets_min_score" => meets_min_score }
+          { "critique" => feedback_text, "score" => score, "meets_min_score" => meets_min_score }
         end
 
       base_response["rewritten_email"] = rewritten_email if rewritten_email.present?
@@ -235,16 +241,36 @@ module Agents
     def extract_score_from_critique(critique_text, default_score)
       return default_score if critique_text.nil? || critique_text.empty?
 
-      # Look for score patterns
+      # Try to parse an explicit numeric score if the model gives one
       score_match = critique_text.match(/(?:score|rating|quality)[:\s]*(\d+)\s*\/?\s*10/i)
       return score_match[1].to_i if score_match
 
-      # If critique is "None", assume high score
-      return 10 if critique_text.casecmp("none").zero?
+      # If critique is exactly "None", treat it as "passes threshold",
+      # but don't force it to 10 — use default_score + 1 (slightly above threshold)
+      feedback = extract_feedback_text(critique_text)
+      if feedback.casecmp("none").zero?
+        return [ default_score + 1, 10 ].min
+      end
 
-      # Default: if critique exists, assume it needs improvement (lower score)
-      # If no critique, assume it's good (higher score)
-      critique_text.strip.empty? ? 8 : 5
+      # Fallback heuristic:
+      # - If there's some critique text, assume slightly below threshold
+      # - If it's empty (shouldn't normally happen here), just return default_score
+      feedback.strip.empty? ? default_score : [ default_score - 1, 1 ].max
+    end
+
+    # Extracts the feedback portion of the critique (everything after the score line)
+    def extract_feedback_text(full_text)
+      return "" if full_text.nil? || full_text.empty?
+
+      # Split by newlines and skip lines that look like score lines
+      lines = full_text.split("\n").map(&:strip)
+
+      # Find lines that aren't score lines
+      feedback_lines = lines.reject do |line|
+        line.match?(/^(?:score|rating|quality)[:\s]*\d+\s*\/?\s*10/i)
+      end
+
+      feedback_lines.join("\n").strip
     end
     def should_rewrite?(policy, meets_min_score, critique_text)
       return false if critique_text.blank?
