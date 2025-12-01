@@ -482,7 +482,7 @@ RSpec.describe Api::V1::LeadsController, type: :request do
     let!(:lead3) { create(:lead, campaign: campaign, stage: 'queued') }
     let(:batch_params) do
       {
-        leadIds: [lead1.id, lead2.id, lead3.id],
+        leadIds: [ lead1.id, lead2.id, lead3.id ],
         campaignId: campaign.id
       }
     end
@@ -579,7 +579,7 @@ RSpec.describe Api::V1::LeadsController, type: :request do
         let(:other_campaign) { create(:campaign, user: other_user) }
         let(:invalid_params) do
           {
-            leadIds: [lead1.id, lead2.id],
+            leadIds: [ lead1.id, lead2.id ],
             campaignId: other_campaign.id
           }
         end
@@ -625,7 +625,7 @@ RSpec.describe Api::V1::LeadsController, type: :request do
 
       context 'when campaignId is missing' do
         it 'returns 422 with error' do
-          invalid_params = { leadIds: [lead1.id] }
+          invalid_params = { leadIds: [ lead1.id ] }
 
           post '/api/v1/leads/batch_run_agents',
                params: invalid_params,
@@ -643,7 +643,7 @@ RSpec.describe Api::V1::LeadsController, type: :request do
 
         it 'filters to only leads from specified campaign' do
           mixed_params = {
-            leadIds: [lead1.id, lead2.id, other_lead.id],
+            leadIds: [ lead1.id, lead2.id, other_lead.id ],
             campaignId: campaign.id
           }
 

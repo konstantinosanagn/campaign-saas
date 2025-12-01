@@ -172,7 +172,7 @@ class BatchLeadProcessingService
       case Rails.env
       when "production"
         # In production, be more conservative to avoid overwhelming the system
-        [ENV.fetch("BATCH_SIZE", DEFAULT_BATCH_SIZE).to_i, MAX_CONCURRENT_JOBS].min
+        [ ENV.fetch("BATCH_SIZE", DEFAULT_BATCH_SIZE).to_i, MAX_CONCURRENT_JOBS ].min
       when "development"
         # In development, use smaller batches for faster feedback
         5

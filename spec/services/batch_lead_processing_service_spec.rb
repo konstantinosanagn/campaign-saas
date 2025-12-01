@@ -6,7 +6,7 @@ RSpec.describe BatchLeadProcessingService, type: :service do
   let(:lead1) { create(:lead, campaign: campaign, stage: 'queued') }
   let(:lead2) { create(:lead, campaign: campaign, stage: 'queued') }
   let(:lead3) { create(:lead, campaign: campaign, stage: 'queued') }
-  let(:lead_ids) { [lead1.id, lead2.id, lead3.id] }
+  let(:lead_ids) { [ lead1.id, lead2.id, lead3.id ] }
 
   describe '.process_leads' do
     context 'with valid inputs' do
@@ -73,7 +73,7 @@ RSpec.describe BatchLeadProcessingService, type: :service do
       let(:other_lead) { create(:lead, campaign: other_campaign) }
 
       it 'filters to only leads from the specified campaign' do
-        mixed_lead_ids = [lead1.id, lead2.id, other_lead.id]
+        mixed_lead_ids = [ lead1.id, lead2.id, other_lead.id ]
         result = described_class.process_leads(mixed_lead_ids, campaign, user)
 
         expect(result[:total]).to eq(2)  # Only lead1 and lead2
@@ -94,7 +94,7 @@ RSpec.describe BatchLeadProcessingService, type: :service do
 
     context 'with non-existent lead IDs' do
       it 'filters out non-existent leads' do
-        mixed_ids = [lead1.id, 99999, 99998]
+        mixed_ids = [ lead1.id, 99999, 99998 ]
         result = described_class.process_leads(mixed_ids, campaign, user)
 
         expect(result[:total]).to eq(1)  # Only lead1 exists

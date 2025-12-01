@@ -137,7 +137,7 @@ class Orchestrator
 
       email_changed = revised_email.strip != email_text.strip
       email_text = revised_email
-      current_variants = [email_text]
+      current_variants = [ email_text ]
       log("Critique score=#{critique_result['score']} meets_min=#{critique_result['meets_min_score']} rewrite=#{critique_result['rewrite_applied']} changed=#{email_changed}")
 
       if critique_text.nil?
