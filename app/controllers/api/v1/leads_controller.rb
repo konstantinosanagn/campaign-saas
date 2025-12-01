@@ -383,20 +383,20 @@ module Api
 
         # Case 1: leadIds is missing entirely
         if lead_ids.nil?
-          return render json: { errors: ['leadIds is required'] },
+          return render json: { errors: [ "leadIds is required" ] },
                         status: :unprocessable_entity
         end
 
         # Case 2: leadIds present but empty array: []
         if lead_ids.is_a?(Array) && lead_ids.empty?
-          return render json: { errors: ['leadIds must be a non-empty array'] },
+          return render json: { errors: [ "leadIds must be a non-empty array" ] },
                         status: :unprocessable_entity
         end
 
         batch_size = (params[:batchSize] || params[:batch_size] || BatchLeadProcessingService.recommended_batch_size).to_i
 
         if campaign_id.nil?
-          return render json: { errors: ['campaignId is required'] },
+          return render json: { errors: [ "campaignId is required" ] },
                         status: :unprocessable_entity
         end
 
@@ -437,7 +437,7 @@ module Api
             render json: {
               success: false,
               error: result[:error],
-              errors: [result[:error]],
+              errors: [ result[:error] ],
               total: result[:total],
               queued: result[:queued_count] || 0,
               failed: result[:failed_count] || 0

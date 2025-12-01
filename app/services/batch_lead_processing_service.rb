@@ -182,7 +182,7 @@ class BatchLeadProcessingService
           default_size_for_env
         end
 
-      [size, MAX_CONCURRENT_JOBS].min
+      [ size, MAX_CONCURRENT_JOBS ].min
     end
 
     ##

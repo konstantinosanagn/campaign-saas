@@ -62,8 +62,8 @@ const AuthPage: React.FC<AuthPageProps> = ({
       <AuthNavbar />
 
       {/* Main content */}
-      <main id="auth-main-content" className="flex-1 grid w-full" style={{ gridTemplateColumns: '2fr 5fr 3fr 2fr' }}>
-        {/* Empty column - 2 */}
+      <main id="auth-main-content" className="flex-1 grid w-full" style={{ gridTemplateColumns: '1fr 5fr 3fr 1fr' }}>
+        {/* Empty column - 1 */}
         <div className="border-r border-gray-200"></div>
         
         {/* Promo card and siblings - 5 */}
@@ -85,13 +85,13 @@ const AuthPage: React.FC<AuthPageProps> = ({
           />
         </div>
         
-        {/* Empty column - 2 */}
+        {/* Empty column - 1 */}
         <div></div>
       </main>
 
       {/* Footer */}
       <footer className="w-full border-t border-gray-200">
-        <div className="grid w-full" style={{ gridTemplateColumns: '2fr 5fr 3fr 2fr' }}>
+        <div className="grid w-full" style={{ gridTemplateColumns: '1fr 5fr 3fr 1fr' }}>
           <div className="border-r border-gray-200"></div>
           <div className="p-4 md:p-6 border-r border-gray-200"></div>
           <div className="p-4 md:p-6 border-r border-gray-200"></div>

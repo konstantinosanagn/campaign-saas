@@ -144,13 +144,13 @@ class LeadAgentService
           old_stage = lead.stage
           LeadAgentService::StageManager.advance_stage(lead, next_agent)
           lead.reload
-          
+
           # Safety check: if stage didn't change, break to avoid infinite loop
           if lead.stage == old_stage
             Rails.logger.warn("[LeadAgentService] Stage did not advance from #{old_stage} after disabling agent #{next_agent}, breaking loop")
             break
           end
-          
+
           # Continue loop to check next agent
           next
         end

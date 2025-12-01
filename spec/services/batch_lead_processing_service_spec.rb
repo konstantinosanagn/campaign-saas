@@ -222,7 +222,7 @@ RSpec.describe BatchLeadProcessingService, type: :service do
 
       size = described_class.recommended_batch_size
       expect(size).to eq(BatchLeadProcessingService::MAX_CONCURRENT_JOBS)
-      
+
       ENV["BATCH_SIZE"] = original_batch_size
     end
   end

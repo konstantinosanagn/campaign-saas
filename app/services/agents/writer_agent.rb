@@ -300,7 +300,7 @@ module Agents
       end
       prompt += "- Tone: #{tone_guidance}\n"
       prompt += "- Sender Persona: Write as a #{sender_persona} (#{sender_persona == 'founder' ? 'thoughtful leader' : sender_persona == 'sales' ? 'helpful sales professional' : 'supportive customer success manager'})\n"
-      
+
       # Add sender name to prompt if available
       if sender_name.present?
         prompt += "- Sender Name: Your name is #{sender_name}. Use this exact name when signing the email. DO NOT use placeholders like [Your Name] or [Name].\n"
