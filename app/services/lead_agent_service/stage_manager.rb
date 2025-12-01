@@ -126,15 +126,20 @@ class LeadAgentService::StageManager
   ##
   # Determines available actions for a lead based on its current state
   # Returns an array of available agent names that can be run
+  # Filters out disabled agents - only returns enabled agents
   #
   # @param lead [Lead] The lead to determine actions for
-  # @return [Array<String>] Array of available agent names
+  # @return [Array<String>] Array of available agent names (only enabled agents)
   def self.determine_available_actions(lead)
     actions = []
 
     # Reload to ensure fresh data
     lead.reload
     lead.association(:agent_outputs).reset
+
+    # Get campaign for agent config checks (reload to ensure fresh association)
+    campaign = lead.campaign
+    campaign.reload if campaign
 
     # Compute key state variables upfront
     latest_critique = latest_completed_critique(lead)
@@ -144,6 +149,20 @@ class LeadAgentService::StageManager
     current_stage = lead.stage
 
     Rails.logger.info("[StageManager] Lead #{lead.id}: stage=#{current_stage}, meets_min=#{meets_min.inspect}, rewrite_count=#{rewrite_count}")
+
+    # Helper method to check if agent is enabled and add to actions if so
+    # If disabled, returns false - we don't skip ahead because workflow requires sequential stages
+    add_action_if_enabled = lambda do |agent_name|
+      agent_config = LeadAgentService::ConfigManager.get_agent_config(campaign, agent_name)
+      if agent_config.enabled?
+        actions << agent_name
+        Rails.logger.info("[StageManager] Lead #{lead.id}: Adding enabled agent #{agent_name} to actions")
+        true
+      else
+        Rails.logger.info("[StageManager] Lead #{lead.id}: Agent #{agent_name} is disabled - no action available (cannot skip workflow stages)")
+        false
+      end
+    end
 
     # Handle rewritten stages first (special case)
     # At rewritten stage, we need to check if the critique was done AFTER the latest WRITER
@@ -156,15 +175,15 @@ class LeadAgentService::StageManager
       if !critique_is_newer
         # No critique after the latest rewrite → need to run CRITIQUE
         Rails.logger.info("[StageManager] Lead #{lead.id}: rewritten stage, no critique after latest writer → CRITIQUE")
-        actions << AgentConstants::AGENT_CRITIQUE
+        add_action_if_enabled.call(AgentConstants::AGENT_CRITIQUE)
       elsif meets_min == false
         # Critique done after rewrite but still failed → need another rewrite
         Rails.logger.info("[StageManager] Lead #{lead.id}: rewritten stage, critique after writer but failed → WRITER")
-        actions << AgentConstants::AGENT_WRITER
+        add_action_if_enabled.call(AgentConstants::AGENT_WRITER)
       else
         # Critique done after rewrite and passed → advance to DESIGN
         Rails.logger.info("[StageManager] Lead #{lead.id}: rewritten stage, critique after writer and passed → DESIGN")
-        actions << AgentConstants::AGENT_DESIGN
+        add_action_if_enabled.call(AgentConstants::AGENT_DESIGN)
       end
 
       # Summary log for rewritten stage
@@ -179,41 +198,41 @@ class LeadAgentService::StageManager
     # Main stage-based logic
     case current_stage
     when AgentConstants::STAGE_QUEUED
-      actions << AgentConstants::AGENT_SEARCH
+      add_action_if_enabled.call(AgentConstants::AGENT_SEARCH)
 
     when AgentConstants::STAGE_SEARCHED
-      actions << AgentConstants::AGENT_WRITER
+      add_action_if_enabled.call(AgentConstants::AGENT_WRITER)
 
     when AgentConstants::STAGE_WRITTEN
       if latest_critique.nil?
         # 1) Written, never critiqued → first CRITIQUE
         Rails.logger.info("[StageManager] Lead #{lead.id}: written, never critiqued → CRITIQUE")
-        actions << AgentConstants::AGENT_CRITIQUE
+        add_action_if_enabled.call(AgentConstants::AGENT_CRITIQUE)
 
       elsif meets_min == false && rewrite_count.zero?
         # 2) Critiqued, score below min, NO rewrites yet → show WRITER for rewrite
         Rails.logger.info("[StageManager] Lead #{lead.id}: written, critique failed, no rewrites yet → WRITER")
-        actions << AgentConstants::AGENT_WRITER
+        add_action_if_enabled.call(AgentConstants::AGENT_WRITER)
 
       elsif meets_min == false && rewrite_count.positive?
         # 3) Critiqued, score still below min, but at least one rewrite happened → CRITIQUE again
         Rails.logger.info("[StageManager] Lead #{lead.id}: written, critique failed, has #{rewrite_count} rewrite(s) → CRITIQUE")
-        actions << AgentConstants::AGENT_CRITIQUE
+        add_action_if_enabled.call(AgentConstants::AGENT_CRITIQUE)
 
       else
         # Edge case: written but critique already "good" → advance to DESIGN
         Rails.logger.info("[StageManager] Lead #{lead.id}: written but critique passed → DESIGN")
-        actions << AgentConstants::AGENT_DESIGN
+        add_action_if_enabled.call(AgentConstants::AGENT_DESIGN)
       end
 
     when AgentConstants::STAGE_CRITIQUED
       if meets_min == false
         # Edge case: at critiqued stage but critique actually failed → WRITER
         Rails.logger.info("[StageManager] Lead #{lead.id}: critiqued but critique failed → WRITER")
-        actions << AgentConstants::AGENT_WRITER
+        add_action_if_enabled.call(AgentConstants::AGENT_WRITER)
       else
         # Normal flow: critique passed → DESIGN
-        actions << AgentConstants::AGENT_DESIGN
+        add_action_if_enabled.call(AgentConstants::AGENT_DESIGN)
       end
 
     when AgentConstants::STAGE_DESIGNED
@@ -228,7 +247,9 @@ class LeadAgentService::StageManager
     else
       # Unknown stage - try to determine next agent
       next_agent = determine_next_agent(current_stage)
-      actions << next_agent if next_agent
+      if next_agent
+        add_action_if_enabled.call(next_agent)
+      end
     end
 
     # Final summary log - shows exactly what button the UI should display
