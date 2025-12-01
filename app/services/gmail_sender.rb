@@ -38,6 +38,9 @@ class GmailSender
       req.body = { raw: encoded_message }.to_json
     end
 
+    # Log the response for debugging
+    Rails.logger.info("[GmailSender] Gmail API response: status=#{response.status}, body=#{response.body[0..200]}")
+
     unless response.success?
       Rails.logger.error("[GmailSender] Send failed: #{response.status} #{response.body}")
 
@@ -53,7 +56,9 @@ class GmailSender
       raise "Gmail send failed (status #{response.status})"
     end
 
-    JSON.parse(response.body) # returns Gmail message resource
+    result = JSON.parse(response.body) # returns Gmail message resource
+    Rails.logger.info("[GmailSender] Email sent successfully! Gmail message ID: #{result['id']}, threadId: #{result['threadId']}")
+    result
   end
 
   # Build an RFC822 email for Gmail API

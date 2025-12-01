@@ -7,6 +7,23 @@ class Lead < ApplicationRecord
 
   before_save :set_default_website
 
+  # Email status query methods
+  def email_sent?
+    email_status == "sent"
+  end
+
+  def email_sending?
+    email_status == "sending"
+  end
+
+  def email_failed?
+    email_status == "failed"
+  end
+
+  def email_not_scheduled?
+    email_status == "not_scheduled"
+  end
+
   private
 
   def set_default_website

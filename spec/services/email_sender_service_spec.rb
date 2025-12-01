@@ -1,4 +1,5 @@
 require 'rails_helper'
+require_relative '../../app/errors/email_errors'
 
 RSpec.describe EmailSenderService, type: :service do
   include AgentConstants
@@ -20,65 +21,133 @@ RSpec.describe EmailSenderService, type: :service do
 
       before do
         design_output
-        allow(described_class).to receive(:send_email_to_lead).and_return(true)
+        # Stub both immediate and delayed job enqueuing
+        allow(EmailSendingJob).to receive(:perform_later)
+        configured_job_double = double('ConfiguredJob')
+        allow(EmailSendingJob).to receive(:set).and_return(configured_job_double)
+        allow(configured_job_double).to receive(:perform_later)
       end
 
-      it 'sends emails to all ready leads' do
+      it 'queues emails to all ready leads' do
         result = described_class.send_emails_for_campaign(campaign)
 
-        expect(result[:sent]).to eq(1)
+        expect(result[:queued]).to eq(1)
         expect(result[:failed]).to eq(0)
         expect(result[:errors]).to be_empty
+        expect(result[:approx_duration_seconds]).to eq(0) # First email has no delay
       end
 
-      it 'calls send_email_to_lead for each ready lead' do
-        expect(described_class).to receive(:send_email_to_lead).with(lead).once
+      it 'queues EmailSendingJob with staggering by default' do
+        configured_job = double('ConfiguredJob')
+        allow(EmailSendingJob).to receive(:set).with(wait: 0.seconds).and_return(configured_job)
+        expect(configured_job).to receive(:perform_later).with(lead.id)
+
+        described_class.send_emails_for_campaign(campaign, stagger: true)
+      end
+
+      it 'queues EmailSendingJob immediately when stagger is false' do
+        expect(EmailSendingJob).to receive(:perform_later).with(lead.id).once
+        expect(EmailSendingJob).not_to receive(:set)
+
+        described_class.send_emails_for_campaign(campaign, stagger: false)
+      end
+
+      it 'calculates approximate duration when staggering' do
+        lead2 = create(:lead, campaign: campaign, email: 'lead2@example.com', stage: AgentConstants::STAGE_DESIGNED)
+        create(:agent_output, lead: lead2, agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED, output_data: { 'formatted_email' => 'Email 2' })
+
+        result = described_class.send_emails_for_campaign(campaign, stagger: true)
+
+        # 2 leads: first at 0s, second at 0.5s, so duration is (2-1) * 0.5 = 0.5s, rounded to 1
+        expect(result[:approx_duration_seconds]).to eq(1)
+        expect(result[:queued]).to eq(2)
+      end
+
+      it 'logs queuing attempts' do
+        expect(Rails.logger).to receive(:info).with(/Queued email sending job for lead/).at_least(:once)
+        allow(Rails.logger).to receive(:info) # Allow other info logs
 
         described_class.send_emails_for_campaign(campaign)
       end
 
-      it 'logs sending attempts' do
-        expect(Rails.logger).to receive(:info).with(/Attempting to send email to lead/).at_least(:once)
-        expect(Rails.logger).to receive(:info).with(/Successfully sent email to lead/).at_least(:once)
+      it 'marks leads as queued before enqueuing' do
+        lead # create it
 
-        described_class.send_emails_for_campaign(campaign)
+        # Make sure find_ready_leads returns this lead instance
+        allow(EmailSenderService).to receive(:find_ready_leads).and_return([ lead ])
+        allow(EmailSendingJob).to receive_message_chain(:set, :perform_later)
+
+        expect {
+          described_class.send_emails_for_campaign(campaign)
+        }.to change { lead.reload.email_status }
+          .from("not_scheduled").to("queued")
+      end
+
+      context 'when use_background_jobs is false' do
+        before do
+          service = instance_double(EmailSenderService)
+          allow(EmailSenderService).to receive(:new).with(lead).and_return(service)
+          allow(service).to receive(:send_email!)
+        end
+
+        it 'sends emails synchronously' do
+          result = described_class.send_emails_for_campaign(campaign, use_background_jobs: false)
+
+          expect(result[:queued]).to eq(1)
+          expect(EmailSendingJob).not_to have_received(:perform_later)
+        end
       end
     end
 
-    context 'when some emails fail' do
-      let(:lead1) { create(:lead, campaign: campaign, email: 'lead1@example.com', stage: AgentConstants::STAGE_DESIGNED) }
-      let(:lead2) { create(:lead, campaign: campaign, email: 'lead2@example.com', stage: AgentConstants::STAGE_DESIGNED) }
+    context 'when some emails fail to queue' do
+      let(:lead1) { create(:lead, campaign: campaign, email: 'lead1@example.com', stage: AgentConstants::STAGE_DESIGNED, email_status: "not_scheduled") }
+      let(:lead2) { create(:lead, campaign: campaign, email: 'lead2@example.com', stage: AgentConstants::STAGE_DESIGNED, email_status: "not_scheduled") }
 
       before do
         create(:agent_output, lead: lead1, agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED, output_data: { 'formatted_email' => 'Email 1' })
         create(:agent_output, lead: lead2, agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED, output_data: { 'formatted_email' => 'Email 2' })
-        allow(described_class).to receive(:send_email_to_lead).with(lead1).and_return(true)
-        allow(described_class).to receive(:send_email_to_lead).with(lead2).and_raise(StandardError, 'SMTP error')
+        # Use the non-staggered path so we only stub perform_later
+        allow(EmailSenderService).to receive(:find_ready_leads).and_return([ lead1, lead2 ])
       end
 
-      it 'tracks sent and failed counts' do
-        result = described_class.send_emails_for_campaign(campaign)
+      it 'tracks queued and failed counts' do
+        allow(EmailSendingJob).to receive(:perform_later).with(lead1.id)
+        allow(EmailSendingJob).to receive(:perform_later).with(lead2.id)
+          .and_raise(StandardError, "Network error")
 
-        expect(result[:sent]).to eq(1)
+        result = described_class.send_emails_for_campaign(campaign, stagger: false)
+
+        expect(result[:queued]).to eq(1)
         expect(result[:failed]).to eq(1)
         expect(result[:errors].length).to eq(1)
       end
 
       it 'includes error details' do
-        result = described_class.send_emails_for_campaign(campaign)
+        allow(EmailSendingJob).to receive(:perform_later).with(lead1.id)
+        allow(EmailSendingJob).to receive(:perform_later).with(lead2.id)
+          .and_raise(StandardError, "Network error")
 
+        result = described_class.send_emails_for_campaign(campaign, stagger: false)
+
+        expect(result[:errors].size).to eq(1)
         error = result[:errors].first
         expect(error[:lead_id]).to eq(lead2.id)
         expect(error[:lead_email]).to eq('lead2@example.com')
-        expect(error[:error]).to eq('SMTP error')
+        expect(error[:error]).to eq("Network error")
       end
 
       it 'logs errors' do
-        # Logger expectations are too brittle - just verify functionality
-        result = described_class.send_emails_for_campaign(campaign)
+        allow(EmailSendingJob).to receive(:perform_later).with(lead1.id)
+        allow(EmailSendingJob).to receive(:perform_later).with(lead2.id)
+          .and_raise(StandardError, "Network error")
 
+        expect(Rails.logger).to receive(:error).with(
+          /Failed to enqueue EmailSendingJob for lead #{lead2.id}: StandardError - Network error/
+        )
+        allow(Rails.logger).to receive(:error) # Allow other error logs
+
+        result = described_class.send_emails_for_campaign(campaign, stagger: false)
         expect(result[:failed]).to eq(1)
-        expect(result[:errors].length).to eq(1)
       end
     end
 
@@ -89,10 +158,10 @@ RSpec.describe EmailSenderService, type: :service do
         queued_lead
       end
 
-      it 'returns zero sent and failed' do
+      it 'returns zero queued and failed' do
         result = described_class.send_emails_for_campaign(campaign)
 
-        expect(result[:sent]).to eq(0)
+        expect(result[:queued]).to eq(0)
         expect(result[:failed]).to eq(0)
         expect(result[:errors]).to be_empty
       end
@@ -112,20 +181,36 @@ RSpec.describe EmailSenderService, type: :service do
 
       before do
         design_output
-        allow(described_class).to receive(:send_email_to_lead).and_return(true)
+        allow(EmailSendingJob).to receive(:perform_later)
       end
 
-      it 'sends email successfully' do
+      it 'queues email successfully' do
         result = described_class.send_email_for_lead(lead)
 
         expect(result[:success]).to be true
-        expect(result[:message]).to include('Email sent successfully')
+        expect(result[:message]).to include('queued')
       end
 
-      it 'calls send_email_to_lead' do
-        expect(described_class).to receive(:send_email_to_lead).with(lead).once
+      it 'queues EmailSendingJob' do
+        expect(EmailSendingJob).to receive(:perform_later).with(lead.id).once
 
         described_class.send_email_for_lead(lead)
+      end
+
+      context 'when use_background_job is false' do
+        before do
+          service = instance_double(EmailSenderService)
+          allow(EmailSenderService).to receive(:new).with(lead).and_return(service)
+          allow(service).to receive(:send_email!)
+        end
+
+        it 'sends email synchronously' do
+          result = described_class.send_email_for_lead(lead, use_background_job: false)
+
+          expect(result[:success]).to be true
+          expect(result[:message]).to include('sent successfully')
+          expect(EmailSendingJob).not_to have_received(:perform_later)
+        end
       end
     end
 
@@ -151,7 +236,7 @@ RSpec.describe EmailSenderService, type: :service do
       end
     end
 
-    context 'when send_email_to_lead raises an error' do
+    context 'when EmailSendingJob fails to queue' do
       let(:design_output) do
         create(:agent_output,
           lead: lead,
@@ -163,14 +248,14 @@ RSpec.describe EmailSenderService, type: :service do
 
       before do
         design_output
-        allow(described_class).to receive(:send_email_to_lead).and_raise(StandardError, 'Delivery failed')
+        allow(EmailSendingJob).to receive(:perform_later).and_raise(StandardError, 'Queue failed')
       end
 
       it 'returns error result' do
         result = described_class.send_email_for_lead(lead)
 
         expect(result[:success]).to be false
-        expect(result[:error]).to eq('Delivery failed')
+        expect(result[:error]).to eq('Queue failed')
       end
 
       it 'logs error' do
@@ -178,7 +263,7 @@ RSpec.describe EmailSenderService, type: :service do
         result = described_class.send_email_for_lead(lead)
 
         expect(result[:success]).to be false
-        expect(result[:error]).to eq('Delivery failed')
+        expect(result[:error]).to eq('Queue failed')
       end
     end
   end
@@ -266,221 +351,173 @@ RSpec.describe EmailSenderService, type: :service do
     end
   end
 
-  describe '.send_email_to_lead' do
+  describe '#send_email! (instance method)' do
+    let(:service) { described_class.new(lead) }
     let(:design_output) do
       create(:agent_output,
         lead: lead,
         agent_name: AgentConstants::AGENT_DESIGN,
         status: AgentConstants::STATUS_COMPLETED,
-        output_data: { 'formatted_email' => 'Formatted email content' }
+        output_data: { 'formatted_email' => 'Subject: Test\n\nFormatted email content' }
       )
     end
 
     before do
       design_output
+      allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
+      allow(user).to receive(:can_send_gmail?).and_return(false)
+      allow(ENV).to receive(:[]).with('DEFAULT_GMAIL_SENDER').and_return(nil)
+      allow(described_class).to receive(:configure_delivery_method).with(user)
       allow(ActionMailer::Base).to receive(:delivery_method=)
       allow(ActionMailer::Base).to receive(:perform_deliveries=)
       allow(CampaignMailer).to receive(:send_email).and_return(double(deliver_now: true))
+      allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return('smtp.gmail.com')
+      allow(ENV).to receive(:[]).with('SMTP_PASSWORD').and_return('password')
     end
 
-    context 'when OAuth is configured' do
-      let(:oauth_user) { user }
+    it 'updates email_status to sending' do
+      service.send_email!
 
-      before do
-        user.update(
-          gmail_refresh_token: 'refresh-token',
-          gmail_access_token: 'access-token',
-          gmail_token_expires_at: 1.hour.from_now
-        )
-        allow(GmailOauthService).to receive(:oauth_configured?).with(oauth_user).and_return(true)
-        allow(GmailOauthService).to receive(:valid_access_token).with(oauth_user).and_return('access-token')
-        allow(described_class).to receive(:send_via_gmail_api).and_return(true)
-      end
-
-      it 'sends via Gmail API' do
-        expect(described_class).to receive(:send_via_gmail_api).with(
-          lead,
-          'Formatted email content',
-          anything,
-          oauth_user,
-          'access-token'
-        )
-
-        described_class.send(:send_email_to_lead, lead)
-      end
-
-      it 'uses send_from_email when set' do
-        user.update(send_from_email: 'custom@example.com')
-        allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(true)
-
-        expect(described_class).to receive(:send_via_gmail_api).with(
-          lead,
-          anything,
-          'custom@example.com',
-          anything,
-          anything
-        )
-
-        described_class.send(:send_email_to_lead, lead)
-      end
-
-      context 'when OAuth is configured but valid_access_token returns nil' do
-        before do
-          allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(true)
-          allow(GmailOauthService).to receive(:valid_access_token).with(user).and_return(nil)
-          allow(described_class).to receive(:configure_delivery_method).with(user)
-          allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return('smtp.gmail.com')
-          allow(ENV).to receive(:[]).with('SMTP_PASSWORD').and_return('password')
-        end
-
-        it 'logs a warning and falls back to SMTP' do
-          expect(Rails.logger).to receive(:warn).with(/OAuth configured but valid_access_token returned nil for user #{user.id}/)
-          expect(described_class).to receive(:configure_delivery_method).with(user)
-
-          described_class.send(:send_email_to_lead, lead)
-        end
-      end
-
-      context 'when send_from_email user has OAuth' do
-        let(:other_user) { create(:user, email: 'other@example.com') }
-
-        before do
-          user.update(send_from_email: 'other@example.com')
-          other_user.update(
-            gmail_refresh_token: 'refresh-token',
-            gmail_access_token: 'access-token',
-            gmail_token_expires_at: 1.hour.from_now
-          )
-          allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(false)
-          allow(GmailOauthService).to receive(:oauth_configured?).with(other_user).and_return(true)
-          allow(GmailOauthService).to receive(:valid_access_token).with(other_user).and_return('access-token')
-          allow(User).to receive(:find_by).with(email: 'other@example.com').and_return(other_user)
-        end
-
-        it 'uses OAuth from send_from_email user' do
-          expect(described_class).to receive(:send_via_gmail_api).with(
-            lead,
-            anything,
-            anything,
-            other_user,
-            anything
-          )
-
-          described_class.send(:send_email_to_lead, lead)
-        end
-      end
-
-      context 'when send_from_email equals user.email but user has no OAuth, and another user with that email has OAuth' do
-        let(:other_user) { build_stubbed(:user, email: user.email, id: user.id + 1) }
-
-        before do
-          # user.email == send_from_email, but user has no OAuth
-          # other_user has the same email and has OAuth
-          user.update(send_from_email: nil) # Will default to user.email
-          allow(other_user).to receive(:gmail_refresh_token).and_return('refresh-token')
-          allow(other_user).to receive(:gmail_access_token).and_return('access-token')
-          allow(other_user).to receive(:gmail_token_expires_at).and_return(1.hour.from_now)
-          allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(false)
-          allow(GmailOauthService).to receive(:oauth_configured?).with(other_user).and_return(true)
-          allow(GmailOauthService).to receive(:valid_access_token).with(other_user).and_return('access-token')
-          allow(User).to receive(:find_by).with(email: user.email).and_return(other_user)
-          allow(described_class).to receive(:send_via_gmail_api).and_return(true)
-        end
-
-        it 'uses OAuth from the other user with the same email' do
-          expect(described_class).to receive(:send_via_gmail_api).with(
-            lead,
-            anything,
-            anything,
-            other_user,
-            'access-token'
-          )
-
-          described_class.send(:send_email_to_lead, lead)
-        end
-
-        it 'logs that it is using OAuth from email_user' do
-          expect(Rails.logger).to receive(:info).with(/User #{user.id} doesn't have OAuth, using OAuth from email_user #{other_user.id}/).at_least(:once)
-          allow(Rails.logger).to receive(:info) # Allow other info logs
-
-          described_class.send(:send_email_to_lead, lead)
-        end
-      end
+      lead.reload
+      expect(lead.email_status).to eq('sent')
+      expect(lead.last_email_sent_at).to be_present
     end
 
-    context 'when OAuth is not configured' do
-      before do
-        allow(GmailOauthService).to receive(:oauth_configured?).and_return(false)
-        allow(described_class).to receive(:configure_delivery_method).with(user)
-        allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return('smtp.gmail.com')
-        allow(ENV).to receive(:[]).with('SMTP_PASSWORD').and_return('password')
-      end
+    it 'updates email_status to sent on success' do
+      service.send_email!
 
-      it 'falls back to SMTP' do
-        expect(described_class).to receive(:configure_delivery_method).with(user)
-        expect(ActionMailer::Base).to receive(:delivery_method=).with(:smtp)
-        expect(CampaignMailer).to receive(:send_email).and_return(double(deliver_now: true))
-
-        described_class.send(:send_email_to_lead, lead)
-      end
-
-      it 'uses CampaignMailer' do
-        mail_double = double(deliver_now: true)
-        expect(CampaignMailer).to receive(:send_email).with(
-          to: lead.email,
-          recipient_name: lead.name,
-          email_content: 'Formatted email content',
-          campaign_title: campaign.title,
-          from_email: anything
-        ).and_return(mail_double)
-
-        described_class.send(:send_email_to_lead, lead)
-      end
+      lead.reload
+      expect(lead.email_status).to eq('sent')
+      expect(lead.last_email_sent_at).to be_present
+      expect(lead.stage).to eq(AgentConstants::STAGE_COMPLETED)
     end
 
-    context 'when no email content is found' do
+    context 'when sending fails' do
       before do
-        lead.agent_outputs.destroy_all
+        mail_double = double('Mail::Message')
+        allow(mail_double).to receive(:deliver_now).and_raise(StandardError, 'Delivery failed')
+        allow(CampaignMailer).to receive(:send_email).and_return(mail_double)
       end
 
-      it 'raises error' do
+      it 'updates email_status to failed' do
         expect {
-          described_class.send(:send_email_to_lead, lead)
-        }.to raise_error(/No email content found/)
+          service.send_email!
+        }.to raise_error(PermanentEmailError)
+
+        lead.reload
+        expect(lead.email_status).to eq('failed')
+        expect(lead.last_email_error_at).to be_present
+        expect(lead.last_email_error_message).to include('Delivery failed')
       end
     end
 
-    context 'when using WRITER output as fallback' do
-      let(:lead_without_design) { create(:lead, campaign: campaign, email: 'lead2@example.com', name: 'Jane Doe', stage: AgentConstants::STAGE_DESIGNED) }
-      let(:writer_output) do
-        create(:agent_output,
-          lead: lead_without_design,
-          agent_name: AgentConstants::AGENT_WRITER,
-          status: AgentConstants::STATUS_COMPLETED,
-          output_data: { 'email' => 'Writer email content' }
-        )
-      end
-
+    context 'when provider raises a temporary error' do
       before do
-        # Ensure no DESIGN output exists for this lead
-        lead_without_design.agent_outputs.where(agent_name: AgentConstants::AGENT_DESIGN).destroy_all
-        writer_output
-        allow(GmailOauthService).to receive(:oauth_configured?).and_return(false)
-        # Stub configure_delivery_method to avoid ENV calls
-        allow(described_class).to receive(:configure_delivery_method).and_return(nil)
-        allow(ActionMailer::Base).to receive(:delivery_method=)
-        allow(ActionMailer::Base).to receive(:perform_deliveries=)
-        allow(ActionMailer::Base).to receive(:smtp_settings).and_return({})
-        allow(ActionMailer::Base).to receive(:smtp_settings=)
+        allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
+        mail_double = double('Mail::Message')
+        allow(mail_double).to receive(:deliver_now).and_raise(Net::ReadTimeout, 'Connection timeout')
+        allow(CampaignMailer).to receive(:send_email).and_return(mail_double)
       end
 
-      it 'uses WRITER email content' do
-        mail_double = double(deliver_now: true)
-        expect(CampaignMailer).to receive(:send_email).with(
-          hash_including(email_content: 'Writer email content')
-        ).and_return(mail_double)
+      it 'marks lead as failed and raises TemporaryEmailError' do
+        expect {
+          service.send_email!
+        }.to raise_error(TemporaryEmailError) do |error|
+          expect(error.message).to include('Net::ReadTimeout')
+          expect(error.provider).to be_present
+          expect(error.lead_id).to eq(lead.id)
+        end
 
-        described_class.send(:send_email_to_lead, lead_without_design)
+        lead.reload
+        expect(lead.email_status).to eq('failed')
+        expect(lead.last_email_error_message).to include('Net::ReadTimeout')
+        expect(lead.last_email_error_message).to include('Connection timeout')
+      end
+
+      it 'logs error with temporary flag' do
+        expect(Rails.logger).to receive(:error).with(/temporary=true/)
+        allow(Rails.logger).to receive(:error) # Allow other errors
+
+        begin
+          service.send_email!
+        rescue TemporaryEmailError
+          # Expected
+        end
+      end
+    end
+
+    context 'when provider raises a permanent error' do
+      before do
+        allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
+        mail_double = double('Mail::Message')
+        allow(mail_double).to receive(:deliver_now).and_raise(Net::SMTPAuthenticationError.new('bad creds'))
+        allow(CampaignMailer).to receive(:send_email).and_return(mail_double)
+      end
+
+      it 'marks lead as failed and raises PermanentEmailError' do
+        expect {
+          service.send_email!
+        }.to raise_error(PermanentEmailError) do |error|
+          expect(error.message).to include('Net::SMTPAuthenticationError')
+          expect(error.provider).to be_present
+          expect(error.lead_id).to eq(lead.id)
+        end
+
+        lead.reload
+        expect(lead.email_status).to eq('failed')
+        expect(lead.last_email_error_message).to include('Net::SMTPAuthenticationError')
+        expect(lead.last_email_error_message).to include('bad creds')
+      end
+
+      it 'logs error with temporary=false flag' do
+        expect(Rails.logger).to receive(:error).with(/temporary=false/)
+        allow(Rails.logger).to receive(:error) # Allow other errors
+
+        begin
+          service.send_email!
+        rescue PermanentEmailError
+          # Expected
+        end
+      end
+    end
+
+    context 'when Gmail API raises rate limit error' do
+      before do
+        allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
+        allow(user).to receive(:can_send_gmail?).and_return(true)
+        allow(user).to receive(:send_gmail!).and_raise(Net::ReadTimeout.new('Gmail API rate limit exceeded'))
+      end
+
+      it 'raises TemporaryEmailError' do
+        expect {
+          service.send_email!
+        }.to raise_error(TemporaryEmailError) do |error|
+          expect(error.message).to include('Net::ReadTimeout')
+          expect(error.provider).to eq('gmail_api')
+        end
+
+        lead.reload
+        expect(lead.email_status).to eq('failed')
+      end
+    end
+
+    context 'when Gmail authorization fails' do
+      before do
+        allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
+        allow(user).to receive(:can_send_gmail?).and_return(true)
+        allow(user).to receive(:send_gmail!).and_raise(GmailAuthorizationError.new('Token expired'))
+      end
+
+      it 'raises PermanentEmailError' do
+        expect {
+          service.send_email!
+        }.to raise_error(PermanentEmailError) do |error|
+          expect(error.message).to include('GmailAuthorizationError')
+          expect(error.provider).to eq('gmail_api')
+        end
+
+        lead.reload
+        expect(lead.email_status).to eq('failed')
       end
     end
   end
@@ -632,175 +669,6 @@ RSpec.describe EmailSenderService, type: :service do
     end
   end
 
-  describe '.send_email_to_lead error handling' do
-    let(:design_output) do
-      create(:agent_output,
-        lead: lead,
-        agent_name: AgentConstants::AGENT_DESIGN,
-        status: AgentConstants::STATUS_COMPLETED,
-        output_data: { 'formatted_email' => 'Formatted email content' }
-      )
-    end
-
-    before do
-      design_output
-      allow(GmailOauthService).to receive(:oauth_configured?).and_return(false)
-      allow(described_class).to receive(:configure_delivery_method).with(user)
-      allow(ActionMailer::Base).to receive(:delivery_method=)
-      allow(ActionMailer::Base).to receive(:perform_deliveries=)
-      allow(ActionMailer::Base).to receive(:smtp_settings).and_return({})
-      allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return('smtp.gmail.com')
-      allow(ENV).to receive(:[]).with('SMTP_PASSWORD').and_return('password')
-    end
-
-    context 'when mail.deliver_now raises Net::SMTPAuthenticationError' do
-      let(:mock_mail) { double }
-      let(:smtp_error) do
-        error = Net::SMTPAuthenticationError.new('Authentication failed')
-        allow(error).to receive(:response).and_return(double(code: '535', message: 'Invalid credentials'))
-        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
-        error
-      end
-
-      before do
-        allow(CampaignMailer).to receive(:send_email).and_return(mock_mail)
-        allow(mock_mail).to receive(:deliver_now).and_raise(smtp_error)
-      end
-
-      it 'logs SMTP authentication error details and raises' do
-        expect(Rails.logger).to receive(:error).with(/SMTP Authentication Error/).at_least(:once)
-        expect(Rails.logger).to receive(:error).with(/Response code: 535/).at_least(:once)
-        expect(Rails.logger).to receive(:error).with(/Response message: Invalid credentials/).at_least(:once)
-        allow(Rails.logger).to receive(:error) # Allow other error logs
-
-        expect {
-          described_class.send(:send_email_to_lead, lead)
-        }.to raise_error(Net::SMTPAuthenticationError)
-      end
-    end
-
-    context 'when mail.deliver_now raises Net::SMTPError' do
-      let(:mock_mail) { double }
-      let(:smtp_error) do
-        error = StandardError.new('SMTP error')
-        error.extend(Net::SMTPError)
-        allow(error).to receive(:response).and_return(double(inspect: 'response details'))
-        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
-        allow(error).to receive(:message).and_return('SMTP error')
-        allow(error).to receive(:class).and_return(StandardError)
-        error
-      end
-
-      before do
-        allow(CampaignMailer).to receive(:send_email).and_return(mock_mail)
-        allow(mock_mail).to receive(:deliver_now).and_raise(smtp_error)
-      end
-
-      it 'logs SMTP error details and raises' do
-        expect(Rails.logger).to receive(:error).with(/SMTP Error/).at_least(:once)
-        expect(Rails.logger).to receive(:error).with(/Response: response details/).at_least(:once)
-        allow(Rails.logger).to receive(:error) # Allow other error logs
-
-        expect {
-          described_class.send(:send_email_to_lead, lead)
-        }.to raise_error(StandardError, 'SMTP error')
-      end
-    end
-
-    context 'when mail.deliver_now raises OpenSSL::SSL::SSLError' do
-      let(:mock_mail) { double }
-      let(:ssl_error) do
-        error = OpenSSL::SSL::SSLError.new('SSL error')
-        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
-        error
-      end
-
-      before do
-        allow(CampaignMailer).to receive(:send_email).and_return(mock_mail)
-        allow(mock_mail).to receive(:deliver_now).and_raise(ssl_error)
-      end
-
-      it 'logs SSL error details and raises' do
-        expect(Rails.logger).to receive(:error).with(/SSL Error/).at_least(:once)
-        allow(Rails.logger).to receive(:error) # Allow other error logs
-
-        expect {
-          described_class.send(:send_email_to_lead, lead)
-        }.to raise_error(OpenSSL::SSL::SSLError)
-      end
-    end
-
-    context 'when mail.deliver_now raises connection errors' do
-      let(:mock_mail) { double }
-
-      before do
-        allow(CampaignMailer).to receive(:send_email).and_return(mock_mail)
-      end
-
-      it 'logs connection error for Errno::ECONNREFUSED and raises' do
-        error = Errno::ECONNREFUSED.new('Connection refused')
-        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
-        allow(mock_mail).to receive(:deliver_now).and_raise(error)
-
-        expect(Rails.logger).to receive(:error).with(/Connection Error/).at_least(:once)
-        allow(Rails.logger).to receive(:error) # Allow other error logs
-
-        expect {
-          described_class.send(:send_email_to_lead, lead)
-        }.to raise_error(Errno::ECONNREFUSED)
-      end
-
-      it 'logs connection error for Errno::ETIMEDOUT and raises' do
-        error = Errno::ETIMEDOUT.new('Connection timed out')
-        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
-        allow(mock_mail).to receive(:deliver_now).and_raise(error)
-
-        expect(Rails.logger).to receive(:error).with(/Connection Error/).at_least(:once)
-        allow(Rails.logger).to receive(:error) # Allow other error logs
-
-        expect {
-          described_class.send(:send_email_to_lead, lead)
-        }.to raise_error(Errno::ETIMEDOUT)
-      end
-
-      it 'logs connection error for Timeout::Error and raises' do
-        error = Timeout::Error.new('Timeout')
-        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
-        allow(mock_mail).to receive(:deliver_now).and_raise(error)
-
-        expect(Rails.logger).to receive(:error).with(/Connection Error/).at_least(:once)
-        allow(Rails.logger).to receive(:error) # Allow other error logs
-
-        expect {
-          described_class.send(:send_email_to_lead, lead)
-        }.to raise_error(Timeout::Error)
-      end
-    end
-
-    context 'when mail.deliver_now raises unexpected error' do
-      let(:mock_mail) { double }
-      let(:unexpected_error) do
-        error = RuntimeError.new('Unexpected error')
-        allow(error).to receive(:backtrace).and_return([ 'line1', 'line2' ])
-        error
-      end
-
-      before do
-        allow(CampaignMailer).to receive(:send_email).and_return(mock_mail)
-        allow(mock_mail).to receive(:deliver_now).and_raise(unexpected_error)
-      end
-
-      it 'logs unexpected error details and raises' do
-        expect(Rails.logger).to receive(:error).with(/Unexpected error delivering mail/).at_least(:once)
-        allow(Rails.logger).to receive(:error) # Allow other error logs
-
-        expect {
-          described_class.send(:send_email_to_lead, lead)
-        }.to raise_error(RuntimeError)
-      end
-    end
-  end
-
   describe '.configure_delivery_method' do
     before do
       allow(ENV).to receive(:fetch).and_call_original
@@ -861,8 +729,8 @@ RSpec.describe EmailSenderService, type: :service do
         end
 
         it 'uses OAuth from the other user' do
-          expect(Rails.logger).to receive(:info).with(/Found OAuth for send_from_email user \(#{other_user.id}\), using their token/).at_least(:once)
           allow(Rails.logger).to receive(:info) # Allow other info logs
+          expect(Rails.logger).to receive(:info).with(/\[EmailSender\] SMTP OAuth user lookup: #{other_user.id} \(#{Regexp.escape(other_user.email)}\)/).at_least(:once)
           expect(ActionMailer::Base).to receive(:delivery_method=).with(:smtp)
           expect(ActionMailer::Base).to receive(:smtp_settings=).with(hash_including(
             user_name: 'other@example.com'
@@ -915,28 +783,34 @@ RSpec.describe EmailSenderService, type: :service do
         )
         allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(true)
         allow(GmailOauthService).to receive(:valid_access_token).with(user).and_return(nil)
+        allow(ENV).to receive(:[]).and_call_original
         allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return(nil)
         allow(ENV).to receive(:[]).with('SMTP_PASSWORD').and_return(nil)
       end
 
-      it 'logs a warning' do
-        expect(Rails.logger).to receive(:warn).with(/OAuth configured but no valid access token available/)
+      it 'logs error and raises when no valid access token' do
+        expect(Rails.logger).to receive(:error).with(/\[EmailSender\] No email delivery method configured for user@example.com/).at_least(:once)
 
-        described_class.send(:configure_delivery_method, user)
+        expect {
+          described_class.send(:configure_delivery_method, user)
+        }.to raise_error(RuntimeError, /No email delivery method configured for user@example.com/)
       end
     end
 
     context 'when neither OAuth nor SMTP password is configured' do
       before do
         allow(GmailOauthService).to receive(:oauth_configured?).and_return(false)
+        allow(ENV).to receive(:[]).and_call_original
         allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return(nil)
         allow(ENV).to receive(:[]).with('SMTP_PASSWORD').and_return(nil)
       end
 
-      it 'logs error' do
-        expect(Rails.logger).to receive(:error).with(/No delivery method configured/)
+      it 'logs error and raises when neither OAuth nor SMTP is configured' do
+        expect(Rails.logger).to receive(:error).with(/\[EmailSender\] No email delivery method configured for user@example.com/).at_least(:once)
 
-        described_class.send(:configure_delivery_method, user)
+        expect {
+          described_class.send(:configure_delivery_method, user)
+        }.to raise_error(RuntimeError, /No email delivery method configured for user@example.com/)
       end
     end
   end

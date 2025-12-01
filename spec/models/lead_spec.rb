@@ -132,4 +132,35 @@ RSpec.describe Lead, type: :model do
       expect(AgentOutput.find_by(id: output_id)).to be_nil
     end
   end
+
+  describe 'email status methods' do
+    let(:user) { create(:user) }
+    let(:campaign) { create(:campaign, user: user) }
+    let(:lead) { create(:lead, campaign: campaign) }
+
+    it 'returns true for email_sent? when status is sent' do
+      lead.update(email_status: 'sent')
+      expect(lead.email_sent?).to be true
+    end
+
+    it 'returns false for email_sent? when status is not sent' do
+      lead.update(email_status: 'not_scheduled')
+      expect(lead.email_sent?).to be false
+    end
+
+    it 'returns true for email_sending? when status is sending' do
+      lead.update(email_status: 'sending')
+      expect(lead.email_sending?).to be true
+    end
+
+    it 'returns true for email_failed? when status is failed' do
+      lead.update(email_status: 'failed')
+      expect(lead.email_failed?).to be true
+    end
+
+    it 'returns true for email_not_scheduled? when status is not_scheduled' do
+      lead.update(email_status: 'not_scheduled')
+      expect(lead.email_not_scheduled?).to be true
+    end
+  end
 end

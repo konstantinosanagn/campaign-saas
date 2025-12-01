@@ -186,7 +186,7 @@ RSpec.describe Api::V1::CampaignsController, type: :controller do
       campaign = double(id: id)
       allow(user).to receive_message_chain(:campaigns, :includes, :find_by).and_return(campaign)
 
-      result = { sent: 3, failed: 1, errors: [] }
+      result = { queued: 3, failed: 1, errors: [] }
       allow(EmailSenderService).to receive(:send_emails_for_campaign).with(campaign).and_return(result)
 
       post :send_emails, params: { id: id }
@@ -194,7 +194,8 @@ RSpec.describe Api::V1::CampaignsController, type: :controller do
       expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body)
       expect(body["success"]).to be true
-      expect(body["sent"]).to eq(3)
+      expect(body["queued"]).to eq(3)
+      expect(body["sent"]).to eq(3)  # Backward compatibility
     end
 
     it "handles errors raised by EmailSenderService and returns 500" do

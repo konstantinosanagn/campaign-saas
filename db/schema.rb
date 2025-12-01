@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_12_01_013725) do
+ActiveRecord::Schema[8.1].define(version: 2025_12_02_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -60,6 +60,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_01_013725) do
     t.string "company", null: false
     t.datetime "created_at", null: false
     t.string "email", null: false
+    t.string "email_status", default: "not_scheduled", null: false
+    t.datetime "last_email_error_at"
+    t.text "last_email_error_message"
+    t.datetime "last_email_sent_at"
     t.string "name", null: false
     t.string "quality", default: "-"
     t.string "stage", default: "queued"
@@ -68,6 +72,7 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_01_013725) do
     t.string "website"
     t.index ["campaign_id"], name: "index_leads_on_campaign_id"
     t.index ["email"], name: "index_leads_on_email"
+    t.index ["email_status"], name: "index_leads_on_email_status"
   end
 
   create_table "users", force: :cascade do |t|

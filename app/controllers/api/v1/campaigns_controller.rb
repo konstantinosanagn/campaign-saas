@@ -56,9 +56,11 @@ module Api
 
           render json: {
             success: true,
-            sent: result[:sent],
+            queued: result[:queued],
+            sent: result[:queued],  # For backward compatibility
             failed: result[:failed],
-            errors: result[:errors]
+            errors: result[:errors],
+            approx_duration_seconds: result[:approx_duration_seconds] || 0
           }, status: :ok
         rescue GmailAuthorizationError => e
           # Gmail token revoked/invalid - credentials already cleared by EmailSenderService
