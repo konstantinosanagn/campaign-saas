@@ -316,23 +316,43 @@ class LeadAgentService
       # Get variants if they exist
       variants = writer_output&.dig("variants") || writer_output&.dig(:variants) || []
 
-      article = {
-        "email_content" => email_content,
-        "variants" => variants,
-        "number_of_revisions" => 0
-      }
-
-      # Pass config to critique_agent
       config_hash = agent_config ? { settings: agent_config.settings } : nil
-      result = critique_agent.run(article, config: config_hash)
+      max_revisions = 3
+      revision = 0
+      critique_result = nil
+      current_email = email_content
+      current_variants = variants.dup
 
-      # If a variant was selected, update the email content
-      if result["selected_variant"]
-        result["email"] = result["selected_variant"]
-        result["email_content"] = result["selected_variant"]
+      loop do
+        revision += 1
+        article = {
+          "email_content" => current_email,
+          "variants" => current_variants,
+          "number_of_revisions" => revision - 1
+        }
+
+        critique_result = critique_agent.run(article, config: config_hash)
+
+        revised_email =
+          critique_result["rewritten_email"].presence ||
+          critique_result["selected_variant"].presence ||
+          critique_result["email_content"].presence ||
+          current_email
+
+        critique_result["email"] = revised_email
+        critique_result["email_content"] = revised_email
+
+        critique_text = critique_result["critique"]
+        meets_min = critique_result["meets_min_score"]
+        email_changed = revised_email.to_s.strip != current_email.to_s.strip
+
+        break if critique_text.nil? || meets_min || revision >= max_revisions || !email_changed
+
+        current_email = revised_email
+        current_variants = [revised_email]
       end
 
-      result
+      critique_result
     end
 
     ##
