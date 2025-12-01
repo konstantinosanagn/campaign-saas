@@ -35,7 +35,7 @@ gem "devise"
 gem "omniauth"
 gem "omniauth-google-oauth2"
 # For OmniAuth 2.x + Rails
-gem "omniauth-rails_csrf_protection", "~> 1.0"
+gem "omniauth-rails_csrf_protection", "~> 2.0"
 
 # Rate limiting
 gem "rack-attack"
