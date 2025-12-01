@@ -133,7 +133,7 @@ export default function CampaignDashboard({
   const displayedTitle = useTypewriter(campaignTitle)
 
   const { loading: outputsLoading, outputs, loadAgentOutputs } = useAgentOutputs()
-  const { configs, loading: configsLoading, updateConfig, createConfig, loadConfigs } = useAgentConfigs(
+  const { configs, loading: configsLoading, error: configsError, updateConfig, createConfig, loadConfigs } = useAgentConfigs(
     campaignObj?.id || null
   )
 
@@ -368,18 +368,24 @@ export default function CampaignDashboard({
         if (success) {
           await loadConfigs()
         } else {
-          console.error('Failed to update agent config')
+          const errorMsg = configsError || 'Failed to update agent config'
+          console.error('Failed to update agent config:', errorMsg)
+          alert(`Failed to save settings: ${errorMsg}`)
         }
       } else {
         const newConfig = await createConfig(config)
         if (newConfig) {
           await loadConfigs()
         } else {
-          console.error('Failed to create agent config')
+          const errorMsg = configsError || 'Failed to create agent config'
+          console.error('Failed to create agent config:', errorMsg)
+          alert(`Failed to save settings: ${errorMsg}`)
         }
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       console.error('Error saving agent config:', error)
+      alert(`Failed to save settings: ${errorMessage}`)
     }
   }
 

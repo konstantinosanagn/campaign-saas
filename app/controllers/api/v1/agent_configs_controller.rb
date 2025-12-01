@@ -111,23 +111,24 @@ module Api
           return
         end
 
+        # Get permitted params
+        permitted_params = agent_config_params
+        
         # Only allow updating enabled status and settings
-        # Agent name cannot be changed
-        update_params = agent_config_params.except(:agent_name, :agentName)
-
-        # Ensure enabled is explicitly set if provided (Rails permit might exclude false values)
-        if agent_config_params.key?(:enabled) || agent_config_params.key?("enabled")
-          enabled_value = agent_config_params[:enabled] || agent_config_params["enabled"]
-          update_params[:enabled] = enabled_value unless enabled_value.nil?
-        end
+        # Agent name cannot be changed - build update hash excluding agent_name
+        update_hash = {}
+        update_hash[:enabled] = permitted_params[:enabled] if permitted_params.key?(:enabled)
+        update_hash[:settings] = permitted_params[:settings] if permitted_params.key?(:settings)
 
         # Log the update params for debugging
-        Rails.logger.info("[AgentConfigsController] Updating config #{config.id} (#{config.agent_name}) with params: #{update_params.inspect}")
+        Rails.logger.info("[AgentConfigsController] Updating config #{config.id} (#{config.agent_name}) with params: #{update_hash.inspect}")
+        Rails.logger.info("[AgentConfigsController] Settings in update_hash: #{update_hash[:settings].inspect}")
+        Rails.logger.info("[AgentConfigsController] Settings class: #{update_hash[:settings].class}")
 
-        if config.update(update_params)
+        if config.update(update_hash)
           # Reload to ensure we have the latest values
           config.reload
-          Rails.logger.info("[AgentConfigsController] Config updated successfully: enabled=#{config.enabled}")
+          Rails.logger.info("[AgentConfigsController] Config updated successfully: enabled=#{config.enabled}, settings=#{config.settings.inspect}")
           render json: AgentConfigSerializer.serialize(config), status: :ok
         else
           Rails.logger.error("[AgentConfigsController] Config update failed: #{config.errors.full_messages.join(', ')}")
@@ -177,13 +178,16 @@ module Api
         permitted = config_params.permit(:agent_name, :agentName, "agent_name", "agentName", :enabled)
 
         settings_data = config_params[:settings] || config_params["settings"]
-        if settings_data.present?
-          permitted[:settings] = permit_settings(settings_data)
+        permitted_settings = if settings_data.present?
+          permit_settings(settings_data)
         else
-          permitted[:settings] = {}
+          {}
         end
 
-        permitted
+        # Convert to hash and merge settings
+        result = permitted.to_h
+        result[:settings] = permitted_settings
+        result
       end
 
       def permit_settings(settings_params)
@@ -195,7 +199,17 @@ module Api
         # DESIGN: format, allow_bold/allowBold, allow_italic/allowItalic, allow_bullets/allowBullets,
         #         cta_style/ctaStyle, font_family/fontFamily
         # Note: DESIGN agent settings accept both camelCase (from frontend) and snake_case (for consistency)
-        settings_params.permit(
+        
+        # Convert to ActionController::Parameters if it's a plain hash
+        params_obj = if settings_params.is_a?(ActionController::Parameters)
+          settings_params
+        elsif settings_params.is_a?(Hash)
+          ActionController::Parameters.new(settings_params)
+        else
+          ActionController::Parameters.new({})
+        end
+        
+        params_obj.permit(
           # WRITER agent settings
           :tone, :sender_persona, :email_length, :personalization_level,
           :primary_cta_type, :cta_softness, :num_variants_per_lead,
@@ -214,7 +228,7 @@ module Api
           # Nested structures
           checks: {},
           extracted_fields: []
-        )
+        ).to_h
       end
     end
   end
