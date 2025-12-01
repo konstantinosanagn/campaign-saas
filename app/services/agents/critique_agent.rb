@@ -11,7 +11,6 @@ module Agents
   # of json output
   class CritiqueAgent
     include HTTParty
-    include SettingsHelper
     base_uri "https://generativelanguage.googleapis.com/v1beta"
 
     # Initialize the CritiqueAgent with API key and model
@@ -28,18 +27,18 @@ module Agents
     # @param config [Hash, nil] Agent configuration with settings
     def critique(article, config: nil)
       # Get settings from config or use defaults
-      settings = get_setting(config, :settings) || get_setting(config, "settings") || {}
-      checks = get_setting(settings, :checks) || get_setting(settings, "checks") || {}
-      check_personalization = get_setting(checks, :check_personalization) != false # Default true
-      check_brand_voice = get_setting(checks, :check_brand_voice) != false # Default true
-      check_spamminess = get_setting(checks, :check_spamminess) != false # Default true
-      strictness = get_setting_with_default(settings, :strictness, "moderate")
-      min_score = (get_setting_with_default(settings, :min_score_for_send, 6)).to_i
-      rewrite_policy = get_setting_with_default(settings, :rewrite_policy, "rewrite_if_bad")
-      variant_selection = get_setting_with_default(settings, :variant_selection, "highest_overall_score")
+      settings = config&.dig("settings") || config&.dig(:settings) || {}
+      checks = settings["checks"] || settings[:checks] || {}
+      check_personalization = checks["check_personalization"] != false # Default true
+      check_brand_voice = checks["check_brand_voice"] != false # Default true
+      check_spamminess = checks["check_spamminess"] != false # Default true
+      strictness = settings["strictness"] || settings[:strictness] || "moderate"
+      min_score = (settings["min_score_for_send"] || settings[:min_score_for_send] || 6).to_i
+      rewrite_policy = settings["rewrite_policy"] || settings[:rewrite_policy] || "rewrite_if_bad"
+      variant_selection = settings["variant_selection"] || settings[:variant_selection] || "highest_overall_score"
 
       # Handle variants if present
-      variants = get_setting(article, :variants) || get_setting(article, "variants") || []
+      variants = article["variants"] || article[:variants] || []
       email_content = article["email_content"].to_s
 
       # If we have variants, critique all of them and select the best one
@@ -147,7 +146,7 @@ module Agents
       parsed = response.parsed_response
       text = parsed.dig("candidates", 0, "content", "parts", 0, "text").to_s.strip
 
-      number_of_revisions = get_setting(article, :number_of_revisions) || get_setting(article, "number_of_revisions")
+      number_of_revisions = article["number_of_revisions"] || article[:number_of_revisions]
       revision_count = number_of_revisions.to_i
 
       # Extract score from critique if present (look for patterns like "Score: 7/10" or "7/10")
@@ -162,11 +161,20 @@ module Agents
       # Check if email meets minimum score requirement
       meets_min_score = score >= min_score
 
-      if text.empty?
-        { "critique" => nil, "score" => score, "meets_min_score" => meets_min_score }
-      else
-        { "critique" => text, "score" => score, "meets_min_score" => meets_min_score }
-      end
+      rewrite_applied = should_rewrite?(rewrite_policy, meets_min_score, text)
+      log("Rewrite triggered (policy=#{rewrite_policy}, meets_min=#{meets_min_score})") if rewrite_applied
+      rewritten_email = rewrite_applied ? rewrite_email(email_content, text, settings) : nil
+
+      base_response =
+        if text.empty?
+          { "critique" => nil, "score" => score, "meets_min_score" => meets_min_score }
+        else
+          { "critique" => text, "score" => score, "meets_min_score" => meets_min_score }
+        end
+
+      base_response["rewritten_email"] = rewritten_email if rewritten_email.present?
+      base_response["rewrite_applied"] = rewrite_applied if rewrite_applied
+      base_response
     end
 
     def run(article, config: nil)
@@ -190,7 +198,9 @@ module Agents
           variant: variant,
           critique: critique_result["critique"],
           score: critique_result["score"] || 5,
-          meets_min_score: critique_result["meets_min_score"] || false
+          meets_min_score: critique_result["meets_min_score"] || false,
+          rewritten_email: critique_result["rewritten_email"],
+          rewrite_applied: critique_result["rewrite_applied"]
         }
       end
 
@@ -204,13 +214,20 @@ module Agents
         critiques.max_by { |c| c[:score] }
       end
 
+      log("Selected critique variant index=#{selected[:variant_index]} score=#{selected[:score]}")
+
+      rewrite_needed = should_rewrite?(rewrite_policy, selected[:meets_min_score], selected[:critique].to_s)
+      rewritten_email = selected[:rewritten_email] || (rewrite_needed ? rewrite_email(selected[:variant], selected[:critique], config&.dig("settings") || config&.dig(:settings) || {}) : nil)
+
       {
         "critique" => selected[:critique],
         "score" => selected[:score],
         "meets_min_score" => selected[:meets_min_score],
         "selected_variant_index" => selected[:variant_index],
         "selected_variant" => selected[:variant],
-        "all_variants_critiques" => critiques
+        "all_variants_critiques" => critiques,
+        "rewritten_email" => rewritten_email,
+        "rewrite_applied" => rewrite_needed && rewritten_email.present?
       }
     end
 
@@ -228,6 +245,66 @@ module Agents
       # Default: if critique exists, assume it needs improvement (lower score)
       # If no critique, assume it's good (higher score)
       critique_text.strip.empty? ? 8 : 5
+    end
+    def should_rewrite?(policy, meets_min_score, critique_text)
+      return false if critique_text.blank?
+
+      case policy
+      when "never", "none"
+        false
+      when "always"
+        true
+      else # "rewrite_if_bad"
+        !meets_min_score
+      end
+    end
+
+    def rewrite_email(email_content, critique_text, settings)
+      prompt = <<~PROMPT
+        You are an elite B2B copywriter. Rewrite the following email to address every point in the critique summary.
+
+        Critique Feedback:
+        #{critique_text}
+
+        Original Email:
+        #{email_content}
+
+        Requirements:
+        - Keep it concise, professional, and human sounding.
+        - Honor any tone/persona guidance if provided (#{settings["tone"] || settings[:tone] || "professional"} tone, #{settings["sender_persona"] || settings[:sender_persona] || "founder"} persona).
+        - Preserve factual claims but improve clarity, personalization, and CTA strength.
+        - Return only the revised email text (subject + body). Do not include commentary.
+      PROMPT
+
+      response = self.class.post(
+        "/models/#{@model}:generateContent?key=#{@api_key}",
+        headers: @headers,
+        body: {
+          contents: [
+            { role: "user", parts: [ { text: prompt } ] }
+          ],
+          generationConfig: {
+            temperature: 0.6,
+            maxOutputTokens: 2048
+          }
+        }.to_json
+      )
+
+      rewritten = response.parsed_response.dig("candidates", 0, "content", "parts", 0, "text").to_s.strip
+      log("Rewrite completed (length=#{rewritten.length})")
+      rewritten
+    rescue StandardError => e
+      log("Rewrite error: #{e.class}: #{e.message}")
+      nil
+    end
+
+    def log(message)
+      formatted = "[CritiqueAgent] #{message}"
+      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+        Rails.logger.info(formatted)
+      else
+        puts(formatted)
+      end
     end
   end
 end
