@@ -1,7 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Api::V1::LeadsController, type: :controller do
-  let(:user) { instance_double("User", id: 1) }
+  let(:user) { create(:user) }
+  let(:campaign) { create(:campaign, user: user) }
 
   before do
     allow_any_instance_of(Api::V1::BaseController).to receive(:skip_auth?).and_return(true)
@@ -127,28 +128,23 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
   end
 
   describe "POST #run_agents" do
-    let(:lead) { double(id: 5, campaign: double(id: 7)) }
+    let(:lead) { create(:lead, campaign: campaign, stage: "queued") }
 
     before do
-      allow(ApiKeyService).to receive(:keys_available?).with(user).and_return(true)
+      user.update!(llm_api_key: "test-key", tavily_api_key: "test-key")
     end
 
     it "returns not found when lead missing" do
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(nil)
-
-      post :run_agents, params: { id: 1 }
+      post :run_agents, params: { id: 99999 }, format: :json
 
       expect(response).to have_http_status(:not_found)
     end
 
     it "queues job when async and perform_later returns job" do
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
-      allow(AgentExecutionJob).to receive(:perform_later).and_return(double(job_id: "abc"))
-      allow(LeadSerializer).to receive(:serialize).with(lead).and_return({
-        "id" => 5, "name" => "Test Lead", "campaignId" => 7
-      })
+      job_double = double(job_id: "abc")
+      allow(AgentExecutionJob).to receive(:perform_later).and_return(job_double)
 
-      post :run_agents, params: { id: 1, async: "true" }
+      post :run_agents, params: { id: lead.id, async: "true" }, format: :json
 
       expect(response).to have_http_status(:accepted)
       body = JSON.parse(response.body)
@@ -157,10 +153,9 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     it "handles enqueue errors and returns 500" do
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
       allow(AgentExecutionJob).to receive(:perform_later).and_raise("nope")
 
-      post :run_agents, params: { id: 1, async: "true" }
+      post :run_agents, params: { id: lead.id, async: "true" }, format: :json
 
       expect(response).to have_http_status(:internal_server_error)
       body = JSON.parse(response.body)
@@ -168,29 +163,22 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     it "runs sync and returns unprocessable when result failed" do
-      result = { status: "failed", error: "error" }
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
+      result = { status: "failed", error: "error", lead: lead }
       allow(LeadAgentService).to receive(:run_agents_for_lead).and_return(result)
-      allow(LeadSerializer).to receive(:serialize).with(lead).and_return({
-        "id" => 5, "name" => "Test Lead", "campaignId" => 7
-      })
 
-      post :run_agents, params: { id: 1, async: "false" }
+      post :run_agents, params: { id: lead.id, async: "false" }, format: :json
 
       expect(response).to have_http_status(:unprocessable_entity)
       body = JSON.parse(response.body)
+      expect(body["status"]).to eq("failed")
       expect(body["error"]).to eq("error")
     end
 
     it "runs sync and returns ok on success" do
-      result = { status: "completed", outputs: {}, completed_agents: [ "SEARCH", "WRITER" ], failed_agents: [] }
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
+      result = { status: "completed", outputs: {}, completed_agents: [ "SEARCH", "WRITER" ], failed_agents: [], lead: lead }
       allow(LeadAgentService).to receive(:run_agents_for_lead).and_return(result)
-      allow(LeadSerializer).to receive(:serialize).with(lead).and_return({
-        "id" => 5, "name" => "Test Lead", "campaignId" => 7
-      })
 
-      post :run_agents, params: { id: 1, async: "false" }
+      post :run_agents, params: { id: lead.id, async: "false" }, format: :json
 
       expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body)
@@ -198,10 +186,9 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     it "handles exceptions during sync and returns 500" do
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
       allow(LeadAgentService).to receive(:run_agents_for_lead).and_raise("error")
 
-      post :run_agents, params: { id: 1, async: "false" }
+      post :run_agents, params: { id: lead.id, async: "false" }, format: :json
 
       expect(response).to have_http_status(:internal_server_error)
       body = JSON.parse(response.body)
@@ -209,14 +196,11 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     it "defaults to async in production when async param not provided" do
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
       allow(Rails.env).to receive(:production?).and_return(true)
-      allow(AgentExecutionJob).to receive(:perform_later).and_return(double(job_id: "job"))
-      allow(LeadSerializer).to receive(:serialize).with(lead).and_return({
-        "id" => 5, "name" => "Test Lead", "campaignId" => 7
-      })
+      job_double = double(job_id: "job")
+      allow(AgentExecutionJob).to receive(:perform_later).and_return(job_double)
 
-      post :run_agents, params: { id: 1 }
+      post :run_agents, params: { id: lead.id }, format: :json
 
       expect(response).to have_http_status(:accepted)
       body = JSON.parse(response.body)
@@ -225,25 +209,28 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
   end
 
   describe "GET #agent_outputs" do
-    it "returns 404 when lead missing" do
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(nil)
+    let(:lead) { create(:lead, campaign: campaign) }
 
-      get :agent_outputs, params: { id: 1 }
+    it "returns 404 when lead missing" do
+      get :agent_outputs, params: { id: 99999 }, format: :json
 
       expect(response).to have_http_status(:not_found)
     end
 
     it "returns outputs mapping when present" do
-      output = double(agent_name: "A", status: "ok", output_data: { a: 1 }, error_message: nil, created_at: Time.now, updated_at: Time.now)
-      lead = double(id: 2, agent_outputs: [ output ])
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
+      output = create(:agent_output,
+        lead: lead,
+        agent_name: "SEARCH",
+        status: "completed",
+        output_data: { "sources" => [] }
+      )
 
-      get :agent_outputs, params: { id: 1 }
+      get :agent_outputs, params: { id: lead.id }, format: :json
 
       expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body)
-      expect(body["leadId"]).to eq(2)
-      expect(body["outputs"].first["agentName"]).to eq("A")
+      expect(body["leadId"]).to eq(lead.id)
+      expect(body["outputs"].first["agentName"]).to eq("SEARCH")
     end
   end
 
@@ -298,20 +285,16 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
   end
 
   describe "PATCH #update_agent_output" do
-    let(:lead) { double(id: 4, agent_outputs: double(find_by: nil)) }
+    let(:lead) { create(:lead, campaign: campaign) }
 
     it "returns 404 when lead missing" do
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(nil)
-
-      patch :update_agent_output, params: { id: 1 }
+      patch :update_agent_output, params: { id: 99999 }, format: :json
 
       expect(response).to have_http_status(:not_found)
     end
 
     it "requires agentName param" do
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
-
-      patch :update_agent_output, params: { id: 1 }
+      patch :update_agent_output, params: { id: lead.id }, format: :json
 
       expect(response).to have_http_status(:unprocessable_entity)
       body = JSON.parse(response.body)
@@ -319,9 +302,7 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     it "rejects unsupported agent names" do
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
-
-      patch :update_agent_output, params: { id: 1, agentName: "UNKNOWN" }
+      patch :update_agent_output, params: { id: lead.id, agentName: "UNKNOWN" }, format: :json
 
       expect(response).to have_http_status(:unprocessable_entity)
       body = JSON.parse(response.body)
@@ -329,57 +310,39 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     it "returns not found when agent output missing" do
-      ao_double = double
-      lead_with_empty = double(agent_outputs: double(find_by: nil))
-      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_empty)
-
-      patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_WRITER }
+      patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_WRITER }, format: :json
 
       expect(response).to have_http_status(:not_found)
     end
 
     context "when updating WRITER" do
+      let!(:writer_output) do
+        create(:agent_output,
+          lead: lead,
+          agent_name: AgentConstants::AGENT_WRITER,
+          status: "completed",
+          output_data: { "email" => "old email" }
+        )
+      end
+
       it "requires content and updates successfully" do
-        ao = double(agent_name: AgentConstants::AGENT_WRITER, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
-        outputs = double(find_by: ao)
-        lead_with_ao = double(agent_outputs: outputs)
-        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
-        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
-          "agentName" => "WRITER", "status" => "completed", "outputData" => { "email" => "hi" }
-        })
-
-        expect(ao).to receive(:output_data).and_return({})
-        expect(ao).to receive(:update!).with(output_data: hash_including(:email)).and_return(true)
-
-        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_WRITER, content: "hi" }
+        patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_WRITER, content: "hi" }, format: :json
 
         expect(response).to have_http_status(:ok)
+        writer_output.reload
+        expect(writer_output.output_data["email"]).to eq("hi")
       end
 
       it "accepts email param as alternative to content" do
-        ao = double(agent_name: AgentConstants::AGENT_WRITER, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
-        outputs = double(find_by: ao)
-        lead_with_ao = double(agent_outputs: outputs)
-        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
-        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
-          "agentName" => "WRITER", "status" => "completed", "outputData" => { "email" => "email-content" }
-        })
-
-        expect(ao).to receive(:output_data).and_return({})
-        expect(ao).to receive(:update!).with(output_data: hash_including(email: "email-content")).and_return(true)
-
-        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_WRITER, email: "email-content" }
+        patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_WRITER, email: "email-content" }, format: :json
 
         expect(response).to have_http_status(:ok)
+        writer_output.reload
+        expect(writer_output.output_data["email"]).to eq("email-content")
       end
 
       it "returns unprocessable when content missing for WRITER" do
-        ao = double(agent_name: AgentConstants::AGENT_WRITER, status: "ok", output_data: {}, updated_at: Time.now)
-        outputs = double(find_by: ao)
-        lead_with_ao = double(agent_outputs: outputs)
-        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
-
-        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_WRITER }
+        patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_WRITER }, format: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
         body = JSON.parse(response.body)
@@ -388,64 +351,44 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     context "when updating DESIGN" do
+      let!(:design_output) do
+        create(:agent_output,
+          lead: lead,
+          agent_name: AgentConstants::AGENT_DESIGN,
+          status: "completed",
+          output_data: { "formatted_email" => "old formatted email" }
+        )
+      end
+
       it "requires content and updates with formatted_email" do
-        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
-        outputs = double(find_by: ao)
-        lead_with_ao = double(agent_outputs: outputs)
-        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
-        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
-          "agentName" => "DESIGN", "status" => "completed", "outputData" => { "formatted_email" => "hi" }
-        })
-
-        expect(ao).to receive(:output_data).and_return({})
-        expect(ao).to receive(:update!).with(output_data: hash_including(:formatted_email)).and_return(true)
-
-        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_DESIGN, content: "hi" }
+        patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_DESIGN, content: "hi" }, format: :json
 
         expect(response).to have_http_status(:ok)
+        design_output.reload
+        expect(design_output.output_data["formatted_email"]).to eq("hi")
+        expect(design_output.output_data["email"]).to eq("hi")
       end
 
       it "accepts email param as alternative to content" do
-        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
-        outputs = double(find_by: ao)
-        lead_with_ao = double(agent_outputs: outputs)
-        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
-        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
-          "agentName" => "DESIGN", "status" => "completed", "outputData" => { "email" => "email-content", "formatted_email" => "email-content" }
-        })
-
-        expect(ao).to receive(:output_data).and_return({})
-        expect(ao).to receive(:update!).with(output_data: hash_including(email: "email-content", formatted_email: "email-content")).and_return(true)
-
-        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_DESIGN, email: "email-content" }
+        patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_DESIGN, email: "email-content" }, format: :json
 
         expect(response).to have_http_status(:ok)
+        design_output.reload
+        expect(design_output.output_data["email"]).to eq("email-content")
+        expect(design_output.output_data["formatted_email"]).to eq("email-content")
       end
 
       it "accepts formatted_email param as alternative to content" do
-        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
-        outputs = double(find_by: ao)
-        lead_with_ao = double(agent_outputs: outputs)
-        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
-        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
-          "agentName" => "DESIGN", "status" => "completed", "outputData" => { "email" => "formatted-content", "formatted_email" => "formatted-content" }
-        })
-
-        expect(ao).to receive(:output_data).and_return({})
-        expect(ao).to receive(:update!).with(output_data: hash_including(email: "formatted-content", formatted_email: "formatted-content")).and_return(true)
-
-        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_DESIGN, formatted_email: "formatted-content" }
+        patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_DESIGN, formatted_email: "formatted-content" }, format: :json
 
         expect(response).to have_http_status(:ok)
+        design_output.reload
+        expect(design_output.output_data["formatted_email"]).to eq("formatted-content")
+        expect(design_output.output_data["email"]).to eq("formatted-content")
       end
 
       it "returns unprocessable when content missing for DESIGN" do
-        ao = double(agent_name: AgentConstants::AGENT_DESIGN, status: "ok", output_data: {}, updated_at: Time.now)
-        outputs = double(find_by: ao)
-        lead_with_ao = double(agent_outputs: outputs)
-        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
-
-        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_DESIGN }
+        patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_DESIGN }, format: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
         body = JSON.parse(response.body)
@@ -454,43 +397,33 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     context "when updating SEARCH" do
-      it "requires updatedData and updates successfully" do
-        ao = double(agent_name: AgentConstants::AGENT_SEARCH, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
-        outputs = double(find_by: ao)
-        lead_with_ao = double(agent_outputs: outputs)
-        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
-        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
-          "agentName" => "SEARCH", "status" => "completed", "outputData" => { "sources" => [] }
-        })
-        expect(ao).to receive(:update!).with(output_data: kind_of(ActionController::Parameters)).and_return(true)
+      let!(:search_output) do
+        create(:agent_output,
+          lead: lead,
+          agent_name: AgentConstants::AGENT_SEARCH,
+          status: "completed",
+          output_data: { "sources" => [] }
+        )
+      end
 
-        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_SEARCH, updatedData: { foo: "bar" } }
+      it "requires updatedData and updates successfully" do
+        patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_SEARCH, updatedData: { foo: "bar" } }, format: :json
 
         expect(response).to have_http_status(:ok)
+        search_output.reload
+        expect(search_output.output_data["foo"]).to eq("bar")
       end
 
       it "accepts updated_data (snake_case) as alternative to updatedData" do
-        ao = double(agent_name: AgentConstants::AGENT_SEARCH, status: "completed", output_data: {}, error_message: nil, created_at: Time.now, updated_at: Time.now)
-        outputs = double(find_by: ao)
-        lead_with_ao = double(agent_outputs: outputs)
-        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
-        allow(AgentOutputSerializer).to receive(:serialize).with(ao).and_return({
-          "agentName" => "SEARCH", "status" => "completed", "outputData" => { "baz" => "qux" }
-        })
-        expect(ao).to receive(:update!).with(output_data: kind_of(ActionController::Parameters)).and_return(true)
-
-        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_SEARCH, updated_data: { baz: "qux" } }
+        patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_SEARCH, updated_data: { baz: "qux" } }, format: :json
 
         expect(response).to have_http_status(:ok)
+        search_output.reload
+        expect(search_output.output_data["baz"]).to eq("qux")
       end
 
       it "returns unprocessable when updatedData missing for SEARCH" do
-        ao = double(agent_name: AgentConstants::AGENT_SEARCH, status: "ok", output_data: {}, updated_at: Time.now)
-        outputs = double(find_by: ao)
-        lead_with_ao = double(agent_outputs: outputs)
-        allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead_with_ao)
-
-        patch :update_agent_output, params: { id: 1, agentName: AgentConstants::AGENT_SEARCH }
+        patch :update_agent_output, params: { id: lead.id, agentName: AgentConstants::AGENT_SEARCH }, format: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
         body = JSON.parse(response.body)

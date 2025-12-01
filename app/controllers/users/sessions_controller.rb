@@ -131,7 +131,10 @@ class Users::SessionsController < Devise::SessionsController
 
   # The path used after sign in (delegates to ApplicationController)
   def after_sign_in_path_for(resource)
-    # Cleanup is handled in after_action callback
+    # If remember_me not checked, clear remember_created_at
+    if params.dig(:user, :remember_me) != "1" && resource.respond_to?(:remember_created_at=)
+      resource.update_column(:remember_created_at, nil)
+    end
     super
   end
 

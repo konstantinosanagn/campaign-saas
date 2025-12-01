@@ -35,13 +35,13 @@ RSpec.describe EmailSendingJob, type: :job do
         allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
         service = instance_double(EmailSenderService)
         allow(EmailSenderService).to receive(:new).with(lead).and_return(service)
-        allow(service).to receive(:send_email!)
+        allow(service).to receive(:send_email_via_provider)
       end
 
       it 'sends email via EmailSenderService' do
         service = instance_double(EmailSenderService)
         expect(EmailSenderService).to receive(:new).with(lead).and_return(service)
-        expect(service).to receive(:send_email!)
+        expect(service).to receive(:send_email_via_provider)
 
         EmailSendingJob.perform_now(lead.id)
       end
@@ -50,7 +50,7 @@ RSpec.describe EmailSendingJob, type: :job do
         lead.update(email_status: 'not_scheduled')
         service = instance_double(EmailSenderService)
         allow(EmailSenderService).to receive(:new).with(lead).and_return(service)
-        expect(service).to receive(:send_email!)
+        expect(service).to receive(:send_email_via_provider)
 
         EmailSendingJob.perform_now(lead.id)
       end
@@ -67,18 +67,27 @@ RSpec.describe EmailSendingJob, type: :job do
     context 'when email is already sent' do
       before do
         lead.update(email_status: 'sent')
+        allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
       end
 
-      it 'skips execution' do
+      it 'allows resending by resetting status and sending again' do
         service = instance_double(EmailSenderService)
-        expect(EmailSenderService).not_to receive(:new)
+        expect(EmailSenderService).to receive(:new).with(lead).and_return(service)
+        expect(service).to receive(:send_email_via_provider)
 
         EmailSendingJob.perform_now(lead.id)
       end
 
-      it 'logs info message' do
-        allow(Rails.logger).to receive(:info)
-        expect(Rails.logger).to receive(:info).with(/already has status 'sent'/)
+      it 'logs info message about resetting status' do
+        # Allow send_email_via_provider to call through so send_email! runs and logs
+        allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
+        # Stub the actual email delivery methods to prevent real sending
+        allow_any_instance_of(EmailSenderService).to receive(:default_provider).and_return(:smtp)
+        allow_any_instance_of(EmailSenderService).to receive(:send_email_via_smtp).and_return(true)
+        allow_any_instance_of(EmailSenderService).to receive(:send_email_via_gmail_api).and_return(true)
+        allow_any_instance_of(EmailSenderService).to receive(:send_email_via_default_sender).and_return(true)
+        allow(Rails.logger).to receive(:info).and_call_original
+        expect(Rails.logger).to receive(:info).with(/already sent, resetting status to allow resend/)
 
         EmailSendingJob.perform_now(lead.id)
       end
@@ -105,7 +114,7 @@ RSpec.describe EmailSendingJob, type: :job do
       before do
         allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
         allow(EmailSenderService).to receive(:new).with(lead).and_return(service_double)
-        allow(service_double).to receive(:send_email!).and_raise(temporary_error)
+        allow(service_double).to receive(:send_email_via_provider).and_raise(temporary_error)
       end
 
       it 'updates lead status to failed' do
@@ -147,7 +156,7 @@ RSpec.describe EmailSendingJob, type: :job do
       before do
         allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
         allow(EmailSenderService).to receive(:new).with(lead).and_return(service_double)
-        allow(service_double).to receive(:send_email!).and_raise(permanent_error)
+        allow(service_double).to receive(:send_email_via_provider).and_raise(permanent_error)
       end
 
       it 'updates lead status to failed' do

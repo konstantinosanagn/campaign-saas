@@ -141,9 +141,9 @@ module Agents
           }
         end
       rescue => e
-        @logger.error("Tavily batch search failed: #{e.message}")
-        @logger.error("Response body: #{response.body.inspect}") if response.respond_to?(:body)
-        @logger.error("Backtrace: #{e.backtrace.first(5).join("\n")}")
+        backtrace_info = e.backtrace.first(5).join("\n")
+        response_body = response.respond_to?(:body) ? response.body.inspect : "N/A"
+        @logger.error("Tavily batch search failed: #{e.class}: #{e.message}\nResponse body: #{response_body}\n#{backtrace_info}")
         []
       end
     end

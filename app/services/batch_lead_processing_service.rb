@@ -17,8 +17,9 @@
 #
 class BatchLeadProcessingService
   # Maximum number of leads to process in parallel (to prevent system overload)
-  DEFAULT_BATCH_SIZE = 10
   MAX_CONCURRENT_JOBS = 25
+  DEFAULT_PROD_BATCH_SIZE = 25
+  DEFAULT_DEV_BATCH_SIZE = 10
 
   class << self
     ##
@@ -29,16 +30,18 @@ class BatchLeadProcessingService
     # @param user [User] The user who owns the campaign
     # @param batch_size [Integer] Number of leads to process per batch (default: 10)
     # @return [Hash] Result with completed, failed, and summary statistics
-    def process_leads(lead_ids, campaign, user, batch_size: DEFAULT_BATCH_SIZE)
+    def process_leads(lead_ids, campaign, user, batch_size: DEFAULT_PROD_BATCH_SIZE)
       # Validate inputs
       unless campaign && campaign.user_id == user.id
         return {
           error: "Campaign not found or unauthorized",
           completed: [],
           failed: [],
+          queued: [],
           total: 0,
           completed_count: 0,
-          failed_count: 0
+          failed_count: 0,
+          queued_count: 0
         }
       end
 
@@ -51,9 +54,11 @@ class BatchLeadProcessingService
           error: "No valid leads found",
           completed: [],
           failed: [],
+          queued: [],
           total: 0,
           completed_count: 0,
-          failed_count: 0
+          failed_count: 0,
+          queued_count: 0
         }
       end
 
@@ -102,7 +107,7 @@ class BatchLeadProcessingService
     # @param user [User] The user who owns the campaign
     # @param batch_size [Integer] Number of leads to process per batch
     # @return [Hash] Result with completed and failed leads
-    def process_leads_sync(lead_ids, campaign, user, batch_size: DEFAULT_BATCH_SIZE)
+    def process_leads_sync(lead_ids, campaign, user, batch_size: DEFAULT_PROD_BATCH_SIZE)
       # Validate inputs
       unless campaign && campaign.user_id == user.id
         return {
@@ -168,16 +173,27 @@ class BatchLeadProcessingService
     #
     # @return [Integer] Recommended batch size
     def recommended_batch_size
-      # Adjust based on environment and available resources
-      case Rails.env
-      when "production"
-        # In production, be more conservative to avoid overwhelming the system
-        [ ENV.fetch("BATCH_SIZE", DEFAULT_BATCH_SIZE).to_i, MAX_CONCURRENT_JOBS ].min
-      when "development"
-        # In development, use smaller batches for faster feedback
-        5
+      env_size = ENV["BATCH_SIZE"]&.to_i
+
+      size =
+        if env_size && env_size.positive?
+          env_size
+        else
+          default_size_for_env
+        end
+
+      [size, MAX_CONCURRENT_JOBS].min
+    end
+
+    ##
+    # Gets the default batch size for the current environment
+    #
+    # @return [Integer] Default batch size for current environment
+    def default_size_for_env
+      if Rails.env.production?
+        DEFAULT_PROD_BATCH_SIZE
       else
-        DEFAULT_BATCH_SIZE
+        DEFAULT_DEV_BATCH_SIZE
       end
     end
   end

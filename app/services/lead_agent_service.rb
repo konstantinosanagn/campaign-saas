@@ -92,16 +92,44 @@ class LeadAgentService
       completed_agents = []
       failed_agents = []
 
-      # Execute the specified agent
-      begin
+      # Safety guard against infinite loops
+      max_iterations = 10
+      iteration = 0
 
-        # Get agent config for this campaign (reloads association to avoid stale cache)
+      # Loop to keep walking pipeline when agents are disabled (only when agent_name is nil)
+      # But with a safety limit to prevent infinite loops
+      loop do
+        iteration += 1
+        if iteration > max_iterations
+          Rails.logger.error("[LeadAgentService] Runaway loop detected for lead #{lead.id} at stage #{lead.stage} after #{iteration} iterations")
+          raise "LeadAgentService runaway loop detected for lead #{lead.id} at stage #{lead.stage}"
+        end
+
+        # Reload lead to get latest stage
+        lead.reload
+        lead.association(:agent_outputs).reset
+
+        # Determine next agent (only if agent_name was nil, otherwise use the specified one)
+        if agent_name.present?
+          next_agent = agent_name
+          agent_name = nil  # Clear so we don't loop again
+        else
+          next_agent = LeadAgentService::StageManager.determine_next_agent(lead.stage)
+          unless next_agent
+            # No more agents to run - ensure we're at final stage
+            if lead.stage != AgentConstants::STAGE_DESIGNED
+              lead.update!(stage: AgentConstants::STAGE_DESIGNED)
+            end
+            break
+          end
+        end
+
+        # Get agent config for this campaign
         agent_config = LeadAgentService::ConfigManager.get_agent_config(campaign, next_agent)
 
         # Debug logging for agent config status
-        Rails.logger.info("[LeadAgentService] Checking agent #{next_agent} for campaign #{campaign.id}")
-        Rails.logger.info("[LeadAgentService] Agent config ID: #{agent_config&.id}, campaign_id: #{agent_config&.campaign_id}, enabled value: #{agent_config&.enabled.inspect}, enabled class: #{agent_config&.enabled.class}")
-        Rails.logger.info("[LeadAgentService] agent_config.enabled? = #{agent_config&.enabled?}, agent_config.disabled? = #{agent_config&.disabled?}")
+        Rails.logger.info("[LeadAgentService] Checking agent #{next_agent} for campaign #{campaign.id} (iteration #{iteration})")
+        Rails.logger.info("[LeadAgentService] Agent config ID: #{agent_config&.id}, enabled value: #{agent_config&.enabled.inspect}")
 
         # Verify config belongs to the correct campaign (safety check)
         if agent_config && agent_config.campaign_id != campaign.id
@@ -109,40 +137,26 @@ class LeadAgentService
           raise "Agent config campaign mismatch"
         end
 
-        # Skip if agent is disabled
-        # Use explicit boolean check to be absolutely sure
+        # Skip if agent is disabled - advance stage and continue loop
         is_disabled = agent_config && (agent_config.enabled == false || agent_config.disabled?)
         if is_disabled
-          Rails.logger.info("[LeadAgentService] Agent #{next_agent} is disabled (enabled=#{agent_config.enabled.inspect}), skipping")
-
-          # Special handling for DESIGN agent: skip "designed" stage entirely, go straight to "completed"
-          if next_agent == AgentConstants::AGENT_DESIGN
-            Rails.logger.info("[LeadAgentService] DESIGN agent is disabled, skipping 'designed' stage and advancing to 'completed'")
-            lead.update!(stage: AgentConstants::STAGE_COMPLETED)
-            lead.reload
-            return {
-              status: "completed",
-              outputs: {},
-              lead: lead,
-              completed_agents: [],
-              failed_agents: []
-            }
-          else
-            # For other agents, advance stage normally
-            Rails.logger.info("[LeadAgentService] Agent #{next_agent} is disabled, advancing stage")
-            LeadAgentService::StageManager.advance_stage(lead, next_agent)
-            lead.reload
-            return {
-              status: "completed",
-              outputs: {},
-              lead: lead,
-              completed_agents: [],
-              failed_agents: []
-            }
+          Rails.logger.info("[LeadAgentService] Agent #{next_agent} is disabled (enabled=#{agent_config.enabled.inspect}), skipping and advancing stage")
+          old_stage = lead.stage
+          LeadAgentService::StageManager.advance_stage(lead, next_agent)
+          lead.reload
+          
+          # Safety check: if stage didn't change, break to avoid infinite loop
+          if lead.stage == old_stage
+            Rails.logger.warn("[LeadAgentService] Stage did not advance from #{old_stage} after disabling agent #{next_agent}, breaking loop")
+            break
           end
+          
+          # Continue loop to check next agent
+          next
         end
 
-        Rails.logger.info("[LeadAgentService] Agent #{next_agent} is enabled (enabled=#{agent_config&.enabled.inspect}), proceeding with execution")
+        # Agent is enabled - execute it
+        Rails.logger.info("[LeadAgentService] Agent #{next_agent} is enabled, proceeding with execution")
 
         # Reload lead to ensure we have latest data
         lead.reload
@@ -256,6 +270,10 @@ class LeadAgentService
 
         lead.reload
 
+        # Break out of loop after executing one agent successfully
+        # The loop is only for skipping disabled agents, not for executing multiple agents
+        break
+
       rescue => e
         # Store error output with appropriate fields based on agent type
         error_output = LeadAgentService::OutputManager.create_error_output(e, next_agent, lead)
@@ -266,6 +284,7 @@ class LeadAgentService
 
         # DO NOT advance stage if agent failed
         # Lead stays at current stage for retry
+        break  # Exit loop on error
       end
 
       # Determine overall status

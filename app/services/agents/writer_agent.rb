@@ -115,7 +115,8 @@ module Agents
       variants = []
       @logger.info("WriterAgent - Generating #{num_variants} variant(s) with primary_cta_type: #{primary_cta_type}")
 
-      num_variants.times do |variant_index|
+      begin
+        num_variants.times do |variant_index|
         prompt = build_prompt(
           company_name, sources, recipient, company_name,
           product_info, sender_company, tone, sender_persona, email_length,
@@ -193,7 +194,24 @@ module Agents
           raise "Invalid Gemini response structure. Response: #{error_details}"
         end
 
-        variants << email
+          variants << email
+        end
+      rescue => e
+        # Log error details for debugging
+        error_message = "WriterAgent error: #{e.class}: #{e.message}"
+        @logger.error(error_message)
+        @logger.error("Backtrace: #{e.backtrace.first(5).join("\n")}") if e.backtrace
+
+        return {
+          company: company || search_results[:company],
+          email: "Failed to generate email",
+          subject: "",
+          variants: [],
+          recipient: recipient,
+          sources: search_results[:sources] || [],
+          product_info: product_info,
+          sender_company: sender_company
+        }
       end
 
       # Return primary email (first variant) and all variants
@@ -205,22 +223,6 @@ module Agents
         sources: sources,
         product_info: product_info,
         sender_company: sender_company
-      }
-    rescue => e
-      # Log error details for debugging
-      error_message = "WriterAgent error: #{e.class}: #{e.message}"
-      @logger.error(error_message)
-      @logger.error("Backtrace: #{e.backtrace.first(5).join("\n")}") if e.backtrace
-
-      {
-        company: company || search_results[:company],
-        email: "Error generating email: #{e.message}",
-        recipient: recipient,
-        sources: search_results[:sources] || [],
-        product_info: product_info,
-        sender_company: sender_company,
-        error: error_message,
-        variants: []
       }
     end
 

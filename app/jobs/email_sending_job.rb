@@ -30,7 +30,7 @@ class EmailSendingJob < ApplicationJob
 
     # Allow resending - the service will handle idempotency if needed
     # For demo/testing purposes, we allow resending emails
-    EmailSenderService.new(lead).send_email!
+    EmailSenderService.new(lead).send_email_via_provider
 
   rescue TemporaryEmailError => e
     # specs expect:

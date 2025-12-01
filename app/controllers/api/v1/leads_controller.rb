@@ -378,26 +378,37 @@ module Api
       #     results: [...]
       #   }
       def batch_run_agents
-        lead_ids = params[:leadIds] || params[:lead_ids] || []
         campaign_id = params[:campaignId] || params[:campaign_id]
+        lead_ids = params[:leadIds]
+
+        # Case 1: leadIds is missing entirely
+        if lead_ids.nil?
+          return render json: { errors: ['leadIds is required'] },
+                        status: :unprocessable_entity
+        end
+
+        # Case 2: leadIds present but empty array: []
+        if lead_ids.is_a?(Array) && lead_ids.empty?
+          return render json: { errors: ['leadIds must be a non-empty array'] },
+                        status: :unprocessable_entity
+        end
+
         batch_size = (params[:batchSize] || params[:batch_size] || BatchLeadProcessingService.recommended_batch_size).to_i
 
-        unless campaign_id
-          render json: { errors: [ "campaignId is required" ] }, status: :unprocessable_entity
-          return
+        if campaign_id.nil?
+          return render json: { errors: ['campaignId is required'] },
+                        status: :unprocessable_entity
         end
 
-        unless lead_ids.is_a?(Array) && lead_ids.any?
-          render json: { errors: [ "leadIds must be a non-empty array" ] }, status: :unprocessable_entity
-          return
-        end
-
-        # Verify campaign ownership
+        # Verify campaign ownership and get campaign
         campaign = current_user.campaigns.find_by(id: campaign_id)
         unless campaign
           render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :not_found
           return
         end
+
+        # Filter leads by campaign to prevent cross-campaign access
+        leads = campaign.leads.where(id: lead_ids)
 
         # Validate API keys before processing (to avoid queuing jobs that will fail)
         unless ApiKeyService.keys_available?(current_user)
@@ -405,7 +416,7 @@ module Api
           render json: {
             success: false,
             error: "Missing API keys: #{missing_keys.join(', ')}. Please add them in the API Keys section.",
-            total: lead_ids.length,
+            total: leads.count,
             queued: 0,
             failed: 0
           }, status: :unprocessable_entity
@@ -413,9 +424,10 @@ module Api
         end
 
         begin
-          # Process leads in batches
+          # Process leads in batches (use filtered lead IDs)
+          filtered_lead_ids = leads.pluck(:id)
           result = BatchLeadProcessingService.process_leads(
-            lead_ids,
+            filtered_lead_ids,
             campaign,
             current_user,
             batch_size: batch_size
@@ -425,6 +437,7 @@ module Api
             render json: {
               success: false,
               error: result[:error],
+              errors: [result[:error]],
               total: result[:total],
               queued: result[:queued_count] || 0,
               failed: result[:failed_count] || 0
@@ -445,7 +458,7 @@ module Api
           render json: {
             success: false,
             error: "Failed to process batch: #{e.message}",
-            total: lead_ids.length,
+            total: leads.count,
             queued: 0,
             failed: 0
           }, status: :internal_server_error

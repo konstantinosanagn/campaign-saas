@@ -64,9 +64,8 @@ RSpec.describe CampaignsController, type: :controller do
         let(:user) { create(:user) }
 
         before do
-          allow(controller).to receive(:respond_to?).and_call_original
-          allow(controller).to receive(:respond_to?).with(:warden).and_return(true)
-          allow(controller).to receive(:warden).and_return(double(user: user))
+          warden_double = double("warden", authenticate: user)
+          allow(controller).to receive(:warden).and_return(warden_double)
         end
 
         it 'returns the authenticated user' do

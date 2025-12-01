@@ -8,7 +8,7 @@ RSpec.describe AgentExecutionJob, type: :job do
   describe '#perform' do
     context 'with valid parameters' do
       it 'executes agents for the lead' do
-        expect(LeadAgentService).to receive(:run_agents_for_lead).with(lead, campaign, user).and_return({
+        expect(LeadAgentService).to receive(:run_agents_for_lead).with(lead, campaign, user, agent_name: nil).and_return({
           status: 'success',
           completed_agents: [ 'SEARCH', 'WRITER' ],
           failed_agents: []

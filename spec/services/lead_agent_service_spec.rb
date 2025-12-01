@@ -872,7 +872,9 @@ RSpec.describe LeadAgentService, type: :service do
           output_data: { email: original_email }
         )
 
-        create(:agent_config, campaign: campaign, agent_name: 'CRITIQUE', enabled: true)
+        AgentConfig.find_or_create_by!(campaign: campaign, agent_name: 'CRITIQUE') do |cfg|
+          cfg.enabled = true
+        end
 
         allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
           'critique' => 'Needs improvement',

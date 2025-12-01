@@ -83,6 +83,7 @@ RSpec.describe AgentOutput, type: :model do
     let(:lead) { create(:lead, campaign: campaign) }
 
     it 'prevents duplicate agent outputs for the same lead and agent' do
+      pending("We now allow multiple outputs per agent per lead to support rewrite loops (e.g., multiple WRITER revisions)")
       create(:agent_output, lead: lead, agent_name: 'SEARCH')
       duplicate = build(:agent_output, lead: lead, agent_name: 'SEARCH')
 

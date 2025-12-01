@@ -60,8 +60,8 @@ RSpec.describe Agents::SearchAgent, type: :service do
       allow(described_class).to receive(:post)
         .with("/search", anything)
         .and_return(
-          double(parsed_response: { "results" => mock_recipient_results_raw }),
-          double(parsed_response: { "results" => mock_company_results_raw })
+          double(success?: true, parsed_response: { "results" => mock_recipient_results_raw }),
+          double(success?: true, parsed_response: { "results" => mock_company_results_raw })
         )
     end
 
@@ -101,7 +101,7 @@ RSpec.describe Agents::SearchAgent, type: :service do
 
     before do
       allow(described_class).to receive(:post)
-        .and_return(double(parsed_response: response))
+        .and_return(double(success?: true, parsed_response: response))
     end
 
     it "returns mapped results" do
@@ -111,7 +111,7 @@ RSpec.describe Agents::SearchAgent, type: :service do
     end
 
     it "returns empty array and logs an error when parsing fails" do
-      allow(described_class).to receive(:post).and_return(double(parsed_response: nil))
+      allow(described_class).to receive(:post).and_return(double(success?: true, parsed_response: nil))
 
       logger = double("logger")
       expect(logger).to receive(:error).with(/Tavily batch search failed:/)

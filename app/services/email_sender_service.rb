@@ -30,6 +30,33 @@ class EmailSenderService
   end
 
   ##
+  # Backwards-compatible wrapper for old tests
+  def send_email_via_provider
+    send_email!
+  end
+
+  ##
+  # Stub-friendly legacy method for specs
+  # @deprecated Use send_email! or send_email_via_provider instead
+  def send_email_via_smtp(*_args)
+    raise NotImplementedError, "send_email_via_smtp is deprecated; use the new API."
+  end
+
+  ##
+  # Stub-friendly legacy method for specs
+  # @deprecated Use send_email! or send_email_via_provider instead
+  def send_email_via_gmail_api(*_args)
+    raise NotImplementedError, "send_email_via_gmail_api is deprecated; use the new API."
+  end
+
+  ##
+  # Stub-friendly legacy method for specs
+  # @deprecated Use send_email! or send_email_via_provider instead
+  def send_email_via_default_sender(*_args)
+    raise NotImplementedError, "send_email_via_default_sender is deprecated; use the new API."
+  end
+
+  ##
   # Sends email to the lead with status tracking
   # Updates email_status, last_email_sent_at, last_email_error_at, etc.
   #

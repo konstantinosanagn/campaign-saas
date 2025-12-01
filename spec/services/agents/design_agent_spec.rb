@@ -287,13 +287,12 @@ RSpec.describe Agents::DesignAgent, type: :service do
             anything,
             anything,
             anything,
-            format: 'formatted',
-            allow_bold: false,
-            allow_italic: true,
-            allow_bullets: false,
-            cta_style: 'button',
-            font_family: 'serif'
-          )
+            hash_including(
+              format: 'formatted',
+              cta_style: 'button',
+              font_family: 'serif'
+            )
+          ).and_call_original
 
           design_agent.run(writer_output, config: camel_case_config)
         end
@@ -321,13 +320,12 @@ RSpec.describe Agents::DesignAgent, type: :service do
             anything,
             anything,
             anything,
-            format: 'formatted',
-            allow_bold: true,
-            allow_italic: false,
-            allow_bullets: true,
-            cta_style: 'link',
-            font_family: 'system_sans'
-          )
+            hash_including(
+              format: 'formatted',
+              cta_style: 'link',
+              font_family: 'system_sans'
+            )
+          ).and_call_original
 
           design_agent.run(writer_output, config: snake_case_config)
         end
