@@ -10,6 +10,13 @@ Rails.application.configure do
     "cache-control" => "public, max-age=#{1.year.to_i}"
   }
 
+  # Serve static files from the `/public` folder (required for Heroku)
+  config.public_file_server.enabled = ENV["RAILS_SERVE_STATIC_FILES"].present?
+
+  # Do not fallback to assets pipeline if a precompiled asset is missed
+  # Assets are precompiled during build, so no need to compile on-the-fly
+  config.assets.compile = false
+
   if defined?(ActiveStorage::Engine)
     config.active_storage.service = :local
   end
