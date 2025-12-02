@@ -12,31 +12,85 @@ class LeadAgentService::StageManager
 
   ##
   # Determines which agent should run next based on current stage
+  # Skips disabled agents and finds the next enabled one
+  # If a disabled agent is skipped, returns the agent and the stage to advance to
   #
   # @param current_stage [String] The current stage of the lead
-  # @return [String, nil] The next agent name or nil if at final stage
-  def self.determine_next_agent(current_stage)
+  # @param campaign [Campaign, nil] The campaign to check agent configs (optional)
+  # @return [Hash, nil] Hash with :agent (agent name), :skip_stage (stage to advance to if agent is disabled), or nil if at final stage
+  def self.determine_next_agent(current_stage, campaign: nil)
     stage_index = AgentConstants::STAGE_PROGRESSION.index(current_stage)
     return nil if stage_index.nil? || stage_index >= AgentConstants::STAGE_PROGRESSION.length - 1
 
-    # Map stage to next agent
+    # Map stage to next agent and target stage
     # queued -> SEARCH (to become 'searched')
     # searched -> WRITER (to become 'written')
     # written -> CRITIQUE (to become 'critiqued')
     # critiqued -> DESIGN (to become 'designed')
     # designed -> nil (final stage)
-    case current_stage
-    when AgentConstants::STAGE_QUEUED
-      AgentConstants::AGENT_SEARCH
-    when AgentConstants::STAGE_SEARCHED
-      AgentConstants::AGENT_WRITER
-    when AgentConstants::STAGE_WRITTEN
-      AgentConstants::AGENT_CRITIQUE
-    when AgentConstants::STAGE_CRITIQUED
-      AgentConstants::AGENT_DESIGN
-    else
-      nil
+    agent_stage_map = {
+      AgentConstants::STAGE_QUEUED => { agent: AgentConstants::AGENT_SEARCH, target_stage: AgentConstants::STAGE_SEARCHED },
+      AgentConstants::STAGE_SEARCHED => { agent: AgentConstants::AGENT_WRITER, target_stage: AgentConstants::STAGE_WRITTEN },
+      AgentConstants::STAGE_WRITTEN => { agent: AgentConstants::AGENT_CRITIQUE, target_stage: AgentConstants::STAGE_CRITIQUED },
+      AgentConstants::STAGE_CRITIQUED => { agent: AgentConstants::AGENT_DESIGN, target_stage: AgentConstants::STAGE_DESIGNED }
+    }
+
+    mapping = agent_stage_map[current_stage]
+    return nil unless mapping
+
+    next_agent = mapping[:agent]
+    target_stage = mapping[:target_stage]
+
+    # If campaign is provided, check if agents are enabled
+    # Skip disabled agents and find the next enabled one
+    if campaign
+      current_stage_check = current_stage
+      skipped_stages = []  # Track stages we've skipped through
+      max_iterations = 5  # Safety limit
+      iteration = 0
+
+      while iteration < max_iterations
+        iteration += 1
+        current_mapping = agent_stage_map[current_stage_check]
+        break unless current_mapping
+
+        check_agent = current_mapping[:agent]
+        check_target_stage = current_mapping[:target_stage]
+
+        agent_config = LeadAgentService::ConfigManager.get_agent_config(campaign, check_agent)
+
+        if agent_config.enabled?
+          # Found an enabled agent
+          if skipped_stages.any?
+            # We skipped some agents - return the agent and the final stage to advance to
+            final_skip_stage = skipped_stages.last
+            Rails.logger.info("[StageManager] Found enabled agent #{check_agent} after skipping disabled agents. Will advance through: #{skipped_stages.join(' -> ')}")
+            return { agent: check_agent, skip_stage: final_skip_stage }
+          else
+            # Next agent is enabled, no skipping needed
+            return { agent: check_agent }
+          end
+        else
+          # Agent is disabled - skip it and check the next stage
+          Rails.logger.info("[StageManager] Agent #{check_agent} is disabled, will skip to stage #{check_target_stage}")
+          skipped_stages << check_target_stage
+          current_stage_check = check_target_stage
+
+          # Check if we've reached the final stage
+          if current_stage_check == AgentConstants::STAGE_DESIGNED || current_stage_check == AgentConstants::STAGE_COMPLETED
+            Rails.logger.info("[StageManager] All remaining agents are disabled, reached final stage")
+            return nil
+          end
+        end
+      end
+
+      # If we exhausted iterations, return nil
+      Rails.logger.warn("[StageManager] Exhausted iterations while checking for enabled agents")
+      return nil
     end
+
+    # No campaign provided - return the next agent without checking enabled status
+    { agent: next_agent }
   end
 
   ##
@@ -246,9 +300,9 @@ class LeadAgentService::StageManager
 
     else
       # Unknown stage - try to determine next agent
-      next_agent = determine_next_agent(current_stage)
-      if next_agent
-        add_action_if_enabled.call(next_agent)
+      agent_info = determine_next_agent(current_stage, campaign: campaign)
+      if agent_info && agent_info[:agent]
+        add_action_if_enabled.call(agent_info[:agent])
       end
     end
 
@@ -263,7 +317,8 @@ class LeadAgentService::StageManager
   end
 
   ##
-  # Advances lead to the next stage in the progression
+  # Advances lead to the stage corresponding to the agent that just completed
+  # This ensures that when agents are skipped, the stage reflects the actual agent that ran
   # Updated to handle rewritten stages
   #
   # @param lead [Lead] The lead to advance
@@ -278,14 +333,33 @@ class LeadAgentService::StageManager
       end
     end
 
-    # Normal stage progression
-    current_index = AgentConstants::STAGE_PROGRESSION.index(lead.stage) || -1
-    next_index = current_index + 1
+    # Map agent to its target stage (the stage that agent sets when it completes)
+    # This ensures that when agents are skipped, the stage reflects the actual agent that ran
+    agent_to_stage_map = {
+      AgentConstants::AGENT_SEARCH => AgentConstants::STAGE_SEARCHED,
+      AgentConstants::AGENT_WRITER => AgentConstants::STAGE_WRITTEN,
+      AgentConstants::AGENT_CRITIQUE => AgentConstants::STAGE_CRITIQUED,
+      AgentConstants::AGENT_DESIGN => AgentConstants::STAGE_DESIGNED
+    }
 
-    # Only advance if not already at the final stage
-    if next_index < AgentConstants::STAGE_PROGRESSION.length
-      new_stage = AgentConstants::STAGE_PROGRESSION[next_index]
-      lead.update!(stage: new_stage)
+    target_stage = agent_to_stage_map[agent_name]
+
+    if target_stage
+      # Set stage directly to the target stage for this agent
+      # This ensures that if SEARCH was skipped and WRITER runs, stage becomes "written" not "searched"
+      Rails.logger.info("[StageManager] Agent #{agent_name} completed, setting stage to #{target_stage}")
+      lead.update!(stage: target_stage)
+    else
+      # Fallback: if agent not in map, use old progression logic
+      Rails.logger.warn("[StageManager] Unknown agent #{agent_name}, using fallback progression")
+      current_index = AgentConstants::STAGE_PROGRESSION.index(lead.stage) || -1
+      next_index = current_index + 1
+
+      # Only advance if not already at the final stage
+      if next_index < AgentConstants::STAGE_PROGRESSION.length
+        new_stage = AgentConstants::STAGE_PROGRESSION[next_index]
+        lead.update!(stage: new_stage)
+      end
     end
   end
 

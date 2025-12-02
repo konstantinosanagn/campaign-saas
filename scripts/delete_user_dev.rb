@@ -1,5 +1,5 @@
 # Development Rails console script to delete user: kaean2002trikala@gmail.com
-# 
+#
 # Run this in development Rails console:
 #   rails console
 #   Then copy-paste this script
@@ -45,4 +45,3 @@ puts "\nDeleting user and all related data from development database..."
 user.destroy!
 
 puts "✓ User and all related data deleted successfully from development database."
-

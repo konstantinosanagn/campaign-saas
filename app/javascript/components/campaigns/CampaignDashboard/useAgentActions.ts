@@ -40,20 +40,35 @@ export function useAgentActions(
   }, [])
 
   const waitForLeadCompletion = useCallback(
-    async (leadId: number, startingStage: string | null, getLatestLead: () => Lead | undefined) => {
+    async (leadId: number, startingStage: string | null, getLatestLead: () => Lead | undefined, agentName?: string) => {
       const MAX_ATTEMPTS = 60 // Increased to allow more time for agent execution
       const POLL_INTERVAL_MS = 2000 // 2 seconds between polls
       let currentStage = startingStage
+      
+      // Track when we started waiting - used to detect NEW outputs for rewrites
+      const pollingStartTime = Date.now()
 
-      // Determine which agent we're waiting for based on starting stage
-      const getExpectedAgent = (stage: string | null): string | null => {
+      // Determine which agent we're waiting for based on starting stage or explicit agentName
+      const getExpectedAgent = (stage: string | null, explicitAgentName?: string): string | null => {
+        // If agentName is explicitly provided, use it (e.g., when triggering WRITER rewrite)
+        if (explicitAgentName) return explicitAgentName
+        
         if (stage === 'queued') return 'SEARCH'
         if (stage === 'searched') return 'WRITER'
         if (stage === 'written') return 'CRITIQUE'
         if (stage === 'critiqued') return 'DESIGN'
+        // Handle rewritten stages - could be waiting for WRITER (rewrite) or CRITIQUE
+        if (stage?.startsWith('rewritten')) {
+          // If at rewritten stage, we might be waiting for WRITER (if triggered) or CRITIQUE
+          // Default to CRITIQUE, but agentName will override if provided
+          return 'CRITIQUE'
+        }
         return null
       }
-      const expectedAgent = getExpectedAgent(startingStage)
+      const expectedAgent = getExpectedAgent(startingStage, agentName)
+      
+      // Detect if this is a rewrite scenario (WRITER agent at written/rewritten stage)
+      const isRewrite = expectedAgent === 'WRITER' && (startingStage === 'written' || startingStage?.startsWith('rewritten'))
 
       // Helper to get latest lead from refreshed data
       const getUpdatedLead = async (): Promise<Lead | undefined> => {
@@ -65,12 +80,42 @@ export function useAgentActions(
       }
 
       // Helper to check if agent output exists (indicates completion even if stage didn't update)
-      const checkAgentOutput = async (agentName: string | null): Promise<boolean> => {
+      // For rewrites, we need to check if a NEW output was created after we started
+      const checkAgentOutput = async (agentName: string | null, checkForNew: boolean = false, startTime?: number): Promise<boolean> => {
         if (!agentName) return false
         try {
-          const response = await apiClient.get<{ outputs: Array<{ agentName: string; status: string }> }>(`leads/${leadId}/agent_outputs`)
+          const response = await apiClient.get<{ outputs: Array<{ agentName: string; status: string; createdAt?: string; id?: number }> }>(`leads/${leadId}/agent_outputs`)
           if (response.data?.outputs) {
-            const output = response.data.outputs.find((o: { agentName: string }) => o.agentName === agentName)
+            const outputs = response.data.outputs.filter((o: { agentName: string }) => o.agentName === agentName)
+            if (outputs.length === 0) return false
+            
+            // If checking for new output (rewrite scenario), check if any output was created after we started
+            if (checkForNew && startTime) {
+              // Allow a small buffer (5 seconds) before start time to account for timing differences
+              const bufferTime = startTime - 5000
+              const hasNewOutput = outputs.some((o: { createdAt?: string; id?: number }) => {
+                if (!o.createdAt) return false
+                try {
+                  const outputTime = new Date(o.createdAt).getTime()
+                  // Check if output was created after we started (with buffer)
+                  if (outputTime >= bufferTime) {
+                    console.log(`[AgentPolling] Found new ${agentName} output (ID: ${o.id}, created: ${o.createdAt}) created after polling started (${new Date(bufferTime).toISOString()})`)
+                    return true
+                  }
+                } catch (e) {
+                  console.debug(`[AgentPolling] Could not parse createdAt: ${o.createdAt}`, e)
+                }
+                return false
+              })
+              if (hasNewOutput) {
+                return true
+              }
+              // If no new output found, continue polling
+              return false
+            }
+            
+            // Otherwise, just check if the latest output is completed
+            const output = outputs[0] // Outputs are ordered by created_at DESC, so first is latest
             return output?.status === 'completed' || output?.status === 'failed'
           }
         } catch (err) {
@@ -89,9 +134,16 @@ export function useAgentActions(
         }
 
         // Also check if agent output exists immediately
-        if (expectedAgent && await checkAgentOutput(expectedAgent)) {
+        // For rewrites, we need to check for NEW outputs created after we started
+        // Skip the immediate check for rewrites since we need to wait for a NEW output
+        if (!isRewrite && expectedAgent && await checkAgentOutput(expectedAgent, false, pollingStartTime)) {
           console.log(`[AgentPolling] Lead ${leadId} has ${expectedAgent} output, agent completed.`)
           return
+        }
+        
+        // For rewrites, don't check immediately - wait for the first poll to see if a new output appears
+        if (isRewrite) {
+          console.log(`[AgentPolling] Lead ${leadId} rewrite detected - waiting for new ${expectedAgent} output (starting time: ${new Date(pollingStartTime).toISOString()})`)
         }
 
         for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -109,6 +161,7 @@ export function useAgentActions(
           }
 
           // Check if stage has changed (meaning agent for previous stage completed)
+          // For rewrites, stage might not change (stays "rewritten"), so we also check outputs
           if (currentStage !== latestLead.stage) {
             currentStage = latestLead.stage
             
@@ -119,7 +172,8 @@ export function useAgentActions(
           }
 
           // Check if agent output exists (fallback if stage didn't update)
-          if (expectedAgent && await checkAgentOutput(expectedAgent)) {
+          // For rewrites, check for NEW outputs created after we started
+          if (expectedAgent && await checkAgentOutput(expectedAgent, isRewrite, pollingStartTime)) {
             console.log(`[AgentPolling] Lead ${leadId} has ${expectedAgent} output (stage: "${latestLead.stage}"), agent completed.`)
             break
           }
@@ -183,7 +237,9 @@ export function useAgentActions(
       }
 
       if (result.status === 'queued') {
-        waitForLeadCompletion(leadId, initialStage, getLatestLead).catch((err) => {
+        // Pass agentName to waitForLeadCompletion so it knows which agent to wait for
+        // This is especially important for WRITER rewrites where stage might not change
+        waitForLeadCompletion(leadId, initialStage, getLatestLead, agentName).catch((err) => {
           console.error('Error while polling lead status:', err)
           removeRunningLeadId(leadId)
         })
@@ -252,7 +308,7 @@ export function useAgentActions(
       } else if (result.status === 'queued') {
         // First lead queued successfully, start polling
         addRunningLeadId(firstLeadId)
-        waitForLeadCompletion(firstLeadId, initialStage, () => getLatestLead(firstLeadId)).catch((err) => {
+        waitForLeadCompletion(firstLeadId, initialStage, () => getLatestLead(firstLeadId), undefined).catch((err) => {
           console.error('Error while polling lead status:', err)
           removeRunningLeadId(firstLeadId)
         })

@@ -7,6 +7,7 @@ require "logger"
 module Agents
   class SearchAgent
     include HTTParty
+    include SettingsHelper
     base_uri "https://api.tavily.com"  # For Tavily
 
     GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta"
@@ -21,7 +22,7 @@ module Agents
       @logger = ::Logger.new($stdout)
     end
 
-    def run(company:, recipient_name:, job_title:, email:, tone: nil, persona: nil, goal: nil)
+    def run(company:, recipient_name:, job_title:, email:, tone: nil, persona: nil, goal: nil, config: nil)
       identity = {
         name: recipient_name,
         company: company,
@@ -29,15 +30,37 @@ module Agents
         email: email
       }
 
+      # Get settings from config or use defaults
+      settings = get_setting(config, :settings) || get_setting(config, "settings") || {}
+      search_depth = get_setting_with_default(settings, :search_depth, "basic")
+      max_queries = get_setting_with_default(settings, :max_queries_per_lead, 2).to_i
+      extracted_fields = get_setting(settings, :extracted_fields) || get_setting(settings, "extracted_fields") || []
+      on_low_info_behavior = get_setting_with_default(settings, :on_low_info_behavior, "generic_industry")
+
       @logger.info("SearchAgent: Personalization lookup for #{recipient_name} @ #{company}")
+      @logger.info("SearchAgent: Using settings - search_depth=#{search_depth}, max_queries=#{max_queries}, on_low_info_behavior=#{on_low_info_behavior}")
 
       inferred_focus_areas = infer_focus_areas(identity, tone: tone, persona: persona, goal: goal)
 
       recipient_query = "#{recipient_name} #{company} #{job_title}"
       company_query = "#{company} #{inferred_focus_areas.join(', ')}"
 
-      recipient_signals = run_tavily_search(recipient_query)
-      company_signals = run_tavily_search(company_query)
+      # Run searches based on max_queries_per_lead setting
+      recipient_signals = []
+      company_signals = []
+
+      if max_queries >= 1
+        recipient_signals = run_tavily_search(recipient_query, search_depth: search_depth)
+      end
+
+      if max_queries >= 2
+        company_signals = run_tavily_search(company_query, search_depth: search_depth)
+      end
+
+      # Handle low info scenario if both searches returned minimal results
+      if recipient_signals.empty? && company_signals.empty? && on_low_info_behavior == "skip"
+        @logger.info("SearchAgent: No results found and on_low_info_behavior=skip, returning empty signals")
+      end
 
       {
         target_identity: identity,
@@ -45,7 +68,9 @@ module Agents
         personalization_signals: {
           recipient: recipient_signals,
           company: company_signals
-        }
+        },
+        extracted_fields: extracted_fields,
+        on_low_info_behavior: on_low_info_behavior
       }
     end
 
@@ -95,12 +120,15 @@ module Agents
 
 
 
-    def run_tavily_search(query)
+    def run_tavily_search(query, search_depth: "basic")
       # Tavily API requires the key in Authorization header, not body
       # Format: "Bearer tvly-{key}"
       # The key stored may already include "tvly-" prefix (e.g., "tvly-dev-xxx")
       # or may be just the key part (e.g., "dev-xxx")
       auth_key = @tavily_key.start_with?("tvly-") ? @tavily_key : "tvly-#{@tavily_key}"
+
+      # Validate search_depth (must be "basic" or "advanced")
+      search_depth = "basic" unless [ "basic", "advanced" ].include?(search_depth.to_s)
 
       response = self.class.post(
         "/search",
@@ -110,7 +138,7 @@ module Agents
         },
         body: {
           query: query,
-          search_depth: "advanced",
+          search_depth: search_depth,
           include_answer: false,
           include_raw_content: false,
           max_results: 5

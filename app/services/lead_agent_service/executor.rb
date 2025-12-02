@@ -45,14 +45,24 @@ class LeadAgentService::Executor
   # @param agent_config [AgentConfig] The agent configuration
   # @return [Hash] Search results
   def self.execute_search_agent(search_agent, lead, agent_config)
+    # Reload agent_config to ensure we have the latest settings (avoid stale cache)
+    agent_config.reload if agent_config
+
+    # Get settings after reload to ensure fresh data
+    settings = agent_config&.settings || {}
+
+    # Log for debugging
+    Rails.logger.info("SearchAgent Executor - Agent Config ID: #{agent_config&.id}, settings: #{settings.inspect}")
+
     search_agent.run(
       company: lead.company,
       recipient_name: lead.name,
       job_title: lead.title || "",
       email: lead.email,
-      tone: SettingsHelper.get_setting(agent_config&.settings, :tone) || SettingsHelper.get_setting(agent_config&.settings, "tone"),
-      persona: SettingsHelper.get_setting(agent_config&.settings, :sender_persona) || SettingsHelper.get_setting(agent_config&.settings, "sender_persona"),
-      goal: SettingsHelper.get_setting(lead.campaign.shared_settings || {}, :primary_goal) || SettingsHelper.get_setting(lead.campaign.shared_settings || {}, "primary_goal")
+      tone: SettingsHelper.get_setting(settings, :tone) || SettingsHelper.get_setting(settings, "tone"),
+      persona: SettingsHelper.get_setting(settings, :sender_persona) || SettingsHelper.get_setting(settings, "sender_persona"),
+      goal: SettingsHelper.get_setting(lead.campaign.shared_settings || {}, :primary_goal) || SettingsHelper.get_setting(lead.campaign.shared_settings || {}, "primary_goal"),
+      config: { settings: settings }
     )
   end
 

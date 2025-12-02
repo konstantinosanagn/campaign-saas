@@ -1,5 +1,5 @@
 # Rails console script to delete user: kaean2002trikala@gmail.com
-# 
+#
 # Usage in Rails console (production):
 #   load 'scripts/delete_user.rb'
 #
@@ -36,6 +36,3 @@ puts "\nThis action CANNOT be undone!"
 # Uncomment the line below to actually delete
 # user.destroy!
 puts "\nTo delete, uncomment 'user.destroy!' in the script and run again."
-
-
-

@@ -60,20 +60,44 @@ class LeadAgentService
       # Otherwise, determine from stage (automatic)
       if agent_name.present?
         next_agent = agent_name
+        skip_stage = nil
         Rails.logger.info("[LeadAgentService] Running specific agent: #{next_agent}")
       else
-        next_agent = LeadAgentService::StageManager.determine_next_agent(lead.stage)
-        unless next_agent
-          # Lead is already at final stage
-          return {
-            status: "completed",
-            error: "Lead has already reached the final stage",
-            outputs: {},
-            lead: lead,
-            completed_agents: [],
-            failed_agents: []
-          }
+        agent_info = LeadAgentService::StageManager.determine_next_agent(lead.stage, campaign: campaign)
+        unless agent_info
+          # Check if we're at final stage
+          if lead.stage == AgentConstants::STAGE_DESIGNED || lead.stage == AgentConstants::STAGE_COMPLETED
+            return {
+              status: "completed",
+              error: "Lead has already reached the final stage",
+              outputs: {},
+              lead: lead,
+              completed_agents: [],
+              failed_agents: []
+            }
+          else
+            # All remaining agents are disabled
+            return {
+              status: "blocked",
+              error: "All remaining agents in sequence are disabled. Lead cannot progress from stage '#{lead.stage}'.",
+              outputs: {},
+              lead: lead,
+              completed_agents: [],
+              failed_agents: []
+            }
+          end
         end
+
+        next_agent = agent_info[:agent]
+        skip_stage = agent_info[:skip_stage]
+
+        # If we need to skip disabled agents, advance the stage first
+        if skip_stage
+          Rails.logger.info("[LeadAgentService] Skipping disabled agents, advancing lead #{lead.id} from #{lead.stage} to #{skip_stage}")
+          lead.update!(stage: skip_stage)
+          lead.reload
+        end
+
         Rails.logger.info("[LeadAgentService] Determined next agent from stage: #{next_agent}")
       end
 
@@ -91,6 +115,9 @@ class LeadAgentService
       outputs = {}
       completed_agents = []
       failed_agents = []
+
+      # Track if this is a manual execution (user explicitly requested an agent)
+      is_manual_execution = agent_name.present?
 
       # Safety guard against infinite loops
       max_iterations = 10
@@ -110,17 +137,42 @@ class LeadAgentService
         lead.association(:agent_outputs).reset
 
         # Determine next agent (only if agent_name was nil, otherwise use the specified one)
-        if agent_name.present?
+        if is_manual_execution && iteration == 1
+          # First iteration of manual execution - use the specified agent
           next_agent = agent_name
-          agent_name = nil  # Clear so we don't loop again
+          skip_stage = nil
         else
-          next_agent = LeadAgentService::StageManager.determine_next_agent(lead.stage)
-          unless next_agent
-            # No more agents to run - ensure we're at final stage
-            if lead.stage != AgentConstants::STAGE_DESIGNED
-              lead.update!(stage: AgentConstants::STAGE_DESIGNED)
+          # Automatic execution or subsequent iterations - determine from stage
+          agent_info = LeadAgentService::StageManager.determine_next_agent(lead.stage, campaign: campaign)
+          unless agent_info
+            # No more agents to run or all remaining agents are disabled
+            # Check if we're at final stage
+            if lead.stage == AgentConstants::STAGE_DESIGNED || lead.stage == AgentConstants::STAGE_COMPLETED
+              # Already at final stage - nothing to do
+              break
+            else
+              # All remaining agents are disabled - lead cannot progress, return early
+              Rails.logger.info("[LeadAgentService] All remaining agents are disabled for lead #{lead.id} at stage #{lead.stage} - lead cannot progress")
+              return {
+                status: "blocked",
+                error: "All remaining agents in sequence are disabled. Lead cannot progress from stage '#{lead.stage}'.",
+                outputs: {},
+                lead: lead,
+                completed_agents: [],
+                failed_agents: []
+              }
             end
-            break
+          end
+
+          next_agent = agent_info[:agent]
+          skip_stage = agent_info[:skip_stage]
+
+          # If we need to skip disabled agents, advance the stage first
+          if skip_stage
+            Rails.logger.info("[LeadAgentService] Skipping disabled agents in loop, advancing lead #{lead.id} from #{lead.stage} to #{skip_stage}")
+            lead.update!(stage: skip_stage)
+            lead.reload
+            lead.association(:agent_outputs).reset
           end
         end
 
@@ -137,22 +189,48 @@ class LeadAgentService
           raise "Agent config campaign mismatch"
         end
 
-        # Skip if agent is disabled - advance stage and continue loop
+        # If agent is disabled, block execution (this shouldn't happen if determine_next_agent worked correctly)
         is_disabled = agent_config && (agent_config.enabled == false || agent_config.disabled?)
         if is_disabled
-          Rails.logger.info("[LeadAgentService] Agent #{next_agent} is disabled (enabled=#{agent_config.enabled.inspect}), skipping and advancing stage")
-          old_stage = lead.stage
-          LeadAgentService::StageManager.advance_stage(lead, next_agent)
-          lead.reload
-
-          # Safety check: if stage didn't change, break to avoid infinite loop
-          if lead.stage == old_stage
-            Rails.logger.warn("[LeadAgentService] Stage did not advance from #{old_stage} after disabling agent #{next_agent}, breaking loop")
-            break
+          if is_manual_execution && iteration == 1
+            # For manual execution: if user explicitly tries to run a disabled agent, return error
+            Rails.logger.warn("[LeadAgentService] User attempted to manually run disabled agent #{next_agent}")
+            return {
+              status: "failed",
+              error: "Agent #{next_agent} is disabled and cannot be run.",
+              outputs: {},
+              lead: lead,
+              completed_agents: [],
+              failed_agents: []
+            }
+          else
+            # This shouldn't happen - determine_next_agent should have skipped this
+            # But handle it gracefully by trying to skip again
+            Rails.logger.warn("[LeadAgentService] Agent #{next_agent} is disabled but wasn't skipped - attempting to skip")
+            agent_info = LeadAgentService::StageManager.determine_next_agent(lead.stage, campaign: campaign)
+            if agent_info && agent_info[:agent] != next_agent
+              # Found a different enabled agent - skip to it
+              next_agent = agent_info[:agent]
+              skip_stage = agent_info[:skip_stage]
+              if skip_stage
+                lead.update!(stage: skip_stage)
+                lead.reload
+                lead.association(:agent_outputs).reset
+              end
+              # Continue with the new agent
+              next
+            else
+              # No enabled agents found
+              return {
+                status: "blocked",
+                error: "Agent #{next_agent} is disabled and no enabled agents found. Lead cannot progress from stage '#{lead.stage}'.",
+                outputs: {},
+                lead: lead,
+                completed_agents: [],
+                failed_agents: []
+              }
+            end
           end
-
-          # Continue loop to check next agent
-          next
         end
 
         # Agent is enabled - execute it
@@ -232,6 +310,7 @@ class LeadAgentService
         completed_agents << next_agent
 
         # Handle stage advancement based on agent type
+        old_stage_before_advance = lead.stage
         if next_agent == AgentConstants::AGENT_WRITER && previous_critique.present?
           # WRITER revision: Calculate rewrite count AFTER the new output is created
           # Reload to ensure we have the newly created WRITER output
@@ -264,8 +343,11 @@ class LeadAgentService
             end
           end
         else
-          # Normal stage advancement for other agents
+          # Normal stage advancement for other agents (SEARCH, WRITER, DESIGN)
+          Rails.logger.info("[LeadAgentService] Advancing stage for agent #{next_agent} from #{old_stage_before_advance}")
           LeadAgentService::StageManager.advance_stage(lead, next_agent)
+          lead.reload
+          Rails.logger.info("[LeadAgentService] Stage advanced to #{lead.stage} after #{next_agent} execution")
         end
 
         lead.reload

@@ -1,5 +1,5 @@
 # Production Rails console script to delete user: kaean2002trikala@gmail.com
-# 
+#
 # Run this on the production server:
 #   heroku run rails console
 #   Then copy-paste this script
@@ -45,6 +45,3 @@ puts "\nDeleting user and all related data..."
 user.destroy!
 
 puts "✓ User and all related data deleted successfully."
-
-
-

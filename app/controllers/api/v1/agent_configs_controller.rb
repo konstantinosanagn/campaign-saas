@@ -74,23 +74,23 @@ module Api
         # Check if config already exists - reload association to avoid cache issues
         campaign.agent_configs.reload
         existing_config = campaign.agent_configs.find_by(agent_name: agent_name)
-        
+
         if existing_config
           # Config already exists - update it instead of creating a new one
           # This handles the case where ConfigManager auto-created a default config
           # but the frontend doesn't have it loaded yet
           Rails.logger.info("[AgentConfigsController] Config already exists (ID: #{existing_config.id}), updating instead of creating")
-          
+
           # Get permitted params
           permitted_params = agent_config_params
-          
+
           # Build update hash (excluding agent_name since it can't be changed)
           update_hash = {}
           update_hash[:enabled] = permitted_params[:enabled] if permitted_params.key?(:enabled)
           update_hash[:settings] = permitted_params[:settings] if permitted_params.key?(:settings)
-          
+
           Rails.logger.info("[AgentConfigsController] Updating existing config with: #{update_hash.inspect}")
-          
+
           if existing_config.update(update_hash)
             existing_config.reload
             Rails.logger.info("[AgentConfigsController] Config updated successfully: enabled=#{existing_config.enabled}, settings=#{existing_config.settings.inspect}")
@@ -137,7 +137,7 @@ module Api
 
         # Get permitted params
         permitted_params = agent_config_params
-        
+
         # Only allow updating enabled status and settings
         # Agent name cannot be changed - build update hash excluding agent_name
         update_hash = {}
@@ -223,7 +223,7 @@ module Api
         # DESIGN: format, allow_bold/allowBold, allow_italic/allowItalic, allow_bullets/allowBullets,
         #         cta_style/ctaStyle, font_family/fontFamily
         # Note: DESIGN agent settings accept both camelCase (from frontend) and snake_case (for consistency)
-        
+
         # Convert to ActionController::Parameters if it's a plain hash
         params_obj = if settings_params.is_a?(ActionController::Parameters)
           settings_params
@@ -232,7 +232,7 @@ module Api
         else
           ActionController::Parameters.new({})
         end
-        
+
         params_obj.permit(
           # WRITER agent settings
           :tone, :sender_persona, :email_length, :personalization_level,
