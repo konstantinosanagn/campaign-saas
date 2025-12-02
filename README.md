@@ -127,10 +127,12 @@ The application uses **Gmail OAuth** for sending emails. There are two ways to s
    - Navigate to **APIs & Services** → **Credentials**
    - Create a new **OAuth 2.0 Client ID** (or use existing)
    - Application type: **Web application**
-   - Add authorized redirect URI:
+   - Add authorized redirect URIs:
      ```
-     http://localhost:3000/users/auth/google_oauth2/callback
+     http://localhost:3000/users/auth/google_oauth2/callback  # For Google login
+     http://localhost:3000/oauth/gmail/callback                # For Gmail sending
      ```
+   - Enable **Gmail API** in the APIs & Services section
    - Copy the **Client ID** and **Client Secret**
 
 2. **Configure in `.env`:**
@@ -142,6 +144,8 @@ The application uses **Gmail OAuth** for sending emails. There are two ways to s
    ```env
    GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
    GOOGLE_CLIENT_SECRET=your-client-secret
+   GMAIL_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GMAIL_CLIENT_SECRET=your-client-secret
    ```
 
 3. **Connect Gmail in the App:**
@@ -201,6 +205,8 @@ For production, set these environment variables in Heroku:
 # Google OAuth (required for Gmail sending)
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret
+GMAIL_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GMAIL_CLIENT_SECRET=your-client-secret
 
 # Optional: Default Gmail sender (system account)
 DEFAULT_GMAIL_SENDER=campaignsenderagent@gmail.com
@@ -219,9 +225,10 @@ DISABLE_AUTH=false
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
    - Navigate to **APIs & Services** → **Credentials**
    - Create **OAuth 2.0 Client ID** (Web application)
-   - Add authorized redirect URI:
+   - Add authorized redirect URIs:
      ```
-     https://your-app-name.herokuapp.com/users/auth/google_oauth2/callback
+     https://your-app-name.herokuapp.com/users/auth/google_oauth2/callback  # For Google login
+     https://your-app-name.herokuapp.com/oauth/gmail/callback                  # For Gmail sending
      ```
    - Enable **Gmail API** in the APIs & Services section
 
@@ -229,6 +236,8 @@ DISABLE_AUTH=false
    ```bash
    heroku config:set GOOGLE_CLIENT_ID="your-client-id" -a campaign-saas
    heroku config:set GOOGLE_CLIENT_SECRET="your-client-secret" -a campaign-saas
+   heroku config:set GMAIL_CLIENT_ID="your-client-id" -a campaign-saas
+   heroku config:set GMAIL_CLIENT_SECRET="your-client-secret" -a campaign-saas
    heroku config:set DEFAULT_GMAIL_SENDER="system-email@gmail.com" -a campaign-saas
    ```
 
@@ -239,37 +248,54 @@ DISABLE_AUTH=false
 
 ### Email Sending in Production
 
-- Users can connect their Gmail via **"Continue with Google"** login
+- Users can connect their Gmail via **"Continue with Google"** login or Gmail OAuth flow
 - If a user hasn't connected Gmail, the system uses the `DEFAULT_GMAIL_SENDER` (if configured)
-- All emails are sent via **Gmail API** (not SMTP) for better deliverability
+- Email sending priority: User's Gmail OAuth → Default Gmail Sender → SMTP fallback
+- All emails are sent via **Gmail API** (preferred) for better deliverability
 - Gmail tokens are automatically refreshed when they expire
+- Rate limiting: ~2 emails/second to respect Gmail API quotas
 
 ## Project Structure
 
 ```
 campaign-saas/
 ├── app/
-│   ├── controllers/     # MVC controllers
-│   ├── models/           # ActiveRecord models
-│   ├── services/         # Business logic & AI agents
-│   ├── javascript/       # React/TypeScript frontend
-│   └── views/            # ERB templates
-├── db/                   # Database migrations and seeds
-├── spec/                  # RSpec test suite
-├── features/              # Cucumber tests
-└── config/                # Rails configuration
+│   ├── controllers/          # MVC controllers (API v1 + web)
+│   ├── models/              # ActiveRecord models (User, Campaign, Lead, AgentConfig, AgentOutput)
+│   ├── services/            # Business logic & AI agents
+│   │   ├── agents/          # Individual agent implementations
+│   │   └── lead_agent_service/  # Agent orchestration logic
+│   ├── javascript/           # React/TypeScript frontend
+│   │   ├── components/      # React components
+│   │   ├── hooks/           # Custom React hooks
+│   │   └── libs/            # Utilities and constants
+│   ├── jobs/                # Background jobs (AgentExecutionJob, EmailSendingJob)
+│   └── views/               # ERB templates
+├── db/                      # Database migrations and seeds
+├── spec/                    # RSpec test suite
+├── features/                # Cucumber tests
+└── config/                  # Rails configuration
 ```
 
 ## AI Agent System
 
 Multi-agent pipeline: **SearchAgent** → **WriterAgent** → **CritiqueAgent** → **DesignAgent**
 
-- **SearchAgent** - Researches companies using Tavily API
-- **WriterAgent** - Generates personalized emails using Gemini API
-- **CritiqueAgent** - Reviews email quality and selects best variant
-- **DesignAgent** - Applies markdown formatting
+- **SearchAgent** - Researches companies and recipients using Tavily API, infers focus areas via Gemini
+- **WriterAgent** - Generates personalized B2B emails using Gemini API with configurable tone, length, and CTA types. Can rewrite emails based on critique feedback
+- **CritiqueAgent** - Reviews email quality (1-10 score), provides feedback, and triggers rewrite if score is below threshold
+- **DesignAgent** - Applies markdown formatting (bold, italic, bullets) to enhance readability
 
-Stage progression: `queued → searched → written → critiqued → designed → completed`
+**Stage Progression:**
+- Normal flow: `queued → searched → written → critiqued → designed → completed`
+- With rewrites: `written → critiqued → rewritten (1) → critiqued → rewritten (2) → ... → designed → completed`
+
+**Key Features:**
+- Each agent can be enabled/disabled per campaign
+- Configurable settings per agent (tone, personalization level, strictness, etc.)
+- Automatic rewrite cycles: CritiqueAgent provides feedback → WriterAgent rewrites based on feedback (max 3 revisions)
+- Variant generation and selection (WriterAgent can generate multiple email variants)
+- Quality scoring and feedback loop for continuous improvement
 
 ## Testing
 
@@ -313,6 +339,8 @@ Set environment variables via Heroku Config Vars:
 # Google OAuth (required for Gmail sending)
 heroku config:set GOOGLE_CLIENT_ID="your-client-id" -a campaign-saas
 heroku config:set GOOGLE_CLIENT_SECRET="your-client-secret" -a campaign-saas
+heroku config:set GMAIL_CLIENT_ID="your-client-id" -a campaign-saas
+heroku config:set GMAIL_CLIENT_SECRET="your-client-secret" -a campaign-saas
 
 # Optional: Default Gmail sender
 heroku config:set DEFAULT_GMAIL_SENDER="system-email@gmail.com" -a campaign-saas

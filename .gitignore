@@ -8,17 +8,20 @@
 /vendor/cache/
 
 # Package manager artifacts
-yarn-error.log
-yarn-debug.log*
-.yarn-integrity
 package-lock.json
 
 # Environment and credentials
 .env
 .env.*
 !.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 /config/master.key
 /config/credentials/*.key
+/config/credentials.yml.enc
+/config/credentials/*.yml.enc
 
 # Logs, temp, and runtime files
 /log/
@@ -33,6 +36,7 @@ package-lock.json
 /tmp/cache/
 /tmp/pids/
 /tmp/storage/
+/tmp/cache/bootsnap/
 !/log/.keep
 !/tmp/.keep
 !/tmp/cache/.keep
@@ -44,28 +48,77 @@ package-lock.json
 # Framework / build outputs
 /.next/
 /.turbo/
+/dist/
+/build/
 /public/packs
 /public/packs-test
 /public/assets
-/campaign_manager/public/packs/
-/coverage/
-/coverage
-/spec/tmp
-/spec/examples.txt
-/dist/
-/build/
+/public/assets/.sprockets-manifest-*.json
+/public/assets/.webpack-manifest-*.json
+/public/vite/
+/public/vite-dev/
+/public/vite-build/
+/.sass-cache/
+*.sass.map
+*.scss.map
+
+# Shakapacker/Webpack build outputs and cache
+/.shakapacker/
+/.shakapacker-cache/
+/webpack-assets-manifest.json
 
 # Database artifacts
 *.sqlite
 *.sqlite3
 *.sqlite3-*
+*.dump
+*.sql.gz
+
+# Test artifacts and cache
+/spec/tmp
+/spec/examples.txt
+/.rspec_cache/
+/.rspec_status
+/jest-cache/
+/.jest-cache/
+*_output.txt
+rspec_output.txt
+jest_output.txt
+cucumber_output.txt
+test-*.test.ts
+useApiKeys-simple.test.ts
+*_coverage.png
+*_pass.png
+*_fail.png
+UNCOVERED_LINES_REPORT.txt
+
+# Test coverage reports
+/coverage/
+/.coverage/
+*.coverage
+coverage_report.rb
+lib/coverage_harness.rb
+
+# Rails server files
+/spring/
+.spring
+.byebug_history
+
+# Bootsnap cache
+/tmp/cache/bootsnap/
 
 # IDE and editor files
 /.idea
 /.vscode
+/.cursor/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
 
 # OS metadata
 .DS_Store
@@ -75,85 +128,31 @@ package-lock.json
 .Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+.AppleDouble
+.LSOverride
+Icon
+.DocumentRevisions-V100
+.fseventsd
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
 
 # ESLint cache
 .eslintcache
-
-# Test output files
-*_output.txt
-rspec_output.txt
-jest_output.txt
-cucumber_output.txt
-
-# Test artifacts and cache
-/.rspec_cache/
-/.rspec_status
-/jest-cache/
-/.jest-cache/
-
-# Ad-hoc test artifacts
-test-*.test.ts
-useApiKeys-simple.test.ts
-
-# Test coverage screenshots and reports
-*_coverage.png
-*_pass.png
-*_fail.png
-UNCOVERED_LINES_REPORT.txt
-
-# Documentation files (ignore all .md files except README.md)
-*.md
-!README.md
-
-# Legacy config files (removed, but ignore if they reappear)
-.babelrc.js
-.eslintrc.js
-
-# Coverage analysis scripts
-coverage_report.rb
-lib/coverage_harness.rb
-
-# Shakapacker/Webpack build outputs and cache
-/.shakapacker/
-/.shakapacker-cache/
-/webpack-assets-manifest.json
-
-# SimpleCov coverage reports (additional patterns)
-/coverage/
-/.coverage/
-*.coverage
-coverage/
-
-# Rails credentials (additional safety)
-/config/credentials.yml.enc
-/config/credentials/*.yml.enc
-
-# Heroku
-.heroku/
-
-# Backup files
-*.bak
-*.backup
-
-# Yarn/npm cache
-.yarn/cache
-.yarn/unplugged
-.yarn/build-state.yml
-.yarn/install-state.gz
-.pnp.*
 
 # TypeScript build outputs
 *.tsbuildinfo
 *.d.ts.map
 
-# Docker volumes
-docker-compose.override.yml
-
-# Local development overrides
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Node version files (usually tracked, but ignore if accidentally created)
+.node-version
+.npmrc.local
 
 # Ruby version managers
 .ruby-version.lock
@@ -168,30 +167,26 @@ __pycache__/
 venv/
 env/
 
-# Additional IDE files
-*.sublime-project
-*.sublime-workspace
-.project
-.classpath
-.settings/
+# Documentation files (ignore all .md files except README.md)
+*.md
+!README.md
 
-# Additional OS files
-.AppleDouble
-.LSOverride
-Icon
-.DocumentRevisions-V100
-.fseventsd
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-.AppleDB
-.AppleDesktop
-Network Trash Folder
-Temporary Items
-.apdisk
+# Legacy config files (removed, but ignore if they reappear)
+.babelrc.js
+.eslintrc.js
+
+# Docker volumes
+docker-compose.override.yml
+
+# Heroku
+.heroku/
+
+# Backup files
+*.bak
+*.backup
 
 # Local testing scripts (temporary development scripts)
 test-production.ps1
-test-production.sh
 
 # Development utility scripts (not needed in repo)
 check_migration.rb
@@ -199,20 +194,3 @@ check_migration.rb
 # Console/REPL output files (accidentally created)
 (lead)
 (*)
-
-# Bootsnap cache
-/tmp/cache/bootsnap/
-
-# Spring server files (Rails)
-/spring/
-.spring
-
-# Byebug history
-.byebug_history
-
-# Windows specific
-desktop.ini
-$RECYCLE.BIN/
-
-# Cursor IDE
-.cursor/
