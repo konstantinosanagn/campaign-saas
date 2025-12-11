@@ -73,14 +73,15 @@ RSpec.describe Api::V1::AgentConfigsController, type: :controller do
       expect(json['errors'].first).to match(/Invalid agent name/)
     end
 
-    it 'returns 422 when config already exists' do
-      create(:agent_config, campaign: campaign, agent_name: 'DESIGN')
+    it 'returns 200 and updates existing config when config already exists' do
+      create(:agent_config, campaign: campaign, agent_name: 'DESIGN', enabled: false)
 
-      post :create, params: { campaign_id: campaign.id, agent_config: { agentName: 'DESIGN' } }
+      post :create, params: { campaign_id: campaign.id, agent_config: { agentName: 'DESIGN', enabled: true } }
 
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
-      expect(json['errors']).to include('Agent config already exists for this campaign')
+      expect(json['agentName']).to eq('DESIGN')
+      expect(json['enabled']).to be true
     end
 
     it 'returns 404 when campaign not found' do

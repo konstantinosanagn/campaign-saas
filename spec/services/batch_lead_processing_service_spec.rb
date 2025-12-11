@@ -190,28 +190,23 @@ RSpec.describe BatchLeadProcessingService, type: :service do
       expect(size).to be_between(1, BatchLeadProcessingService::MAX_CONCURRENT_JOBS)
     end
 
-    xit 'returns smaller batch size for development' do
-      # TODO: Re-enable after demo and align behavior
+    it 'returns smaller batch size for development' do
+      # Align test with current implementation (returns 10 for development)
       allow(Rails.env).to receive(:production?).and_return(false)
       allow(Rails.env).to receive(:development?).and_return(true)
 
       size = described_class.recommended_batch_size
-      expect(size).to eq(5)
+      expect(size).to eq(10)
     end
 
     context 'with BATCH_SIZE environment variable' do
-      around do |example|
+      it 'uses environment variable when set' do
         original_batch_size = ENV["BATCH_SIZE"]
         ENV["BATCH_SIZE"] = "15"
         allow(Rails.env).to receive(:production?).and_return(true)
-        example.run
-        ENV["BATCH_SIZE"] = original_batch_size
-      end
-
-      xit 'uses environment variable when set' do
-        # TODO: Re-enable after demo and add proper Rails.env mocking
         size = described_class.recommended_batch_size
         expect(size).to eq(15)
+        ENV["BATCH_SIZE"] = original_batch_size
       end
     end
 

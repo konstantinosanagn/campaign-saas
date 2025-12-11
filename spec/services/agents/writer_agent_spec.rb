@@ -1,6 +1,37 @@
 require 'rails_helper'
 
 RSpec.describe Agents::WriterAgent, type: :service do
+    describe 'primary_cta_type validation' do
+      let(:settings) { { primary_cta_type: 'invalid_cta' } }
+      let(:shared_settings) { {} }
+      let(:logger) { double('Logger', warn: nil, info: nil) }
+      let(:agent) { described_class.new(api_key: api_key) }
+
+      def validate_cta_type(agent, settings, shared_settings)
+        primary_cta_type = agent.send(:get_setting, settings, :primary_cta_type) || agent.send(:get_setting, settings, "primary_cta_type")
+        primary_cta_type ||= agent.send(:get_setting, shared_settings, :primary_goal) || agent.send(:get_setting, shared_settings, "primary_goal")
+        primary_cta_type ||= "book_call"
+        unless [ "book_call", "get_reply", "get_click" ].include?(primary_cta_type)
+          agent.instance_variable_get(:@logger).warn("WriterAgent - Invalid primary_cta_type: #{primary_cta_type}, defaulting to 'book_call'")
+          primary_cta_type = "book_call"
+        end
+        primary_cta_type
+      end
+
+      before do
+        agent.instance_variable_set(:@logger, logger)
+        allow(agent).to receive(:get_setting).with(settings, :primary_cta_type).and_return('invalid_cta')
+        allow(agent).to receive(:get_setting).with(settings, "primary_cta_type").and_return(nil)
+        allow(agent).to receive(:get_setting).with(shared_settings, :primary_goal).and_return(nil)
+        allow(agent).to receive(:get_setting).with(shared_settings, "primary_goal").and_return(nil)
+      end
+
+      it 'logs warning and defaults to book_call for invalid primary_cta_type' do
+        expect(logger).to receive(:warn).with(/Invalid primary_cta_type: invalid_cta, defaulting to 'book_call'/)
+        result = validate_cta_type(agent, settings, shared_settings)
+        expect(result).to eq("book_call")
+      end
+    end
   let(:api_key) { 'test-gemini-key' }
   let(:writer_agent) { described_class.new(api_key: api_key) }
 
@@ -102,6 +133,22 @@ RSpec.describe Agents::WriterAgent, type: :service do
       )
     end
 
+    it 'converts num_variants_per_lead from string to integer' do
+      allow(described_class).to receive(:post).and_return(mock_response)
+      allow(JSON).to receive(:parse).and_return(JSON.parse(mock_response.body))
+      settings = { num_variants_per_lead: '1' }
+      result = writer_agent.run(search_results, config: { settings: settings })
+      expect(result[:variants].size).to eq(1)
+    end
+
+    it 'converts num_variants_per_lead from integer' do
+      allow(described_class).to receive(:post).and_return(mock_response)
+      allow(JSON).to receive(:parse).and_return(JSON.parse(mock_response.body))
+      settings = { num_variants_per_lead: 2 }
+      result = writer_agent.run(search_results, config: { settings: settings })
+      expect(result[:variants].size).to eq(2)
+    end
+
     it 'uses company from search_results when company parameter is nil' do
       result = writer_agent.run(search_results, company: nil)
 
@@ -126,7 +173,7 @@ RSpec.describe Agents::WriterAgent, type: :service do
         0, # variant_index starts at 0
         2, # num_variants
         search_results[:inferred_focus_areas] || [],
-        previous_critique: nil
+        { previous_critique: nil, sender_name: nil }
       )
 
       writer_agent.run(

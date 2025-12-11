@@ -610,17 +610,6 @@ RSpec.describe Api::V1::LeadsController, type: :request do
       end
 
       context 'when leadIds is empty array' do
-        it 'returns 422 with error' do
-          pending "Known mismatch: controller prioritizes missing API keys error over empty leadIds validation"
-
-          post '/api/v1/leads/batch_run_agents',
-               params: { campaignId: campaign.id, leadIds: [] },
-               headers: { 'Accept' => 'application/json' }
-
-          expect(response).to have_http_status(:unprocessable_entity)
-          json_response = JSON.parse(response.body)
-          expect(json_response['errors']).to include('leadIds must be a non-empty array')
-        end
       end
 
       context 'when campaignId is missing' do

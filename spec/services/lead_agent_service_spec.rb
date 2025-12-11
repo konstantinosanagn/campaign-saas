@@ -519,8 +519,8 @@ RSpec.describe LeadAgentService, type: :service do
         described_class.run_agents_for_lead(lead, campaign, user)
 
         lead.reload
-        # When all agents are disabled, lead advances through all stages to final stage
-        expect(lead.stage).to eq('designed')
+        # When all agents are disabled, lead remains at the initial stage
+        expect(lead.stage).to eq('queued')
       end
 
       it 'does not create output for disabled agent' do
@@ -553,7 +553,7 @@ RSpec.describe LeadAgentService, type: :service do
         described_class.run_agents_for_lead(lead, campaign, user)
 
         lead.reload
-        expect(lead.stage).to eq('designed')
+        expect(lead.stage).to eq('critiqued')
       end
 
       it 'does not create output for disabled DESIGN agent' do

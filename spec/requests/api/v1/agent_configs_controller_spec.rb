@@ -145,14 +145,15 @@ RSpec.describe Api::V1::AgentConfigsController, type: :request do
       end
 
       context 'when agent config already exists' do
-        let!(:existing_config) { create(:agent_config, campaign: campaign, agent_name: 'WRITER') }
+        let!(:existing_config) { create(:agent_config, campaign: campaign, agent_name: 'WRITER', enabled: false) }
 
-        it 'returns 422 with error message' do
+        it 'returns 200 and updates the existing config' do
           post "/api/v1/campaigns/#{campaign.id}/agent_configs", params: valid_attributes, headers: { 'Accept' => 'application/json' }
 
-          expect(response).to have_http_status(:unprocessable_entity)
+          expect(response).to have_http_status(:ok)
           json_response = JSON.parse(response.body)
-          expect(json_response['errors']).to include('Agent config already exists for this campaign')
+          expect(json_response['agentName']).to eq('WRITER')
+          expect(json_response['enabled']).to be true
         end
       end
 
