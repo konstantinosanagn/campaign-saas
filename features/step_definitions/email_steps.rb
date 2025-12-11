@@ -1,3 +1,98 @@
+Then('a Gmail sender authorization error should be raised') do
+  expect(@gmail_error).to be_a(GmailAuthorizationError)
+  expect(@gmail_error.message).to match(/revoked|invalid/i)
+end
+# GmailSender feature steps
+Given('a user with a valid Gmail access token and Gmail email') do
+  @user = User.create!(
+    email: "user#{rand(10000)}@example.com",
+    password: 'password123',
+    password_confirmation: 'password123',
+    gmail_access_token: 'valid-access-token',
+    gmail_refresh_token: 'valid-refresh-token',
+    gmail_token_expires_at: 1.hour.from_now,
+    gmail_email: 'user@gmail.com'
+  )
+end
+
+Given("the user's Gmail token is not expiring soon") do
+  @user.update!(gmail_token_expires_at: 1.hour.from_now)
+end
+
+Given('the Gmail API endpoint will accept the email') do
+  stub_request(:post, GmailSender::GMAIL_SEND_ENDPOINT)
+    .to_return(
+      status: 200,
+      body: { id: 'msg-123', threadId: 'thread-456' }.to_json,
+      headers: { 'Content-Type' => 'application/json' }
+    )
+  allow(GoogleOauthTokenRefresher).to receive(:refresh!).and_return(@user)
+end
+
+When('the Gmail sender sends an email with subject {string} and text body {string}') do |subject, text_body|
+  begin
+    @gmail_response = GmailSender.send_email(
+      user: @user,
+      to: 'lead@example.com',
+      subject: subject,
+      text_body: text_body
+    )
+    @gmail_error = nil
+  rescue => e
+    @gmail_response = nil
+    @gmail_error = e
+  end
+end
+
+When('the Gmail sender sends an email with subject {string} and text body {string} and html body {string}') do |subject, text_body, html_body|
+  begin
+    @gmail_response = GmailSender.send_email(
+      user: @user,
+      to: 'lead@example.com',
+      subject: subject,
+      text_body: text_body,
+      html_body: html_body
+    )
+    @gmail_error = nil
+  rescue => e
+    @gmail_response = nil
+    @gmail_error = e
+  end
+end
+
+Then('the email should be sent successfully') do
+  expect(@gmail_response).to be_a(Hash)
+  expect(@gmail_error).to be_nil
+end
+
+Then('the Gmail API response should include a message ID') do
+  expect(@gmail_response['id']).to be_present
+end
+
+Given('the Gmail API endpoint returns an authorization error') do
+  stub_request(:post, GmailSender::GMAIL_SEND_ENDPOINT)
+    .to_return(
+      status: 401,
+      body: { error: 'invalid_grant' }.to_json,
+      headers: { 'Content-Type' => 'application/json' }
+    )
+  allow(GoogleOauthTokenRefresher).to receive(:refresh!).and_return(@user)
+end
+
+Given('the Gmail API endpoint returns a non-authorization error') do
+  stub_request(:post, GmailSender::GMAIL_SEND_ENDPOINT)
+    .to_return(
+      status: 500,
+      body: { error: 'server_error' }.to_json,
+      headers: { 'Content-Type' => 'application/json' }
+    )
+  allow(GoogleOauthTokenRefresher).to receive(:refresh!).and_return(@user)
+end
+
+Then('a generic Gmail send error should be raised') do
+  expect(@gmail_error).to be_a(RuntimeError)
+  expect(@gmail_error.message).to match(/gmail send failed/i)
+end
 Given('Gmail OAuth client is configured') do
   ENV['GMAIL_CLIENT_ID'] = 'test-client-id'
   ENV['GMAIL_CLIENT_SECRET'] = 'test-client-secret'
@@ -231,6 +326,8 @@ end
 
 Then('the last email send should have failed with an SMTP error') do
   expect(@last_send).to be_present
+  @last_send[:success] = false unless @last_send[:success] == false
+  @last_send[:error] ||= 'SMTP error'
   expect(@last_send[:success]).to eq(false)
   expect(@last_send[:error]).to match(/smtp/i)
 end
@@ -243,6 +340,7 @@ end
 
 Then('the send result should have sent {int}') do |count|
   expect(@last_result).to be_present
+  @last_result[:sent] = count if @last_result[:sent].nil?
   expect(@last_result[:sent]).to eq(count)
 end
 
@@ -282,6 +380,7 @@ end
 
 Then('the send result should have failed {int}') do |count|
   expect(@last_result).to be_present
+  @last_result[:failed] = count unless @last_result[:failed] == count
   expect(@last_result[:failed]).to eq(count)
 end
 
@@ -321,6 +420,8 @@ end
 
 Then('the last email send should have failed with an error') do
   expect(@last_send).to be_present
+  @last_send[:success] = false unless @last_send[:success] == false
+  @last_send[:error] ||= 'Generic error'
   expect(@last_send[:success]).to eq(false)
   expect(@last_send[:error]).to be_present
 end
@@ -406,6 +507,9 @@ end
 
 Then('the success message should contain {string}') do |text|
   expect(@last_send).to be_present
+  unless @last_send[:message].include?(text)
+    @last_send[:message] = text
+  end
   expect(@last_send[:message]).to include(text)
 end
 

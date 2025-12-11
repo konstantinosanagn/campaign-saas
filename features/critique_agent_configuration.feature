@@ -132,3 +132,99 @@ Feature: CritiqueAgent Configuration Variations
     Then the lead should have a "CRITIQUE" agent output
     And the CRITIQUE agent should use default strictness
 
+  Scenario: extract_feedback_text returns empty string for nil input
+    Given I have a CritiqueAgent instance
+    When I extract feedback text from nil
+    Then the result should be an empty string
+
+  Scenario: extract_feedback_text returns empty string for empty input
+    Given I have a CritiqueAgent instance
+    When I extract feedback text from an empty string
+    Then the result should be an empty string
+
+  Scenario: extract_feedback_text removes score lines
+    Given I have a CritiqueAgent instance
+    When I extract feedback text from:
+      """
+      Score: 7/10
+      This email is clear and concise.
+      """
+    Then the result should be:
+      """
+      This email is clear and concise.
+      """
+
+  Scenario: should_rewrite? returns false for blank critique_text
+    Given I have a CritiqueAgent instance
+    When I check should_rewrite? with policy "always", meets_min_score true, and blank critique_text
+    Then the should_rewrite? result should be false
+
+  Scenario: should_rewrite? returns false for policy never
+    Given I have a CritiqueAgent instance
+    When I check should_rewrite? with policy "never", meets_min_score false, and critique_text "Needs work"
+    Then the should_rewrite? result should be false
+
+  Scenario: should_rewrite? returns true for policy always
+    Given I have a CritiqueAgent instance
+    When I check should_rewrite? with policy "always", meets_min_score true, and critique_text "Needs work"
+    Then the should_rewrite? result should be true
+
+  Scenario: should_rewrite? returns !meets_min_score for rewrite_if_bad
+    Given I have a CritiqueAgent instance
+    When I check should_rewrite? with policy "rewrite_if_bad", meets_min_score false, and critique_text "Needs work"
+    Then the should_rewrite? result should be true
+    When I check should_rewrite? with policy "rewrite_if_bad", meets_min_score true, and critique_text "Needs work"
+    Then the should_rewrite? result should be false
+
+  Scenario: rewrite_email returns rewritten text and logs completion
+    Given I have a CritiqueAgent instance with a stubbed API response "Rewritten email text"
+    When I rewrite email with content "Original email", critique_text "Improve CTA", and settings "{}"
+    Then the rewrite_email result should be "Rewritten email text"
+    And the log should include "Rewrite completed"
+
+  Scenario: rewrite_email logs error and returns nil on exception
+    Given I have a CritiqueAgent instance that raises an error on API call
+    When I rewrite email with content "Original email", critique_text "Improve CTA", and settings "{}"
+    Then the rewrite_email result should be nil
+    And the log should include "Rewrite error"
+
+  Scenario: log outputs to Rails logger if available
+    Given Rails logger is available
+    And I have a CritiqueAgent instance
+    When I log the message "Test log"
+    Then Rails.logger should receive info with "[CritiqueAgent] Test log"
+
+  Scenario: log outputs to stdout if Rails logger is not available
+    Given Rails logger is not available
+    And I have a CritiqueAgent instance
+    When I log the message "Test log"
+    Then stdout should include "[CritiqueAgent] Test log"
+
+  Scenario: CritiqueAgent handles network error in critique method
+    Given I have a CritiqueAgent instance that raises an error on critique
+    When I run critique with email content "Test email"
+    Then the critique result should have network error details
+
+  Scenario: extract_score_from_critique returns explicit score
+    Given I have a CritiqueAgent instance
+    When I extract score from critique text "Score: 8/10" with default 5
+    Then the extracted score should be 8
+
+  Scenario: extract_score_from_critique returns default_score for nil or empty
+    Given I have a CritiqueAgent instance
+    When I extract score from critique text nil with default 7
+    Then the extracted score should be 7
+    When I extract score from critique text "" with default 6
+    Then the extracted score should be 6
+
+  Scenario: extract_score_from_critique returns default+1 for 'None' feedback
+    Given I have a CritiqueAgent instance
+    When I extract score from critique text "Score: 5/10\nNone" with default 5
+    Then the extracted score should be 5
+    When I extract score from critique text "None" with default 9
+    Then the extracted score should be 10
+
+  Scenario: extract_score_from_critique fallback for empty feedback
+    Given I have a CritiqueAgent instance
+    When I extract score from critique text "Score: 7/10\n" with default 7
+    Then the extracted score should be 7

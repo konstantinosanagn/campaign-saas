@@ -72,4 +72,5 @@ group :development, :test do
   gem "rubocop-rails-omakase", require: false
   gem "brakeman", require: false
   gem "bundler-audit", require: false
+  gem "webmock", "~> 3.26"
 end
