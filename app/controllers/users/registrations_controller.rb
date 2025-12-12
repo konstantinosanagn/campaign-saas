@@ -36,7 +36,7 @@ class Users::RegistrationsController < Devise::RegistrationsController
     end
   end
 
-  private
+
 
   def check_authentication_and_remember_me
     # If user is authenticated, check if they have "remember me" set
