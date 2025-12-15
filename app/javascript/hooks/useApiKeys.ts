@@ -44,7 +44,7 @@ export function useApiKeys() {
 
   const saveKeys = async (newKeys: ApiKeys) => {
     try {
-      const response = await apiClient.put<ApiKeys>('api_keys', newKeys) // Remove the ID since it's a singular resource
+      const response = await apiClient.put<ApiKeys>('api_keys', { api_key: newKeys }) // singular resource
       
       if (response.error) {
         setError(response.error)
@@ -72,7 +72,7 @@ export function useApiKeys() {
   const clearKeys = async () => {
     try {
       const emptyKeys = { llmApiKey: '', tavilyApiKey: '' }
-      const response = await apiClient.put<ApiKeys>('api_keys', emptyKeys) // Remove the ID since it's a singular resource
+      const response = await apiClient.put<ApiKeys>('api_keys', { api_key: emptyKeys }) // singular resource
       
       if (response.error) {
         setError(response.error)

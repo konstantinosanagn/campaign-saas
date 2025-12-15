@@ -5,6 +5,12 @@ class User < ApplicationRecord
          :recoverable, :rememberable, :validatable,
          :omniauthable, omniauth_providers: [ :google_oauth2 ]
 
+  # Secrets (encrypted at rest)
+  encrypts :llm_api_key, deterministic: false
+  encrypts :tavily_api_key, deterministic: false
+  encrypts :gmail_access_token, deterministic: false
+  encrypts :gmail_refresh_token, deterministic: false
+
   has_many :campaigns, dependent: :destroy
 
   def self.from_google_omniauth(auth)
@@ -55,7 +61,9 @@ class User < ApplicationRecord
   end
 
   def can_send_gmail?
-    gmail_access_token.present? && gmail_email.present?
+    gmail_access_token.present? &&
+    gmail_refresh_token.present? &&
+    gmail_email.present?
   end
 
   def send_gmail!(to:, subject:, text_body:, html_body: nil)

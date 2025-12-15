@@ -13,7 +13,7 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     it "returns leads belonging to current_user" do
       leads = [ double(id: 1), double(id: 2) ]
       allow(Lead).to receive_message_chain(:includes, :joins, :where).and_return(leads)
-      allow(LeadSerializer).to receive(:serialize_collection).with(leads).and_return([
+      allow(LeadSerializer).to receive(:serialize_collection).with(leads, anything).and_return([
         { "id" => 1, "name" => "Lead 1" },
         { "id" => 2, "name" => "Lead 2" }
       ])
@@ -162,21 +162,21 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
       expect(body["status"]).to eq("error")
     end
 
-    it "runs sync and returns unprocessable when result failed" do
-      result = { status: "failed", error: "error", lead: lead }
-      allow(LeadAgentService).to receive(:run_agents_for_lead).and_return(result)
+    it "returns unprocessable when API keys are missing in sync mode" do
+      allow(ApiKeyService).to receive(:keys_available?).and_return(false)
+      allow(ApiKeyService).to receive(:missing_keys).and_return([ "GEMINI_API_KEY" ])
 
       post :run_agents, params: { id: lead.id, async: "false" }, format: :json
 
       expect(response).to have_http_status(:unprocessable_entity)
       body = JSON.parse(response.body)
       expect(body["status"]).to eq("failed")
-      expect(body["error"]).to eq("error")
+      expect(body["error"]).to match(/Missing API keys/i)
     end
 
-    it "runs sync and returns ok on success" do
-      result = { status: "completed", outputs: {}, completed_agents: [ "SEARCH", "WRITER" ], failed_agents: [], lead: lead }
-      allow(LeadAgentService).to receive(:run_agents_for_lead).and_return(result)
+    it "runs sync and returns ok when executor runs" do
+      allow(ApiKeyService).to receive(:keys_available?).and_return(true)
+      allow(LeadRunExecutor).to receive(:run_next!).and_return({ result_type: :claimed })
 
       post :run_agents, params: { id: lead.id, async: "false" }, format: :json
 
@@ -186,13 +186,32 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
     end
 
     it "handles exceptions during sync and returns 500" do
-      allow(LeadAgentService).to receive(:run_agents_for_lead).and_raise("error")
+      allow(ApiKeyService).to receive(:keys_available?).and_return(true)
+      allow(LeadRunExecutor).to receive(:run_next!).and_raise("error")
 
       post :run_agents, params: { id: lead.id, async: "false" }, format: :json
 
       expect(response).to have_http_status(:internal_server_error)
       body = JSON.parse(response.body)
       expect(body["status"]).to eq("error")
+    end
+
+    it "returns 503 when execution is paused (but still plans a run)" do
+      allow(AgentExecution).to receive(:paused?).and_return(true)
+      allow(ApiKeyService).to receive(:keys_available?).and_return(true)
+
+      expect(AgentExecutionJob).not_to receive(:perform_later)
+      expect(LeadRunExecutor).not_to receive(:run_next!)
+
+      post :run_agents, params: { id: lead.id, async: "true" }, format: :json
+
+      expect(response).to have_http_status(:service_unavailable)
+      body = JSON.parse(response.body)
+      expect(body["status"]).to eq("failed")
+      expect(body["error"]).to eq("execution_paused")
+
+      lead.reload
+      expect(lead.current_lead_run_id).to be_present
     end
 
     it "defaults to async in production when async param not provided" do

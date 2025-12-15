@@ -151,9 +151,20 @@ export default function ActionBar({
               (selectedLeads.length > 0
                 ? selectedLeads.filter((id) => {
                     const lead = filteredLeads.find((l) => l.id === id)
-                    return lead && lead.stage !== 'completed'
+                    // Check if lead is done: run completed OR stage is sent/failed (not just 'completed')
+                    const isDone = lead?.leadRun?.runStatus === 'completed' || 
+                                   lead?.stage === 'completed' || 
+                                   (lead?.stage?.startsWith('sent (') ?? false) ||
+                                   lead?.stage === 'send_failed'
+                    return lead && !isDone
                   }).length === 0
-                : filteredLeads.filter((l) => l.stage !== 'completed').length === 0)
+                : filteredLeads.filter((l) => {
+                    const isDone = l.leadRun?.runStatus === 'completed' || 
+                                   l.stage === 'completed' || 
+                                   (l.stage?.startsWith('sent (') ?? false) ||
+                                   l.stage === 'send_failed'
+                    return !isDone
+                  }).length === 0)
             }
             className="px-3 py-1.5 text-sm font-medium text-white bg-black border border-black rounded-full hover:text-black hover:bg-transparent hover:border-black transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-white disabled:hover:bg-black disabled:hover:border-black"
             title={

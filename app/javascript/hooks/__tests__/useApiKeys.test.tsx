@@ -189,8 +189,10 @@ describe('useApiKeys', () => {
     const ok = await apiRef.saveKeys({ llmApiKey: 'LLM_NEW', tavilyApiKey: 'TAV_NEW' })
     expect(ok).toBe(true)
     expect(putMock).toHaveBeenCalledWith('api_keys', {
-      llmApiKey: 'LLM_NEW',
-      tavilyApiKey: 'TAV_NEW',
+      api_key: {
+        llmApiKey: 'LLM_NEW',
+        tavilyApiKey: 'TAV_NEW',
+      },
     })
     expect(readState().keys).toEqual({ llmApiKey: 'LLM_NEW', tavilyApiKey: 'TAV_NEW' })
     expect(readState().error).toBe('')
@@ -284,7 +286,7 @@ describe('useApiKeys', () => {
     await userEvent.click(screen.getByText('clear'))
 
     await waitFor(() => {
-      expect(putMock).toHaveBeenCalledWith('api_keys', { llmApiKey: '', tavilyApiKey: '' })
+      expect(putMock).toHaveBeenCalledWith('api_keys', { api_key: { llmApiKey: '', tavilyApiKey: '' } })
       expect(readState().keys).toEqual({ llmApiKey: '', tavilyApiKey: '' })
     })
   })

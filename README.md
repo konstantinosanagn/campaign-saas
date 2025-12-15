@@ -1,12 +1,8 @@
 # CampAIgn - AI-Powered Campaign Management Platform
 
-**Team:**
-- Konstantinos Anagnostopoulos (ka3037)
-- Riz Chen (sc5144)
-- Siying Ding (sd3609)
-- Aarushi Sharma (as6322)
+A modern SaaS application for managing AI-powered marketing campaigns with intelligent agent workflows.
 
-A modern SaaS application for managing AI-powered marketing campaigns with intelligent agent workflows. Built with **Ruby on Rails 8.1**, **React 18**, **PostgreSQL**, and **TypeScript**.
+**Built with:** Ruby on Rails 8.1, React 18, PostgreSQL, TypeScript
 
 Clip from [demo video](https://youtu.be/YRCymhf2M9U?si=3CxA78A44HRBLUVm&t=676) showcasing how to use the app if needed
 
@@ -15,18 +11,13 @@ Clip from [demo video](https://youtu.be/YRCymhf2M9U?si=3CxA78A44HRBLUVm&t=676) s
 - **Ruby:** 3.3.9+
 - **Rails:** 8.1
 - **PostgreSQL:** 12+
-- **Node.js:** **20.0.0 or higher (latest LTS 24.x recommended)** ⚠️ **REQUIRED**
-  - This project uses Shakapacker (Webpack 5) which requires Node.js 20+
-  - The installation will fail if you don't have the correct Node.js version
-  - Check your version: `node --version`
-  - Download latest LTS: https://nodejs.org/
-  - Or use nvm: `nvm install 24 && nvm use 24`
-- **npm:** 10.7.0+ (comes with Node.js)
+- **Node.js:** 20.0.0+ (LTS 24.x recommended) ⚠️ **Required**
+- **npm:** 10.7.0+
 
 ## Installation
 
 ### Quick Start (Recommended)
-If you run into any problem when following the Quick Start instructions, pleae check out our curated [Troubleshooting section](#troubleshooting), where tested solutions to commonly encountered setup issues are provided.
+If you run into any problem when following the Quick Start instructions, please check out our curated [Troubleshooting section](#troubleshooting), where tested solutions to commonly encountered setup issues are provided.
 
 If you prefer manually set up this project locally instead, please follow instructions in [Manual Setup section](#manual-setup-alternative)
 
@@ -35,30 +26,20 @@ If you prefer manually set up this project locally instead, please follow instru
 git clone <your-repo-url>
 cd campaign-saas
 
-# 2. ⚠️ IMPORTANT: Install Node.js 20+ (latest LTS 24.x recommended)
-#    The installation will automatically check and fail if Node.js version is too old.
-#    
-#    Option A: Download from https://nodejs.org/ (recommended for most users)
-#    Option B: Using nvm (Node Version Manager)
-#      nvm install 24
-#      nvm use 24
-#      # Or if .nvmrc exists: nvm use
-#
-#    Verify installation: node --version (should show v20.x.x or higher)
+# 2. Install Node.js 20+ if needed
+# Download from https://nodejs.org/ or use: nvm install 24 && nvm use 24
 
-# 3. Run automated setup (installs Ruby gems, sets up database)
+# 3. Run automated setup
 bin/setup --skip-server
 
 # 4. Install JavaScript dependencies
-#    This will automatically check Node.js version and fail if < 20.0.0
 npm install
 
-# 5. Start the application (requires two terminals)
-# Terminal 1: Webpack frontend (hot reload)
-chmod +x ./bin/webpack-dev-server
+# 5. Start the application (two terminals)
+# Terminal 1: Webpack dev server
 ./bin/webpack-dev-server
 
-# Terminal 2: Rails backend
+# Terminal 2: Rails server
 rails server
 ```
 
@@ -84,221 +65,102 @@ As shown in the screenshots below, all Cucumber scenarios passed. We are able to
 ![RSpec tests all passed](cucumber_run.png)
 ![RSpec tests all passed](cucumber_coverage_rate.png)
 
-## Development Mode
+## Development
 
 ### Default User
 - **Email:** `admin@example.com`
 - **Password:** `password123`
-- Auto-login enabled (no authentication required)
+- Authentication is disabled in development (auto-login)
 
-### API Keys
-**Important:** API keys are no longer automatically assigned in development. You must manually add them:
-
-1. Start the application and log in as `admin@example.com`
-2. Click on your user profile (top right)
-3. Navigate to the API Keys section
-4. Add your API keys:
-   - **Gemini API Key** (for Writer, Critique, and Design agents)
-   - **Tavily API Key** (for Search agent)
-
-Get your API keys:
-- **Gemini API Key:** https://aistudio.google.com/app/apikey
-- **Tavily API Key:** https://tavily.com/
+### API Keys Setup
+1. Start the application
+2. Navigate to user profile → API Keys
+3. Add your keys:
+   - **Gemini API Key:** https://aistudio.google.com/app/apikey
+   - **Tavily API Key:** https://tavily.com/
 
 ### Email Sending Setup
 
-The application uses **Gmail OAuth** for sending emails. There are two ways to set this up:
-
-#### Option 1: Use Your Own Gmail Account (Recommended for Development)
-
-1. **Set up Google OAuth Client:**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Navigate to **APIs & Services** → **Credentials**
-   - Create a new **OAuth 2.0 Client ID** (or use existing)
-   - Application type: **Web application**
-   - Add authorized redirect URIs:
-     ```
-     http://localhost:3000/users/auth/google_oauth2/callback  # For Google login
-     http://localhost:3000/oauth/gmail/callback                # For Gmail sending
-     ```
-   - Enable **Gmail API** in the APIs & Services section
-   - Copy the **Client ID** and **Client Secret**
-
-2. **Configure in `.env`:**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Add to your `.env` file:
+**Option 1: Use Your Own Gmail (Recommended)**
+1. Set up Google OAuth Client in [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable Gmail API
+3. Add redirect URIs:
+   - `http://localhost:3000/users/auth/google_oauth2/callback`
+   - `http://localhost:3000/oauth/gmail/callback`
+4. Add to `.env`:
    ```env
-   GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GOOGLE_CLIENT_ID=your-client-id
    GOOGLE_CLIENT_SECRET=your-client-secret
-   GMAIL_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GMAIL_CLIENT_ID=your-client-id
    GMAIL_CLIENT_SECRET=your-client-secret
    ```
+5. Connect Gmail in the app via user profile
 
-3. **Connect Gmail in the App:**
-   - Log in to the application
-   - Click on your user profile (top right)
-   - Click **"Connect Gmail"** button
-   - Authorize the application to send emails on your behalf
-   - Your Gmail account will now be used for sending campaign emails
-
-#### Option 2: Use Default System Sender (For Testing)
-
-If you don't want to connect your own Gmail, you can use a default system sender:
-
-1. **Set up a system Gmail account:**
-   - Create a Gmail account (e.g., `campaignsenderagent@gmail.com`)
-   - Set up Google OAuth for this account (same steps as Option 1)
-   - Connect this account via Google OAuth in the app
-
-2. **Configure in `.env`:**
+**Option 2: Use Default System Sender**
+1. Create a Gmail account for the system
+2. Set up OAuth (same as Option 1)
+3. Add to `.env`:
    ```env
-   DEFAULT_GMAIL_SENDER=campaignsenderagent@gmail.com
+   DEFAULT_GMAIL_SENDER=system-email@gmail.com
    ```
 
-3. **The system will:**
-   - Automatically use this account when users haven't connected their own Gmail
-   - Display "Using default sender" in the UI
-   - Hide the "Connect Gmail" button when default sender is available
-
-**Note:** The default sender must be a user in the database with Gmail OAuth connected. You can create this user via Google OAuth login or manually in the database.
-
-#### Email Sending Priority
-
-The application tries email sending methods in this order:
-
-1. **User's Gmail OAuth** (if user connected their Gmail via Google login)
-2. **Default Gmail Sender** (if `DEFAULT_GMAIL_SENDER` is configured and that user has Gmail connected)
-3. **SMTP Fallback** (if neither Gmail option is available)
-
-### Authentication
-- `DISABLE_AUTH` is automatically `true` in development
-- No login required - automatically logged in as admin user
-- Admin user is auto-created on first access
-- **For Google OAuth testing:** Set `DISABLE_AUTH=false` in `.env` to test the full OAuth flow
-
-## Production Mode
-
-### Authentication
-- Authentication is **required** by default
-- Set `DISABLE_AUTH=true` environment variable to disable auth (for testing/demos only)
-- Users must register/login to access the application
-
-### Required Environment Variables
-
-For production, set these environment variables in Heroku:
-
-```bash
-# Google OAuth (required for Gmail sending)
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
-GMAIL_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GMAIL_CLIENT_SECRET=your-client-secret
-
-# Optional: Default Gmail sender (system account)
-DEFAULT_GMAIL_SENDER=campaignsenderagent@gmail.com
-
-# API Keys (user-specific, but can set defaults)
-GEMINI_API_KEY=your-gemini-key
-TAVILY_API_KEY=your-tavily-key
-
-# Optional: Disable authentication (testing only)
-DISABLE_AUTH=false
-```
-
-### Google OAuth Setup for Production
-
-1. **Create OAuth 2.0 Client in Google Cloud Console:**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Navigate to **APIs & Services** → **Credentials**
-   - Create **OAuth 2.0 Client ID** (Web application)
-   - Add authorized redirect URIs:
-     ```
-     https://your-app-name.herokuapp.com/users/auth/google_oauth2/callback  # For Google login
-     https://your-app-name.herokuapp.com/oauth/gmail/callback                  # For Gmail sending
-     ```
-   - Enable **Gmail API** in the APIs & Services section
-
-2. **Set environment variables in Heroku:**
-   ```bash
-   heroku config:set GOOGLE_CLIENT_ID="your-client-id" -a campaign-saas
-   heroku config:set GOOGLE_CLIENT_SECRET="your-client-secret" -a campaign-saas
-   heroku config:set GMAIL_CLIENT_ID="your-client-id" -a campaign-saas
-   heroku config:set GMAIL_CLIENT_SECRET="your-client-secret" -a campaign-saas
-   heroku config:set DEFAULT_GMAIL_SENDER="system-email@gmail.com" -a campaign-saas
-   ```
-
-3. **Run database migrations:**
-   ```bash
-   heroku run rails db:migrate -a campaign-saas
-   ```
-
-### Email Sending in Production
-
-- Users can connect their Gmail via **"Continue with Google"** login or Gmail OAuth flow
-- If a user hasn't connected Gmail, the system uses the `DEFAULT_GMAIL_SENDER` (if configured)
-- Email sending priority: User's Gmail OAuth → Default Gmail Sender → SMTP fallback
-- All emails are sent via **Gmail API** (preferred) for better deliverability
-- Gmail tokens are automatically refreshed when they expire
-- Rate limiting: ~2 emails/second to respect Gmail API quotas
+**Email Sending Priority:** User Gmail OAuth → Default Gmail Sender → SMTP Fallback
 
 ## Project Structure
 
 ```
 campaign-saas/
 ├── app/
-│   ├── controllers/          # MVC controllers (API v1 + web)
-│   ├── models/              # ActiveRecord models (User, Campaign, Lead, AgentConfig, AgentOutput)
-│   ├── services/            # Business logic & AI agents
-│   │   ├── agents/          # Individual agent implementations
-│   │   └── lead_agent_service/  # Agent orchestration logic
-│   ├── javascript/           # React/TypeScript frontend
-│   │   ├── components/      # React components
-│   │   ├── hooks/           # Custom React hooks
-│   │   └── libs/            # Utilities and constants
-│   ├── jobs/                # Background jobs (AgentExecutionJob, EmailSendingJob)
-│   └── views/               # ERB templates
-├── db/                      # Database migrations and seeds
-├── spec/                    # RSpec test suite
-├── features/                # Cucumber tests
-└── config/                  # Rails configuration
+│   ├── controllers/       # API & web controllers
+│   ├── models/            # ActiveRecord models
+│   ├── services/          # Business logic & AI agents
+│   │   ├── agents/        # Agent implementations
+│   │   └── lead_runs/     # Agent orchestration
+│   ├── javascript/        # React/TypeScript frontend
+│   ├── jobs/              # Background jobs
+│   └── views/             # ERB templates
+├── db/                    # Migrations & seeds
+├── spec/                  # RSpec tests
+├── features/              # Cucumber tests
+└── config/                # Rails configuration
 ```
 
 ## AI Agent System
 
-Multi-agent pipeline: **SearchAgent** → **WriterAgent** → **CritiqueAgent** → **DesignAgent**
+Multi-agent pipeline executes in order: **SEARCH → WRITER → CRITIQUE → DESIGN → SENDER**
 
-- **SearchAgent** - Researches companies and recipients using Tavily API, infers focus areas via Gemini
-- **WriterAgent** - Generates personalized B2B emails using Gemini API with configurable tone, length, and CTA types. Can rewrite emails based on critique feedback
-- **CritiqueAgent** - Reviews email quality (1-10 score), provides feedback, and triggers rewrite if score is below threshold
-- **DesignAgent** - Applies markdown formatting (bold, italic, bullets) to enhance readability
+### Agents
 
-**Stage Progression:**
-- Normal flow: `queued → searched → written → critiqued → designed → completed`
-- With rewrites: `written → critiqued → rewritten (1) → critiqued → rewritten (2) → ... → designed → completed`
+- **SEARCH** - Researches companies and recipients using Tavily API
+- **WRITER** - Generates personalized B2B emails using Gemini API
+- **CRITIQUE** - Reviews email quality (1-10 score), provides feedback
+- **DESIGN** - Applies markdown formatting (bold, italic, bullets)
+- **SENDER** - Delivers emails via Gmail API or SMTP
 
-**Key Features:**
-- Each agent can be enabled/disabled per campaign
-- Configurable settings per agent (tone, personalization level, strictness, etc.)
-- Automatic rewrite cycles: CritiqueAgent provides feedback → WriterAgent rewrites based on feedback (max 3 revisions)
-- Variant generation and selection (WriterAgent can generate multiple email variants)
-- Quality scoring and feedback loop for continuous improvement
+### Stage Progression
+
+- **Normal flow:** `queued → searched → written → critiqued → designed → completed`
+- **With rewrites:** `written → critiqued → rewritten (1) → critiqued → rewritten (2) → ... → designed → completed`
+
+### Key Features
+
+- Agents can be enabled/disabled per campaign
+- Automatic rewrite cycles when critique score is below threshold (max 3 rewrites)
+- Configurable settings per agent (tone, personalization, strictness, etc.)
+- Variant generation and selection
+- Quality scoring and feedback loop
 
 ## Available Scripts
 
 ```bash
 # Database
-rails db:create              # Create databases
-rails db:migrate             # Run migrations
-rails db:seed                # Seed database
-rails db:rollback            # Rollback last migration
+rails db:setup         # Create, migrate, and seed
+rails db:migrate       # Run migrations
 
 # Development
-rails server                 # Start Rails server
-./bin/webpack-dev-server     # Start Webpack dev server
-rails console                # Open Rails console
+rails server           # Start Rails server
+./bin/webpack-dev-server  # Start Webpack dev server
+rails console          # Open Rails console
 
 # Testing
 COVERAGE=TRUE bundle exec rspec            # Run RSpec tests
@@ -306,10 +168,26 @@ COVERAGE=TRUE bundle exec cucumber         # Run Cucumber tests
 npm test                     # Run Jest tests
 npm run test:coverage        # Run Jest tests with coverage
 
-*** Note: Please run rm -rf coverage in between running the RSpec and Cucumber tests to get the most accurate results for RSpec e or Cucumber alone.
+*** Note: Please run rm -rf coverage in between running the RSpec and Cucumber tests to get the most accurate results for RSpec alone or Cucumber alone.
 ```
 
-## Deployment
+## Production
+
+### Environment Variables
+
+Required:
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`
+
+Optional:
+- `DEFAULT_GMAIL_SENDER` - System email sender
+- `DISABLE_AUTH` - Set to `true` to disable auth (testing only)
+
+### Deployment
+
+1. Run migrations: `heroku run rails db:migrate -a <app>`
+2. Set environment variables
+3. Verify Gmail OAuth configuration
 
 **Platform:** Heroku  
 **URL:** https://campaign-saas-7460a258bf90.herokuapp.com/
@@ -430,3 +308,6 @@ If port 3000 is already in use:
 rails server -p 3001
 ```
 
+## Documentation
+
+For comprehensive codebase documentation, see `COMPLETE_CODEBASE_ANALYSIS.md` in the repository root directory.

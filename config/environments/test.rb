@@ -3,6 +3,13 @@
 # your test database is "scratch space" for the test suite and is wiped
 # and recreated between test runs. Don't rely on the data there!
 
+# Active Record Encryption requires keys at boot time once encrypted attributes
+# are enabled. In test, we use deterministic dummy keys so the suite can run
+# without external env configuration.
+ENV["ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY"] ||= "test_primary_key_1234567890ABXYZ"
+ENV["ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY"] ||= "test_deterministic_key_123456789"
+ENV["ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT"] ||= "test_key_derivation_salt_1234ABC"
+
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 

@@ -129,4 +129,47 @@ RSpec.describe Campaign, type: :model do
       expect(json).not_to have_key('shared_settings')
     end
   end
+
+  describe 'shared_settings min_score_for_send validation' do
+    let(:user) { create(:user) }
+
+    it 'allows min_score_for_send = 10' do
+      campaign = build(:campaign, user: user, shared_settings: { 'min_score_for_send' => 10 })
+      expect(campaign).to be_valid
+    end
+
+    it 'allows min_score_for_send = 0' do
+      campaign = build(:campaign, user: user, shared_settings: { 'min_score_for_send' => 0 })
+      expect(campaign).to be_valid
+    end
+
+    it 'allows min_score_for_send as numeric string "10"' do
+      campaign = build(:campaign, user: user, shared_settings: { 'min_score_for_send' => '10' })
+      expect(campaign).to be_valid
+    end
+
+    it 'rejects min_score_for_send = 11' do
+      campaign = build(:campaign, user: user, shared_settings: { 'min_score_for_send' => 11 })
+      expect(campaign).not_to be_valid
+      expect(campaign.errors[:shared_settings]).to be_present
+    end
+
+    it 'rejects min_score_for_send = -1' do
+      campaign = build(:campaign, user: user, shared_settings: { 'min_score_for_send' => -1 })
+      expect(campaign).not_to be_valid
+      expect(campaign.errors[:shared_settings]).to be_present
+    end
+
+    it 'rejects non-numeric string min_score_for_send' do
+      campaign = build(:campaign, user: user, shared_settings: { 'min_score_for_send' => 'abc' })
+      expect(campaign).not_to be_valid
+      expect(campaign.errors[:shared_settings]).to be_present
+      expect(campaign.errors[:shared_settings].first).to include('must be an integer')
+    end
+
+    it 'handles symbol key min_score_for_send' do
+      campaign = build(:campaign, user: user, shared_settings: { min_score_for_send: 10 })
+      expect(campaign).to be_valid
+    end
+  end
 end

@@ -167,9 +167,10 @@ __pycache__/
 venv/
 env/
 
-# Documentation files (ignore all .md files except README.md)
+# Documentation files (ignore all .md files except README.md and COMPLETE_CODEBASE_ANALYSIS.md)
 *.md
 !README.md
+!COMPLETE_CODEBASE_ANALYSIS.md
 
 # Legacy config files (removed, but ignore if they reappear)
 .babelrc.js
@@ -194,3 +195,9 @@ check_migration.rb
 # Console/REPL output files (accidentally created)
 (lead)
 (*)
+completed,
+completed}
+tmp_check_*.rb
+
+# Cursor workspace assets (not needed in repo)
+/assets/

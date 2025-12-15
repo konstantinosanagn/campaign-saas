@@ -89,11 +89,27 @@ module Api
           update_hash[:enabled] = permitted_params[:enabled] if permitted_params.key?(:enabled)
           update_hash[:settings] = permitted_params[:settings] if permitted_params.key?(:settings)
 
-          Rails.logger.info("[AgentConfigsController] Updating existing config with: #{update_hash.inspect}")
+          Rails.logger.info("[AgentConfigsController] Updating existing config id=#{existing_config.id} agent_name=#{existing_config.agent_name} keys=#{update_hash.keys}")
+
+          if agent_config_locked?(campaign_id: campaign.id, agent_name: existing_config.agent_name)
+            render json: { error: "agent_config_locked", agent_name: existing_config.agent_name }, status: :unprocessable_entity
+            return
+          end
 
           if existing_config.update(update_hash)
             existing_config.reload
-            Rails.logger.info("[AgentConfigsController] Config updated successfully: enabled=#{existing_config.enabled}, settings=#{existing_config.settings.inspect}")
+            Rails.logger.info("[AgentConfigsController] Config updated successfully id=#{existing_config.id} enabled=#{existing_config.enabled}")
+            
+            # Reconcile active runs for this campaign to reflect the config change
+            active_runs = LeadRun.where(campaign_id: campaign.id, status: LeadRun::ACTIVE_STATUSES)
+            active_runs.find_each do |run|
+              LeadRuns.reconcile_disabled_steps!(run, campaign)
+              LeadRuns.reconcile_enabled_steps!(run, campaign)
+              if existing_config.agent_name == "DESIGN" && existing_config.enabled?
+                LeadRuns.ensure_design_step!(run)
+              end
+            end
+            
             render json: AgentConfigSerializer.serialize(existing_config), status: :ok
           else
             Rails.logger.error("[AgentConfigsController] Config update failed: #{existing_config.errors.full_messages.join(', ')}")
@@ -110,6 +126,16 @@ module Api
         )
 
         if config.save
+          # Reconcile active runs for this campaign to reflect the new config
+          active_runs = LeadRun.where(campaign_id: campaign.id, status: LeadRun::ACTIVE_STATUSES)
+          active_runs.find_each do |run|
+            LeadRuns.reconcile_disabled_steps!(run, campaign)
+            LeadRuns.reconcile_enabled_steps!(run, campaign)
+            if config.agent_name == "DESIGN" && config.enabled?
+              LeadRuns.ensure_design_step!(run)
+            end
+          end
+          
           render json: AgentConfigSerializer.serialize(config), status: :created
         else
           render json: { errors: config.errors.full_messages }, status: :unprocessable_entity
@@ -145,14 +171,29 @@ module Api
         update_hash[:settings] = permitted_params[:settings] if permitted_params.key?(:settings)
 
         # Log the update params for debugging
-        Rails.logger.info("[AgentConfigsController] Updating config #{config.id} (#{config.agent_name}) with params: #{update_hash.inspect}")
-        Rails.logger.info("[AgentConfigsController] Settings in update_hash: #{update_hash[:settings].inspect}")
-        Rails.logger.info("[AgentConfigsController] Settings class: #{update_hash[:settings].class}")
+        settings_keys = update_hash[:settings].is_a?(Hash) ? update_hash[:settings].keys : nil
+        Rails.logger.info("[AgentConfigsController] Updating config id=#{config.id} agent_name=#{config.agent_name} keys=#{update_hash.keys} settings_keys=#{settings_keys}")
+
+        if agent_config_locked?(campaign_id: campaign.id, agent_name: config.agent_name)
+          render json: { error: "agent_config_locked", agent_name: config.agent_name }, status: :unprocessable_entity
+          return
+        end
 
         if config.update(update_hash)
           # Reload to ensure we have the latest values
           config.reload
-          Rails.logger.info("[AgentConfigsController] Config updated successfully: enabled=#{config.enabled}, settings=#{config.settings.inspect}")
+          Rails.logger.info("[AgentConfigsController] Config updated successfully id=#{config.id} enabled=#{config.enabled}")
+          
+          # Reconcile active runs for this campaign to reflect the config change
+          active_runs = LeadRun.where(campaign_id: campaign.id, status: LeadRun::ACTIVE_STATUSES)
+          active_runs.find_each do |run|
+            LeadRuns.reconcile_disabled_steps!(run, campaign)
+            LeadRuns.reconcile_enabled_steps!(run, campaign)
+            if config.agent_name == "DESIGN" && config.enabled?
+              LeadRuns.ensure_design_step!(run)
+            end
+          end
+          
           render json: AgentConfigSerializer.serialize(config), status: :ok
         else
           Rails.logger.error("[AgentConfigsController] Config update failed: #{config.errors.full_messages.join(', ')}")
@@ -175,6 +216,11 @@ module Api
         config = campaign.agent_configs.find_by(id: params[:id])
 
         if config
+          if agent_config_locked?(campaign_id: campaign.id, agent_name: config.agent_name)
+            render json: { error: "agent_config_locked", agent_name: config.agent_name }, status: :unprocessable_entity
+            return
+          end
+
           config.destroy
           head :no_content
         else
@@ -183,6 +229,14 @@ module Api
       end
 
       private
+
+      def agent_config_locked?(campaign_id:, agent_name:)
+        LeadRunStep.joins(:lead_run).where(
+          lead_runs: { campaign_id: campaign_id, status: LeadRun::ACTIVE_STATUSES },
+          agent_name: agent_name.to_s,
+          status: "running"
+        ).exists?
+      end
 
       def agent_config_params
         # Handle both camelCase (agentConfig) and snake_case (agent_config)
@@ -196,11 +250,17 @@ module Api
           return params.permit(:agent_name, :agentName, :enabled, settings: {})
         end
 
-        # Permit all settings keys explicitly for security
-        # Settings vary by agent type, so we permit all known keys
-        # Note: permit accepts both symbol and string keys, and both camelCase and snake_case
-        permitted = config_params.permit(:agent_name, :agentName, "agent_name", "agentName", :enabled)
+        # Permit enabled and settings (explicitly permit settings to avoid unpermitted parameter warning)
+        # Note: Do NOT permit :id - it comes from the URL params[:id] and should not be in the payload
+        # We permit settings: {} here to avoid the warning, then filter nested keys in permit_settings
+        permitted = config_params.permit(
+          :agent_name, :agentName, "agent_name", "agentName",
+          :enabled,
+          settings: {}
+        )
 
+        # Extract and process settings separately to handle nested structures properly
+        # This ensures we only permit the specific keys we want
         settings_data = config_params[:settings] || config_params["settings"]
         permitted_settings = if settings_data.present?
           permit_settings(settings_data)

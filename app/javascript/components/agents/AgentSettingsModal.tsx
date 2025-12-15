@@ -126,7 +126,7 @@ export default function AgentSettingsModal({
         setCheckSpamminess(critiqueSettings.checks?.check_spamminess !== false)
         setStrictness(critiqueSettings.strictness || 'moderate')
         setRewritePolicy(critiqueSettings.rewrite_policy || 'rewrite_if_bad')
-        setMinScoreForSend(Math.max(1, Math.min(10, critiqueSettings.min_score_for_send || 6)))
+        setMinScoreForSend(Math.max(0, Math.min(10, critiqueSettings.min_score_for_send || 6)))
         setVariantSelection(critiqueSettings.variant_selection || 'highest_overall_score')
       } else if (agentName === 'DESIGN') {
         const designSettings = settings as DesignAgentSettings & { allow_bold?: boolean; allow_italic?: boolean; allow_bullets?: boolean; cta_style?: string; font_family?: string }
@@ -192,6 +192,13 @@ export default function AgentSettingsModal({
           num_variants_per_lead: numVariantsPerLead
         }
       } else if (agentName === 'CRITIQUE') {
+        // Validate and clamp min_score_for_send to valid range (0-10)
+        const validatedMinScore = Math.min(10, Math.max(0, minScoreForSend))
+        if (minScoreForSend > 10 || minScoreForSend < 0) {
+          console.warn('min_score_for_send must be between 0 and 10. Clamping to valid range.')
+          setMinScoreForSend(validatedMinScore)
+        }
+        
         settings = {
           checks: {
             check_personalization: checkPersonalization,
@@ -200,7 +207,7 @@ export default function AgentSettingsModal({
           },
           strictness: strictness,
           rewrite_policy: rewritePolicy,
-          min_score_for_send: minScoreForSend,
+          min_score_for_send: validatedMinScore,
           variant_selection: variantSelection
         }
       } else if (agentName === 'DESIGN') {
@@ -254,7 +261,7 @@ export default function AgentSettingsModal({
         setCheckSpamminess(critiqueSettings.checks?.check_spamminess !== false)
         setStrictness(critiqueSettings.strictness || 'moderate')
         setRewritePolicy(critiqueSettings.rewrite_policy || 'rewrite_if_bad')
-        setMinScoreForSend(Math.max(1, Math.min(10, critiqueSettings.min_score_for_send || 6)))
+        setMinScoreForSend(Math.max(0, Math.min(10, critiqueSettings.min_score_for_send || 6)))
         setVariantSelection(critiqueSettings.variant_selection || 'highest_overall_score')
       } else if (agentName === 'DESIGN') {
         const designSettings = settings as DesignAgentSettings & { allow_bold?: boolean; allow_italic?: boolean; allow_bullets?: boolean; cta_style?: string; font_family?: string }
@@ -1231,13 +1238,13 @@ export default function AgentSettingsModal({
                     <input
                       type="range"
                       id="minScoreForSend"
-                      min="1"
+                      min="0"
                       max="10"
                       value={minScoreForSend}
-                      onChange={(e) => setMinScoreForSend(parseInt(e.target.value) || 6)}
+                      onChange={(e) => setMinScoreForSend(Math.min(10, Math.max(0, parseInt(e.target.value) || 6)))}
                       className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-slider"
                       style={{
-                        background: `linear-gradient(to right, #2563eb 0%, #2563eb ${((minScoreForSend - 1) / 9) * 100}%, #e5e7eb ${((minScoreForSend - 1) / 9) * 100}%, #e5e7eb 100%)`
+                        background: `linear-gradient(to right, #2563eb 0%, #2563eb ${(minScoreForSend / 10) * 100}%, #e5e7eb ${(minScoreForSend / 10) * 100}%, #e5e7eb 100%)`
                       }}
                     />
                     <span className="text-sm font-medium text-gray-700 min-w-[1.5rem] text-right">

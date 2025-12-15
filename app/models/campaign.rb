@@ -4,6 +4,7 @@ class Campaign < ApplicationRecord
   has_many :agent_configs, dependent: :destroy
 
   validates :title, presence: true
+  validate :shared_settings_min_score_bounds
 
   # Default shared_settings structure
   after_initialize :set_default_shared_settings, if: :new_record?
@@ -36,6 +37,24 @@ class Campaign < ApplicationRecord
   end
 
   private
+
+  def shared_settings_min_score_bounds
+    return unless shared_settings.is_a?(Hash)
+    value = shared_settings["min_score_for_send"] || shared_settings[:min_score_for_send]
+    return if value.nil?
+
+    # Accept Integer or numeric string only, reject non-numeric strings
+    str = value.is_a?(String) ? value.strip : value
+    unless str.is_a?(Integer) || str.to_s.match?(/\A-?\d+\z/)
+      errors.add(:shared_settings, "min_score_for_send must be an integer, got #{value.inspect}")
+      return
+    end
+
+    int_value = str.to_i
+    if int_value > 10 || int_value < 0
+      errors.add(:shared_settings, "min_score_for_send must be between 0 and 10, got #{int_value}")
+    end
+  end
 
   def set_default_shared_settings
     return if persisted? # Don't set defaults for existing records

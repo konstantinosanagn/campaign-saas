@@ -10,13 +10,17 @@ module AgentConstants
   AGENT_WRITER = "WRITER"
   AGENT_CRITIQUE = "CRITIQUE"
   AGENT_DESIGN = "DESIGN"
+  AGENT_DESIGNER = "DESIGNER"
+  AGENT_SENDER = "SENDER"
 
   # All valid agent names
   VALID_AGENT_NAMES = [
     AGENT_SEARCH,
     AGENT_WRITER,
     AGENT_CRITIQUE,
-    AGENT_DESIGN
+    AGENT_DESIGN,
+    AGENT_DESIGNER,
+    AGENT_SENDER
   ].freeze
 
   # Agent execution order
@@ -24,7 +28,8 @@ module AgentConstants
     AGENT_SEARCH,
     AGENT_WRITER,
     AGENT_CRITIQUE,
-    AGENT_DESIGN
+    AGENT_DESIGN,
+    AGENT_SENDER
   ].freeze
 
   # Agent output statuses
@@ -46,6 +51,8 @@ module AgentConstants
   STAGE_CRITIQUED = "critiqued"
   STAGE_DESIGNED = "designed"
   STAGE_COMPLETED = "completed"
+  STAGE_SENT_PREFIX = "sent" # Base prefix for sent stages (sent (1), sent (2), etc.)
+  STAGE_SEND_FAILED = "send_failed" # Stage when email sending permanently fails
   STAGE_REWRITTEN_PREFIX = "rewritten" # Base prefix for rewritten stages
 
   # Stage progression order

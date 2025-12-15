@@ -52,7 +52,7 @@ default: &default
 
 development:
   <<: *default
-  compile: true
+  compile: false
 
   # Reference: https://webpack.js.org/configuration/dev-server/
   dev_server:
@@ -65,6 +65,9 @@ development:
     overlay: true
     compress: true
     disable_host_check: true
+    # webpack-dev-server host/origin protection (v4+):
+    # allow local dev access via localhost/127.0.0.1 and avoid "Invalid Host/Origin header"
+    allowed_hosts: all
     use_local_ip: false
     quiet: false
     pretty: false

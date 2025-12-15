@@ -89,8 +89,11 @@ export function useAgentConfigs(campaignId: number | null) {
     try {
       setError(null)
       
+      // Remove id from updates - it comes from the URL, not the payload
+      const { id, createdAt, updatedAt, ...updatesWithoutId } = updates
+      
       const response = await apiClient.put<AgentConfig>(`campaigns/${campaignId}/agent_configs/${configId}`, {
-        agent_config: updates
+        agent_config: updatesWithoutId
       })
       
       if (response.error) {

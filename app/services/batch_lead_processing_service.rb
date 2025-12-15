@@ -77,9 +77,12 @@ class BatchLeadProcessingService
       valid_lead_ids.each_slice(batch_size) do |batch_lead_ids|
         batch_lead_ids.each do |lead_id|
           begin
-            # Enqueue background job for each lead
-            job = AgentExecutionJob.perform_later(lead_id, campaign.id, user.id)
-            results[:queued] << { lead_id: lead_id, job_id: job.job_id }
+            lead = Lead.find_by(id: lead_id, campaign_id: campaign.id)
+            raise "Lead not found" unless lead
+
+            run = lead.ensure_active_run!
+            job = AgentExecutionJob.perform_later({ lead_run_id: run.id })
+            results[:queued] << { lead_id: lead_id, lead_run_id: run.id, job_id: job.job_id }
             results[:queued_count] += 1
           rescue => e
             Rails.logger.error("BatchLeadProcessingService: Failed to enqueue job for lead #{lead_id}: #{e.message}")
@@ -108,6 +111,8 @@ class BatchLeadProcessingService
     # @param batch_size [Integer] Number of leads to process per batch
     # @return [Hash] Result with completed and failed leads
     def process_leads_sync(lead_ids, campaign, user, batch_size: DEFAULT_PROD_BATCH_SIZE)
+      raise NotImplementedError, "Legacy synchronous batch processing is deprecated; use LeadRuns + background jobs."
+
       # Validate inputs
       unless campaign && campaign.user_id == user.id
         return {

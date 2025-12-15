@@ -15,6 +15,9 @@ Rails.application.configure do
   # Enable server timing.
   config.server_timing = true
 
+  # Enable static file serving for /public/** assets (required for Shakapacker packs)
+  config.public_file_server.enabled = true
+
   # Enable/disable Action Controller caching. By default Action Controller caching is disabled.
   # Run rails dev:cache to toggle Action Controller caching.
   if Rails.root.join("tmp/caching-dev.txt").exist?
@@ -85,7 +88,11 @@ Rails.application.configure do
     config.active_record.verbose_query_logs = true
     # Append comments with runtime information tags to SQL queries in logs.
     config.active_record.query_log_tags_enabled = true
-  end
+
+  # Developer convenience: allow reading existing plaintext rows while you
+  # migrate/local-backfill secrets. Production safety is controlled separately.
+  config.active_record.encryption.support_unencrypted_data = true
+end
 
   # Highlight code that enqueued background job in logs.
   config.active_job.verbose_enqueue_logs = true

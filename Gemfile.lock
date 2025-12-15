@@ -445,6 +445,12 @@ GEM
       logger
     securerandom (0.4.1)
     semantic_range (3.1.0)
+    sentry-rails (6.2.0)
+      railties (>= 5.2.0)
+      sentry-ruby (~> 6.2.0)
+    sentry-ruby (6.2.0)
+      bigdecimal
+      concurrent-ruby (~> 1.0, >= 1.0.2)
     shakapacker (8.4.0)
       activesupport (>= 5.2)
       package_json
@@ -562,6 +568,8 @@ DEPENDENCIES
   rspec-rails (~> 6.0)
   rubocop
   rubocop-rails-omakase
+  sentry-rails
+  sentry-ruby
   shakapacker (~> 8.0)
   shoulda-matchers (~> 6.0)
   signet
