@@ -67,7 +67,7 @@ Open **http://localhost:3000** - automatically logged in as `admin@example.com`
 **Note:** The `.env` file is optional for development - defaults are provided. Create it with `cp .env.example .env` if you want to customize settings.
 
 ## RSpec and Cucumber Test Coverage Reports
-*** Note: Please run rm -rf coverage in between running the RSpec and Cucumber test command in order to get the most accurate results for RSpec along or Cucumber along.
+*** Note: Please run rm -rf coverage in between running the RSpec and Cucumber test command in order to get the most accurate results for RSpec alone or Cucumber alone.
 ### RSpec
 ```bash
 COVERAGE=TRUE bundle exec rspec
@@ -286,14 +286,6 @@ Multi-agent pipeline: **SearchAgent** → **WriterAgent** → **CritiqueAgent** 
 - Variant generation and selection (WriterAgent can generate multiple email variants)
 - Quality scoring and feedback loop for continuous improvement
 
-## Testing
-
-```bash
-bundle exec rspec      # RSpec tests
-npm test               # Jest tests
-bundle exec cucumber   # Cucumber tests
-```
-
 ## Available Scripts
 
 ```bash
@@ -314,7 +306,7 @@ COVERAGE=TRUE bundle exec cucumber         # Run Cucumber tests
 npm test                     # Run Jest tests
 npm run test:coverage        # Run Jest tests with coverage
 
-*** Note: Please run rm -rf coverage in between running the RSpec and Cucumber tests to get the most accurate results for RSpec along or Cucumber along.
+*** Note: Please run rm -rf coverage in between running the RSpec and Cucumber tests to get the most accurate results for RSpec e or Cucumber alone.
 ```
 
 ## Deployment
