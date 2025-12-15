@@ -268,6 +268,169 @@ RSpec.describe EmailSenderService, type: :service do
     end
   end
 
+  describe '.send_email_via_provider' do
+    let(:subject_line) { 'Subject' }
+    let(:text_body)    { 'Plain text body' }
+    let(:html_body)    { '<p>HTML</p>' }
+
+    before do
+      allow(Rails.logger).to receive(:info)
+      allow(Rails.logger).to receive(:warn)
+    end
+
+    context 'when user can send via Gmail' do
+      before do
+        allow(user).to receive(:can_send_gmail?).and_return(true)
+      end
+
+      it 'invokes user.send_gmail!' do
+        expect(user).to receive(:send_gmail!).with(
+          to: lead.email,
+          subject: subject_line,
+          text_body: text_body,
+          html_body: html_body
+        ).and_return({ 'id' => 'abc', 'threadId' => 'thread' })
+
+        described_class.send_email_via_provider(lead, subject_line, text_body, html_body)
+      end
+    end
+
+    context 'when user cannot send via Gmail but default sender is configured' do
+      let!(:default_sender) { create(:user, email: 'default@example.com') }
+
+      before do
+        allow(user).to receive(:can_send_gmail?).and_return(false)
+        allow(default_sender).to receive(:can_send_gmail?).and_return(true)
+        allow(default_sender).to receive(:send_gmail!).and_return({ 'id' => 'm-1' })
+        allow(User).to receive(:find_by).with(email: default_sender.email).and_return(default_sender)
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('DEFAULT_GMAIL_SENDER').and_return(default_sender.email)
+      end
+
+      it 'falls back to the default Gmail sender' do
+        described_class.send_email_via_provider(lead, subject_line, text_body, html_body)
+
+        expect(default_sender).to have_received(:send_gmail!).with(
+          to: lead.email,
+          subject: subject_line,
+          text_body: text_body,
+          html_body: html_body
+        )
+      end
+    end
+
+    context 'when Gmail is unavailable and default sender missing' do
+      before do
+        allow(user).to receive(:can_send_gmail?).and_return(false)
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('DEFAULT_GMAIL_SENDER').and_return(nil)
+        allow(described_class).to receive(:send_via_smtp)
+      end
+
+      it 'falls back to SMTP' do
+        described_class.send_email_via_provider(lead, subject_line, text_body, html_body)
+
+        expect(described_class).to have_received(:send_via_smtp).with(
+          lead,
+          subject_line,
+          text_body,
+          html_body,
+          user
+        )
+      end
+    end
+  end
+
+  describe '.send_via_smtp' do
+    let(:subject_line) { 'Subject' }
+    let(:text_body)    { 'Plain text body' }
+    let(:html_body)    { '<p>HTML</p>' }
+
+    before do
+      allow(Rails.logger).to receive(:info)
+      allow(Rails.logger).to receive(:warn)
+    end
+
+    context 'when OAuth user has valid token' do
+      before do
+        user.update!(email: 'sender@gmail.com')
+        allow(User).to receive(:find_by).with(email: user.email).and_return(user)
+        allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(true)
+        allow(GmailOauthService).to receive(:valid_access_token).with(user).and_return('token-123')
+        allow(described_class).to receive(:send_via_gmail_api).and_return(true)
+        allow(described_class).to receive(:send).and_call_original
+      end
+
+      it 'uses Gmail API via send_via_gmail_api' do
+        expect(described_class).to receive(:send).with(
+          :send_via_gmail_api,
+          lead,
+          kind_of(String),
+          user.email,
+          user,
+          'token-123'
+        )
+
+        described_class.send_via_smtp(lead, subject_line, text_body, html_body, user)
+      end
+    end
+
+    context 'when from email is Gmail but no matching user exists' do
+      before do
+        user.update!(email: 'missing@gmail.com')
+        allow(User).to receive(:find_by).with(email: user.email).and_return(nil)
+      end
+
+      it 'raises an informative error' do
+        expect {
+          described_class.send_via_smtp(lead, subject_line, text_body, html_body, user)
+        }.to raise_error(/No user account found/)
+      end
+    end
+
+    context 'when Gmail OAuth is not configured for the from email' do
+      let(:oauth_user) { build_stubbed(:user, email: 'sender@gmail.com') }
+
+      before do
+        user.update!(email: 'sender@gmail.com')
+        allow(User).to receive(:find_by).with(email: user.email).and_return(oauth_user)
+        allow(GmailOauthService).to receive(:oauth_configured?).with(oauth_user).and_return(false)
+      end
+
+      it 'raises instructive error' do
+        expect {
+          described_class.send_via_smtp(lead, subject_line, text_body, html_body, user)
+        }.to raise_error(/Gmail OAuth is not configured/)
+      end
+    end
+
+    context 'when falling back to traditional SMTP' do
+      let(:mail_double) { double(deliver_now: true) }
+
+      before do
+        allow(described_class).to receive(:configure_delivery_method)
+        allow(ActionMailer::Base).to receive(:delivery_method=)
+        allow(ActionMailer::Base).to receive(:perform_deliveries=)
+        allow(CampaignMailer).to receive(:send_email).and_return(mail_double)
+        user.update(email: 'user@company.com')
+        allow(User).to receive(:find_by).with(email: user.email).and_return(user)
+        allow(GmailOauthService).to receive(:oauth_configured?).with(user).and_return(false)
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('SMTP_ADDRESS').and_return('smtp.example.com')
+        allow(ENV).to receive(:[]).with('SMTP_PASSWORD').and_return('secret')
+      end
+
+      it 'delivers via CampaignMailer' do
+        described_class.send_via_smtp(lead, subject_line, text_body, html_body, user)
+
+        expect(CampaignMailer).to have_received(:send_email).with(hash_including(
+          to: lead.email,
+          campaign_title: campaign.title
+        ))
+      end
+    end
+  end
+
   describe '.lead_ready?' do
     context 'when lead has DESIGN output' do
       before do

@@ -132,7 +132,58 @@ Feature: Coverage Gaps
     And a lead exists for my campaign
     When I run the Gmail OAuth coverage harness
     And I run the email sender coverage harness
+    And I manually exercise the email sender Gmail coverage flows
+    And I exercise the EmailSenderService send_email workflows
     Then the coverage harness should complete
+
+  Scenario: LeadAgentService branch coverage harness
+    Given a campaign titled "Test Campaign" exists for me
+    And a lead exists for my campaign
+    When I run the lead agent service branch coverage harness
+    And I run the StageManager coverage harness
+    Then the coverage harness should complete
+
+  Scenario: SettingsHelper module coverage harness
+    When I run the settings helper coverage harness
+    Then the coverage harness should complete
+
+  Scenario: AgentConfigsController internal coverage harness
+    Given a campaign titled "Test Campaign" exists for me
+    When I run the agent configs controller coverage harness
+    Then the coverage harness should complete
+
+  Scenario: LeadsController internal coverage harness
+    Given a campaign titled "Test Campaign" exists for me
+    And a lead exists for my campaign
+    When I run the leads controller coverage harness
+    Then the coverage harness should complete
+
+
+  Scenario: StageManager requests critique when a rewrite has not been critiqued yet
+    Given a campaign titled "Test Campaign" exists for me
+    And a lead exists for my campaign
+    And the lead stage is "rewritten (1)"
+    And the lead has a completed "WRITER" output recorded at "2024-01-01 10:00:00 UTC"
+    When I determine the StageManager actions for the lead
+    Then the available actions should exactly be "CRITIQUE"
+
+  Scenario: StageManager routes failed rewrites back to WRITER
+    Given a campaign titled "Test Campaign" exists for me
+    And a lead exists for my campaign
+    And the lead stage is "rewritten (2)"
+    And the lead has a completed "WRITER" output recorded at "2024-01-01 10:00:00 UTC"
+    And the lead has a critique output recorded at "2024-01-01 12:00:00 UTC" with meets_min "false"
+    When I determine the StageManager actions for the lead
+    Then the available actions should exactly be "WRITER"
+
+  Scenario: StageManager advances rewrites to DESIGN when critique passes
+    Given a campaign titled "Test Campaign" exists for me
+    And a lead exists for my campaign
+    And the lead stage is "rewritten (2)"
+    And the lead has a completed "WRITER" output recorded at "2024-01-01 10:00:00 UTC"
+    And the lead has a critique output recorded at "2024-01-01 12:00:00 UTC" with meets_min "true"
+    When I determine the StageManager actions for the lead
+    Then the available actions should exactly be "DESIGN"
 
   # CustomFailureApp coverage
   Scenario: CustomFailureApp production mode signup redirect
@@ -238,6 +289,16 @@ Feature: Coverage Gaps
       """
     Then the response status should be 201
     And the JSON response should include "agentName" with "CRITIQUE"
+
+  Scenario: AgentConfigsController create updates existing config
+    Given a campaign titled "Test Campaign" exists for me
+    And the campaign has a "WRITER" agent config
+    When I send a POST request to "/api/v1/campaigns/#{@campaign.id}/agent_configs" with JSON:
+      """
+      {"agent_config": {"agentName": "WRITER", "enabled": false, "settings": {"tone": "casual"}}}
+      """
+    Then the response status should be 200
+    And the JSON response should include "agentName" with "WRITER"
 
   Scenario: AgentConfigsController destroy removes config
     Given a campaign titled "Test Campaign" exists for me
@@ -525,4 +586,3 @@ Feature: Coverage Gaps
     And the lead has no email
     When I extract the domain from the lead
     Then it should use the company name
-
