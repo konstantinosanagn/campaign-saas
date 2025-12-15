@@ -28,6 +28,8 @@ Clip from [demo video](https://youtu.be/YRCymhf2M9U?si=3CxA78A44HRBLUVm&t=676) s
 ### Quick Start (Recommended)
 If you run into any problem when following the Quick Start instructions, pleae check out our curated [Troubleshooting section](#troubleshooting), where tested solutions to commonly encountered setup issues are provided.
 
+If you prefer manually set up this project locally instead, please follow instructions in [Manual Setup section](#manual-setup-alternative)
+
 ```bash
 # 1. Clone and enter the repository
 git clone <your-repo-url>
@@ -64,41 +66,7 @@ Open **http://localhost:3000** - automatically logged in as `admin@example.com`
 
 **Note:** The `.env` file is optional for development - defaults are provided. Create it with `cp .env.example .env` if you want to customize settings.
 
-### Manual Setup (Alternative)
-
-If you prefer manual setup:
-
-1. **Install prerequisites:**
-   - Ruby 3.3.9+
-   - **Node.js 20.0.0+ (latest LTS 24.x recommended)** ⚠️ **REQUIRED**
-     - Check version: `node --version`
-     - Download: https://nodejs.org/
-     - Or use nvm: `nvm install 24 && nvm use 24`
-     - The `npm install` command will automatically verify Node.js version
-   - PostgreSQL 12+
-   - npm 10.7.0+ (comes with Node.js)
-
-2. **Install dependencies:**
-   ```bash
-   bundle install
-   npm install
-   ```
-
-3. **Setup database:**
-   ```bash
-   rails db:setup  # Creates, migrates, and seeds in one command
-   ```
-
-4. **Start the application:**
-   ```bash
-   # Terminal 1: Rails server
-   rails server
-   
-   # Terminal 2: Webpack dev server (for hot reload)
-   ./bin/webpack-dev-server
-   ```
-
-## Test Coverage Report
+## RSpec and Cucumber Test Coverage Reports
 *** Note: Please run rm -rf coverage in between running the RSpec and Cucumber test command in order to get the most accurate results for RSpec along or Cucumber along.
 ### RSpec
 ```bash
@@ -387,6 +355,41 @@ heroku run rails db:migrate -a campaign-saas
 docker build -t campaign_manager .
 docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value> --name campaign_manager campaign_manager
 ```
+
+## Manual Setup (Alternative)
+
+If you prefer manual setup:
+
+1. **Install prerequisites:**
+   - Ruby 3.3.9+
+   - **Node.js 20.0.0+ (latest LTS 24.x recommended)** ⚠️ **REQUIRED**
+     - Check version: `node --version`
+     - Download: https://nodejs.org/
+     - Or use nvm: `nvm install 24 && nvm use 24`
+     - The `npm install` command will automatically verify Node.js version
+   - PostgreSQL 12+
+   - npm 10.7.0+ (comes with Node.js)
+
+2. **Install dependencies:**
+   ```bash
+   bundle install
+   npm install
+   ```
+
+3. **Setup database:**
+   ```bash
+   rails db:setup  # Creates, migrates, and seeds in one command
+   ```
+
+4. **Start the application:**
+   ```bash
+   # Terminal 1: Rails server
+   rails server
+   
+   # Terminal 2: Webpack dev server (for hot reload)
+   chmod +x ./bin/webpack-dev-server
+   ./bin/webpack-dev-server
+   ```
 
 ## Troubleshooting
 
