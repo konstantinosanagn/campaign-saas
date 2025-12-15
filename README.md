@@ -320,10 +320,12 @@ rails server                 # Start Rails server
 rails console                # Open Rails console
 
 # Testing
-bundle exec rspec            # Run RSpec tests
+COVERAGE = TRUE bundle exec rspec            # Run RSpec tests
 npm test                     # Run Jest tests
 npm run test:coverage        # Run Jest tests with coverage
-bundle exec cucumber         # Run Cucumber tests
+COVERAGE = TRUE bundle exec cucumber         # Run Cucumber tests
+
+*** Note: Please run rm -rf coverage in between running the RSpec and Cucumber tests to get the most accurate results.
 ```
 
 ## Deployment
