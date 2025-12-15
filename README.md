@@ -8,6 +8,8 @@
 
 A modern SaaS application for managing AI-powered marketing campaigns with intelligent agent workflows. Built with **Ruby on Rails 8.1**, **React 18**, **PostgreSQL**, and **TypeScript**.
 
+Clip from [demo video](https://youtu.be/YRCymhf2M9U?si=3CxA78A44HRBLUVm&t=676) showcasing how to use the app if needed
+
 ## Prerequisites
 
 - **Ruby:** 3.3.9+
