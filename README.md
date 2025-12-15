@@ -26,6 +26,7 @@ Clip from [demo video](https://youtu.be/YRCymhf2M9U?si=3CxA78A44HRBLUVm&t=676) s
 ## Installation
 
 ### Quick Start (Recommended)
+If you run into any problem when following the Quick Start instructions, pleae check out our curated [Troubleshooting section](#troubleshooting), where tested solutions to commonly encountered setup issues are provided.
 
 ```bash
 # 1. Clone and enter the repository
@@ -96,6 +97,24 @@ If you prefer manual setup:
    # Terminal 2: Webpack dev server (for hot reload)
    ./bin/webpack-dev-server
    ```
+
+## Test Coverage Report
+*** Note: Please run rm -rf coverage in between running the RSpec and Cucumber test command in order to get the most accurate results for RSpec along or Cucumber along.
+### RSpec
+```bash
+COVERAGE=TRUE bundle exec rspec
+```
+As shown in the screenshots below, all RSpec test cases passed. We are able to achieve 93%+ overall coverage.
+![RSpec tests all passed](rspec_run.png)
+![RSpec tests all passed](rspec_coverage_rate.png)
+
+### Cucumber
+```bash
+COVERAGE=TRUE bundle exec cucumber
+```
+As shown in the screenshots below, all Cucumber scenarios passed. We are able to achieve 87%+ overall coverage.
+![RSpec tests all passed](cucumber_run.png)
+![RSpec tests all passed](cucumber_coverage_rate.png)
 
 ## Development Mode
 
@@ -322,12 +341,12 @@ rails server                 # Start Rails server
 rails console                # Open Rails console
 
 # Testing
-COVERAGE = TRUE bundle exec rspec            # Run RSpec tests
+COVERAGE=TRUE bundle exec rspec            # Run RSpec tests
+COVERAGE=TRUE bundle exec cucumber         # Run Cucumber tests
 npm test                     # Run Jest tests
 npm run test:coverage        # Run Jest tests with coverage
-COVERAGE = TRUE bundle exec cucumber         # Run Cucumber tests
 
-*** Note: Please run rm -rf coverage in between running the RSpec and Cucumber tests to get the most accurate results.
+*** Note: Please run rm -rf coverage in between running the RSpec and Cucumber tests to get the most accurate results for RSpec along or Cucumber along.
 ```
 
 ## Deployment
@@ -361,14 +380,6 @@ After deploying new migrations, run:
 ```bash
 heroku run rails db:migrate -a campaign-saas
 ```
-
-### Post-Deployment Checklist
-
-1. ✅ Run database migrations
-2. ✅ Set Google OAuth credentials
-3. ✅ Configure default Gmail sender (optional)
-4. ✅ Test Google OAuth login
-5. ✅ Verify Gmail sending works
 
 ## Docker
 
