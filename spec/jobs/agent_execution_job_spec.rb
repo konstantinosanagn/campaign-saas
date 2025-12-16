@@ -67,4 +67,3 @@ RSpec.describe AgentExecutionJob, type: :job do
     end
   end
 end
-

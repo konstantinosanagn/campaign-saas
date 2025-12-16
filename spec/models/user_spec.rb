@@ -202,7 +202,7 @@ RSpec.describe User, type: :model do
 
   describe '#can_send_gmail?' do
     it 'returns true if gmail_access_token and gmail_email are present' do
-      user = build(:user, gmail_access_token: 'token', gmail_email: 'email@example.com')
+      user = build(:user, gmail_access_token: 'token', gmail_refresh_token: 'refresh', gmail_email: 'email@example.com')
       expect(user.can_send_gmail?).to be true
     end
 
@@ -218,7 +218,7 @@ RSpec.describe User, type: :model do
   end
 
   describe '#send_gmail!' do
-    let(:user) { build(:user, gmail_access_token: 'token', gmail_email: 'email@example.com') }
+    let(:user) { build(:user, gmail_access_token: 'token', gmail_refresh_token: 'refresh', gmail_email: 'email@example.com') }
 
     it 'raises error if cannot send gmail' do
       user.gmail_access_token = nil

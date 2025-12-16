@@ -22,8 +22,14 @@ RSpec.describe EmailSenderService, type: :service do
       before do
         design_output
         AgentConfig.create!(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true, settings: {})
+        # Configure email delivery (required for can_send)
+        user.update!(gmail_access_token: 'token', gmail_refresh_token: 'refresh', gmail_email: 'test@gmail.com')
+        
+        # Create a run with SENDER as next step to ensure can_send is true
         run = LeadRun.create!(lead: lead, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
-        LeadRunStep.create!(lead_run: run, position: 10, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: {})
+        design_step = LeadRunStep.create!(lead_run: run, position: 40, agent_name: AgentConstants::AGENT_DESIGN, status: "completed", meta: {})
+        LeadRunStep.create!(lead_run: run, position: 50, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: { source_step_id: design_step.id })
+        lead.update!(current_lead_run_id: run.id)
 
         # Stub both immediate and delayed job enqueuing
         allow(EmailSendingJob).to receive(:perform_later)
@@ -258,8 +264,13 @@ RSpec.describe EmailSenderService, type: :service do
       before do
         design_output
         AgentConfig.create!(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true, settings: {})
+        # Configure email delivery (required for can_send)
+        user.update!(gmail_access_token: 'token', gmail_refresh_token: 'refresh', gmail_email: 'test@gmail.com')
+        # Create a run with SENDER as next step to ensure can_send is true
         run = LeadRun.create!(lead: lead, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
-        LeadRunStep.create!(lead_run: run, position: 10, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: {})
+        design_step = LeadRunStep.create!(lead_run: run, position: 40, agent_name: AgentConstants::AGENT_DESIGN, status: "completed", meta: {})
+        LeadRunStep.create!(lead_run: run, position: 50, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: { source_step_id: design_step.id })
+        lead.update!(current_lead_run_id: run.id)
         allow(EmailSendingJob).to receive(:perform_later).and_raise(StandardError, 'Queue failed')
       end
 
@@ -447,8 +458,12 @@ RSpec.describe EmailSenderService, type: :service do
     before do
       # LeadRuns readiness requires SENDER to be the next runnable step.
       AgentConfig.create!(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true, settings: {})
+      # Configure email delivery (required for can_send)
+      user.update!(gmail_access_token: 'token', gmail_refresh_token: 'refresh', gmail_email: 'test@gmail.com')
       run = LeadRun.create!(lead: lead, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
-      LeadRunStep.create!(lead_run: run, position: 10, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: {})
+      design_step = LeadRunStep.create!(lead_run: run, position: 40, agent_name: AgentConstants::AGENT_DESIGN, status: "completed", meta: {})
+      LeadRunStep.create!(lead_run: run, position: 50, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: { source_step_id: design_step.id })
+      lead.update!(current_lead_run_id: run.id)
     end
 
     context 'when lead has DESIGN output' do
@@ -475,6 +490,11 @@ RSpec.describe EmailSenderService, type: :service do
 
     context 'when lead has only WRITER output (fallback)' do
       before do
+        # Create WRITER step and link SENDER to it
+        run = lead.active_run || LeadRun.find_by(lead: lead)
+        writer_step = LeadRunStep.create!(lead_run: run, position: 30, agent_name: AgentConstants::AGENT_WRITER, status: "completed", meta: {})
+        sender_step = run.steps.find_by(agent_name: AgentConstants::AGENT_SENDER)
+        sender_step.update!(meta: { source_step_id: writer_step.id }) if sender_step
         create(:agent_output,
           lead: lead,
           agent_name: AgentConstants::AGENT_WRITER,

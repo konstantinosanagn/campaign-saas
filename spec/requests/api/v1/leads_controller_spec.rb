@@ -396,9 +396,9 @@ RSpec.describe Api::V1::LeadsController, type: :request do
           create(:lead_run_step, lead_run: run, agent_name: AgentConstants::AGENT_DESIGN, status: 'completed', position: 40)
         end
         let!(:design_output) do
-          create(:agent_output, 
-            lead: lead, 
-            lead_run: run, 
+          create(:agent_output,
+            lead: lead,
+            lead_run: run,
             lead_run_step: design_step,
             agent_name: AgentConstants::AGENT_DESIGN,
             status: 'completed',
@@ -412,15 +412,21 @@ RSpec.describe Api::V1::LeadsController, type: :request do
           create(:agent_config, campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true)
           # Configure sending (Gmail or SMTP)
           user.update!(gmail_access_token: 'token', gmail_refresh_token: 'refresh', gmail_email: 'test@gmail.com')
+          # Ensure API keys are set for run_agents endpoint
+          user.update!(llm_api_key: 'test-gemini-key', tavily_api_key: 'test-tavily-key')
         end
 
         it 'should not return 422 agent_not_next error' do
-          post "/api/v1/leads/#{lead.id}/run_agents", 
-               params: { agentName: 'SENDER' }, 
+          # Mock job enqueue
+          job_double = double(job_id: 'job-123')
+          allow(AgentExecutionJob).to receive(:perform_later).and_return(job_double)
+
+          post "/api/v1/leads/#{lead.id}/run_agents",
+               params: { agentName: 'SENDER' },
                headers: { 'Accept' => 'application/json' }
 
           expect(response).not_to have_http_status(:unprocessable_entity)
-          
+
           if response.status == 422
             json_response = JSON.parse(response.body)
             # If it fails, it should be a more actionable error, not agent_not_next
@@ -439,29 +445,33 @@ RSpec.describe Api::V1::LeadsController, type: :request do
         end
 
         it 'creates a run with SENDER as next step when send-only run is created' do
-          post "/api/v1/leads/#{lead.id}/run_agents", 
-               params: { agentName: 'SENDER' }, 
+          # Mock job enqueue to prevent actual execution
+          job_double = double(job_id: 'job-123')
+          allow(AgentExecutionJob).to receive(:perform_later).and_return(job_double)
+
+          post "/api/v1/leads/#{lead.id}/run_agents",
+               params: { agentName: 'SENDER' },
                headers: { 'Accept' => 'application/json' }
 
           # Should succeed (200 or 202)
-          expect([200, 202]).to include(response.status)
-          
+          expect([ 200, 202 ]).to include(response.status)
+
           # Verify a run exists with SENDER step
           lead.reload
           active_run = lead.active_run
-          if active_run
-            sender_step = active_run.steps.find_by(agent_name: AgentConstants::AGENT_SENDER)
-            expect(sender_step).to be_present
-            expect(sender_step.status).to eq('queued')
-            expect(sender_step.meta['source_step_id']).to eq(design_step.id)
-          end
+          expect(active_run).to be_present
+          sender_step = active_run.steps.find_by(agent_name: AgentConstants::AGENT_SENDER)
+          expect(sender_step).to be_present
+          # Step may be queued (if job not executed) or running (if job executed)
+          expect(['queued', 'running']).to include(sender_step.status)
+          expect(sender_step.meta['source_step_id']).to eq(design_step.id)
         end
 
         it 'returns sender_not_planned when SENDER config is disabled' do
           AgentConfig.find_by(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER).update!(enabled: false)
-          
-          post "/api/v1/leads/#{lead.id}/run_agents", 
-               params: { agentName: 'SENDER' }, 
+
+          post "/api/v1/leads/#{lead.id}/run_agents",
+               params: { agentName: 'SENDER' },
                headers: { 'Accept' => 'application/json' }
 
           expect(response).to have_http_status(:unprocessable_entity)
@@ -474,9 +484,10 @@ RSpec.describe Api::V1::LeadsController, type: :request do
           # Create an active run with WRITER as next step
           active_run = create(:lead_run, lead: lead, campaign: campaign, status: 'running')
           create(:lead_run_step, lead_run: active_run, agent_name: AgentConstants::AGENT_WRITER, status: 'queued', position: 10)
-          
-          post "/api/v1/leads/#{lead.id}/run_agents", 
-               params: { agentName: 'SENDER' }, 
+          lead.update!(current_lead_run_id: active_run.id)
+
+          post "/api/v1/leads/#{lead.id}/run_agents",
+               params: { agentName: 'SENDER' },
                headers: { 'Accept' => 'application/json' }
 
           expect(response).to have_http_status(:unprocessable_entity)

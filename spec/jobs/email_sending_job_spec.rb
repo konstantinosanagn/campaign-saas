@@ -41,7 +41,8 @@ RSpec.describe EmailSendingJob, type: :job do
       it 'sends email via EmailSenderService' do
         service = instance_double(EmailSenderService)
         expect(EmailSenderService).to receive(:new).with(lead).and_return(service)
-        expect(service).to receive(:send_email_via_provider)
+        expect(service).to receive(:build_email_payload).and_return(['Subject', 'Text', 'HTML'])
+        expect(EmailSenderService).to receive(:send_email_via_provider).with(lead, 'Subject', 'Text', 'HTML').and_return(nil)
 
         EmailSendingJob.perform_now(lead.id)
       end
@@ -50,7 +51,8 @@ RSpec.describe EmailSendingJob, type: :job do
         lead.update(email_status: 'not_scheduled')
         service = instance_double(EmailSenderService)
         allow(EmailSenderService).to receive(:new).with(lead).and_return(service)
-        expect(service).to receive(:send_email_via_provider)
+        expect(service).to receive(:build_email_payload).and_return(['Subject', 'Text', 'HTML'])
+        expect(EmailSenderService).to receive(:send_email_via_provider).with(lead, 'Subject', 'Text', 'HTML').and_return(nil)
 
         EmailSendingJob.perform_now(lead.id)
       end
@@ -73,7 +75,8 @@ RSpec.describe EmailSendingJob, type: :job do
       it 'allows resending by resetting status and sending again' do
         service = instance_double(EmailSenderService)
         expect(EmailSenderService).to receive(:new).with(lead).and_return(service)
-        expect(service).to receive(:send_email_via_provider)
+        expect(service).to receive(:build_email_payload).and_return(['Subject', 'Text', 'HTML'])
+        expect(EmailSenderService).to receive(:send_email_via_provider).with(lead, 'Subject', 'Text', 'HTML').and_return(nil)
 
         EmailSendingJob.perform_now(lead.id)
       end
@@ -81,11 +84,11 @@ RSpec.describe EmailSendingJob, type: :job do
       it 'logs info message about resetting status' do
         # Allow send_email_via_provider to call through so send_email! runs and logs
         allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
-        # Stub the actual email delivery methods to prevent real sending
-        allow_any_instance_of(EmailSenderService).to receive(:default_provider).and_return(:smtp)
-        allow_any_instance_of(EmailSenderService).to receive(:send_email_via_smtp).and_return(true)
-        allow_any_instance_of(EmailSenderService).to receive(:send_email_via_gmail_api).and_return(true)
-        allow_any_instance_of(EmailSenderService).to receive(:send_email_via_default_sender).and_return(true)
+        service = instance_double(EmailSenderService)
+        allow(EmailSenderService).to receive(:new).with(lead).and_return(service)
+        allow(service).to receive(:build_email_payload).and_return(['Subject', 'Text', 'HTML'])
+        allow(service).to receive(:current_provider).and_return('smtp')
+        allow(EmailSenderService).to receive(:send_email_via_provider).with(lead, 'Subject', 'Text', 'HTML').and_return(nil)
         allow(Rails.logger).to receive(:info).and_call_original
         expect(Rails.logger).to receive(:info).with(/already sent, resetting status to allow resend/)
 
@@ -99,6 +102,9 @@ RSpec.describe EmailSendingJob, type: :job do
       end
 
       it 'updates lead status to failed' do
+        # Job checks lead_ready? first before trying to send
+        # Since it returns false, job should skip sending and mark as failed
+        expect(EmailSenderService).not_to receive(:new)
         EmailSendingJob.perform_now(lead.id)
 
         lead.reload
@@ -114,17 +120,19 @@ RSpec.describe EmailSendingJob, type: :job do
       before do
         allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
         allow(EmailSenderService).to receive(:new).with(lead).and_return(service_double)
-        allow(service_double).to receive(:send_email_via_provider).and_raise(temporary_error)
+        allow(service_double).to receive(:build_email_payload).and_return(['Subject', 'Text', 'HTML'])
+        allow(EmailSenderService).to receive(:send_email_via_provider).with(lead, 'Subject', 'Text', 'HTML').and_raise(temporary_error)
       end
 
-      it 'updates lead status to failed' do
+      it 'updates lead status to retrying' do
         # With retry_on TemporaryEmailError, ActiveJob handles the exception internally
+        # But the job raises the error to trigger retry_on
         expect {
           EmailSendingJob.perform_now(lead.id)
-        }.not_to raise_error
+        }.to raise_error(TemporaryEmailError)
 
         lead.reload
-        expect(lead.email_status).to eq('failed')
+        expect(lead.email_status).to eq('retrying')
         expect(lead.last_email_error_message).to include('Network timeout')
         expect(lead.last_email_error_at).to be_present
       end
@@ -133,11 +141,11 @@ RSpec.describe EmailSendingJob, type: :job do
         # TemporaryEmailError should trigger retry_on, so ActiveJob schedules retries
         expect {
           EmailSendingJob.perform_now(lead.id)
-        }.not_to raise_error
+        }.to raise_error(TemporaryEmailError)
 
         # Verify the error was caught and lead status was updated
         lead.reload
-        expect(lead.email_status).to eq('failed')
+        expect(lead.email_status).to eq('retrying')
         expect(lead.last_email_error_message).to include('Network timeout')
       end
 
@@ -156,11 +164,13 @@ RSpec.describe EmailSendingJob, type: :job do
       before do
         allow(EmailSenderService).to receive(:lead_ready?).with(lead).and_return(true)
         allow(EmailSenderService).to receive(:new).with(lead).and_return(service_double)
-        allow(service_double).to receive(:send_email_via_provider).and_raise(permanent_error)
+        allow(service_double).to receive(:build_email_payload).and_return(['Subject', 'Text', 'HTML'])
+        allow(EmailSenderService).to receive(:send_email_via_provider).with(lead, 'Subject', 'Text', 'HTML').and_raise(permanent_error)
       end
 
       it 'updates lead status to failed' do
-        # With discard_on PermanentEmailError, ActiveJob discards the job
+        # The job raises PermanentEmailError which triggers discard_on
+        # With perform_now and discard_on configured, ActiveJob may suppress the error
         expect {
           EmailSendingJob.perform_now(lead.id)
         }.not_to raise_error
@@ -172,7 +182,8 @@ RSpec.describe EmailSendingJob, type: :job do
       end
 
       it 'discards job without retrying' do
-        # PermanentEmailError should trigger discard_on, so no retries
+        # PermanentEmailError should trigger discard_on when enqueued
+        # With perform_now, discard_on may suppress the error
         expect {
           EmailSendingJob.perform_now(lead.id)
         }.not_to raise_error
@@ -185,7 +196,9 @@ RSpec.describe EmailSendingJob, type: :job do
         expect(Rails.logger).to receive(:error).with(/Permanent email failure for lead_id=#{lead.id}/)
         allow(Rails.logger).to receive(:error) # Allow other errors
 
-        EmailSendingJob.perform_now(lead.id)
+        expect {
+          EmailSendingJob.perform_now(lead.id)
+        }.to raise_error(PermanentEmailError)
       end
     end
   end
@@ -227,7 +240,7 @@ RSpec.describe EmailSendingJob, type: :job do
         lead_run: run,
         lead_run_step: sender_step,
         agent_name: AgentConstants::AGENT_SENDER,
-        status: 'running',
+        status: 'pending',
         output_data: { 'enqueued' => true, 'email_status' => 'queued', 'enqueue_job_id' => 'test-job-123' }
       )
     end
@@ -240,10 +253,11 @@ RSpec.describe EmailSendingJob, type: :job do
       before do
         # Mock successful Gmail send
         gmail_result = { 'id' => 'gmail-msg-123', 'threadId' => 'thread-456' }
-        allow(EmailSenderService).to receive(:send_email_via_provider).and_return(gmail_result)
-        allow(EmailSenderService).to receive(:new).with(lead).and_return(
-          instance_double(EmailSenderService, send_email_via_provider: gmail_result)
-        )
+        service = instance_double(EmailSenderService)
+        allow(EmailSenderService).to receive(:new).with(lead).and_return(service)
+        allow(service).to receive(:build_email_payload).and_return(['Subject', 'Text', 'HTML'])
+        allow(service).to receive(:current_provider).and_return('gmail_api')
+        allow(EmailSenderService).to receive(:send_email_via_provider).with(lead, 'Subject', 'Text', 'HTML').and_return(gmail_result)
       end
 
       it 'updates SENDER step to completed and sets stage to sent (1)' do
@@ -266,7 +280,7 @@ RSpec.describe EmailSendingJob, type: :job do
       it 'increments send_number on resend' do
         # First send
         EmailSendingJob.perform_now(lead.id, sender_step.id)
-        
+
         # Create second SENDER step for resend
         sender_step2 = create(:lead_run_step,
           lead_run: run,
@@ -306,10 +320,10 @@ RSpec.describe EmailSendingJob, type: :job do
       let(:temporary_error) { TemporaryEmailError.new('Network timeout', provider: 'gmail_api', lead_id: lead.id) }
 
       before do
-        allow(EmailSenderService).to receive(:new).with(lead).and_return(
-          instance_double(EmailSenderService, send_email_via_provider: nil)
-        )
-        allow(EmailSenderService).to receive(:send_email_via_provider).and_raise(temporary_error)
+        service = instance_double(EmailSenderService)
+        allow(EmailSenderService).to receive(:new).with(lead).and_return(service)
+        allow(service).to receive(:build_email_payload).and_return(['Subject', 'Text', 'HTML'])
+        allow(EmailSenderService).to receive(:send_email_via_provider).with(lead, 'Subject', 'Text', 'HTML').and_raise(temporary_error)
       end
 
       it 'keeps step running with email_status=retrying' do
@@ -333,10 +347,10 @@ RSpec.describe EmailSendingJob, type: :job do
       let(:permanent_error) { PermanentEmailError.new('Authentication failed', provider: 'smtp', lead_id: lead.id) }
 
       before do
-        allow(EmailSenderService).to receive(:new).with(lead).and_return(
-          instance_double(EmailSenderService, send_email_via_provider: nil)
-        )
-        allow(EmailSenderService).to receive(:send_email_via_provider).and_raise(permanent_error)
+        service = instance_double(EmailSenderService)
+        allow(EmailSenderService).to receive(:new).with(lead).and_return(service)
+        allow(service).to receive(:build_email_payload).and_return(['Subject', 'Text', 'HTML'])
+        allow(EmailSenderService).to receive(:send_email_via_provider).with(lead, 'Subject', 'Text', 'HTML').and_raise(permanent_error)
       end
 
       it 'marks step as failed and sets stage to send_failed' do

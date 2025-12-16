@@ -13,4 +13,3 @@ RSpec.describe LeadAgentService, type: :service do
     end
   end
 end
-
