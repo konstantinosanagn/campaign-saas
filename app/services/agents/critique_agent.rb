@@ -2,7 +2,6 @@ require "httparty"
 require "json"
 require "date"
 require "uri"
-require_relative "api_error"
 
 module Agents
   ##
@@ -181,28 +180,28 @@ module Agents
       # HTTParty's response.code returns the real HTTP status code from the server
       # This is the authoritative source, not inferred from JSON
       # Normalize to Integer and handle edge cases
-      http_status = normalize_status(response)
+      http_status = response.respond_to?(:code) ? response.code.to_i : nil
+      http_status = nil if http_status == 0  # Handle invalid/zero status codes
       parsed = response.respond_to?(:parsed_response) ? response.parsed_response : nil
-      body = response.respond_to?(:body) ? response.body.to_s : response.to_s
 
       # Capture raw response for troubleshooting (provider_error)
       # Store first 500 chars of parsed response or raw body, then sanitize
       provider_error = nil
       if parsed
         provider_error = parsed.is_a?(String) ? parsed[0..500] : parsed.to_json[0..500]
-      elsif body.present?
-        provider_error = body[0..500]
+      elsif response.respond_to?(:body)
+        provider_error = response.body.to_s[0..500] if response.body
       end
 
       # Sanitize provider_error: strip newlines, redact API keys and Bearer tokens
       # IMPORTANT: Truncate AFTER all sanitization steps to ensure stored string is always <= 500 chars
       # even after replacements (e.g., "[REDACTED]" may be longer than original token)
       if provider_error
-        provider_error = sanitize_provider_error(provider_error)
+        provider_error = provider_error.gsub(/\n+/, " ").strip  # Strip newlines
+        provider_error = provider_error.gsub(/Bearer\s+[A-Za-z0-9\-\._]+/, "Bearer [REDACTED]")  # Redact Bearer tokens
+        provider_error = provider_error.gsub(/AIza[0-9A-Za-z\-_]{20,}/, "[REDACTED]")  # Redact Gemini API keys
+        provider_error = provider_error.truncate(500)  # Final truncation after all sanitization
       end
-
-      # ✅ raise on API-style errors (including non-JSON bodies)
-      detect_and_raise_api_error!(response, http_status, body, provider_error, parsed)
 
       # Extract request_id from response headers or body if available
       # Use case-insensitive header lookup to handle HTTP library variations
@@ -218,6 +217,185 @@ module Agents
       # Also check parsed body for request_id
       if request_id.nil? && parsed.is_a?(Hash)
         request_id = parsed["request_id"] || parsed[:request_id] || parsed.dig("error", "request_id") || parsed.dig(:error, :request_id)
+      end
+
+      # Determine if this is an error response using multiple detection methods
+      is_error = false
+      error_code = nil
+      error_message = nil
+      error_type = nil
+      retryable = false
+
+      # Method 1: HTTP status code >= 400 (real HTTP status from HTTParty)
+      # Always use HTTP status first - it's the authoritative source
+      if http_status && http_status >= 400
+        is_error = true
+        error_code = http_status  # Use real HTTP status code (already normalized to Integer)
+        retryable = [ 429, 500, 502, 503, 504 ].include?(http_status)
+
+        # Classify error type based on HTTP status (consistent mapping)
+        error_type = case http_status
+        when 429
+          "quota"
+        when 401, 403
+          "auth"
+        when 408
+          "timeout"
+        when 500, 502, 503, 504
+          "provider_5xx"
+        else
+          "provider_4xx"
+        end
+      end
+
+      # Method 2: Check for various error response formats
+      if parsed
+        # Check for top-level "error" object
+        if parsed["error"] || parsed[:error]
+          is_error = true
+          error_detail = parsed["error"] || parsed[:error]
+          # Extract JSON error code, but only use if numeric and HTTP status not available
+          json_error_code = error_detail["code"] || error_detail[:code] || error_detail["status"] || error_detail[:status]
+          # Ensure error_code uses HTTP status first (already set above if http_status >= 400)
+          # Only fall back to JSON code if it's >= 400 and HTTP status wasn't available
+          if error_code.nil? && json_error_code
+            code_i = json_error_code.to_i
+            error_code = code_i if code_i >= 400
+          end
+          error_message ||= error_detail["message"] || error_detail[:message] || "Unknown API error"
+          retryable ||= [ 429, 500, 502, 503, 504 ].include?(error_code) if error_code
+
+          # Classify error type if not already set (driven by numeric error_code)
+          unless error_type && error_code
+            error_type = CritiqueAgent.classify_error_type(error_code)
+          end
+        end
+
+        # Check for "errors" array
+        if parsed["errors"] || parsed[:errors]
+          is_error = true
+          errors_array = parsed["errors"] || parsed[:errors]
+          if errors_array.is_a?(Array) && errors_array.any?
+            first_error = errors_array.first
+            json_error_code = first_error["code"] || first_error[:code] || first_error["status"] || first_error[:status]
+            # Ensure error_code uses HTTP status first (already set above if http_status >= 400)
+            # Only fall back to JSON code if it's numeric, > 0, and HTTP status wasn't available
+            if error_code.nil? && json_error_code
+              json_error_code = json_error_code.to_i if json_error_code.respond_to?(:to_i)
+              # After to_i, is_a?(Numeric) will be true, so > 0 is the real guard
+              error_code = json_error_code if json_error_code > 0
+            end
+            error_message ||= first_error["message"] || first_error[:message] || "API returned errors"
+            retryable ||= [ 429, 500, 502, 503, 504 ].include?(error_code) if error_code
+
+            # Classify error type if not already set (driven by numeric error_code)
+            unless error_type && error_code
+              error_type = CritiqueAgent.classify_error_type(error_code)
+            end
+          end
+        end
+
+        # Check for status/code fields >= 400 (fallback if HTTP status not available)
+        # Only use if error_code not already set from HTTP status
+        status = parsed["status"] || parsed[:status]
+        code = parsed["code"] || parsed[:code]
+
+        # Only trigger error handling if status is actually >= 400 and error_code not already set
+        # Ordering: check error_code.nil? first, then convert and check >= 400
+        if status && error_code.nil?
+          status_i = status.to_i
+          if status_i >= 400
+            is_error = true
+            error_code = status_i
+            retryable ||= [ 429, 500, 502, 503, 504 ].include?(error_code)
+            error_type ||= CritiqueAgent.classify_error_type(error_code)
+          end
+        elsif code && error_code.nil?
+          code_i = code.to_i
+          if code_i >= 400
+            is_error = true
+            error_code = code_i
+            retryable ||= [ 429, 500, 502, 503, 504 ].include?(error_code)
+            error_type ||= CritiqueAgent.classify_error_type(error_code)
+          end
+        end
+
+        # Method 3: Check response body for error keywords (for plain text/HTML errors)
+        # Only check if we haven't already detected an error
+        if !is_error
+          # Handle string responses (plain text/HTML)
+          if parsed.is_a?(String)
+            body_lower = parsed.downcase
+            if body_lower.include?("quota") || body_lower.include?("429")
+              is_error = true
+              # Use HTTP status if available, otherwise infer from body
+              error_code ||= http_status || 429
+              error_message ||= parsed[0..200] # Use first 200 chars of response
+              retryable = true # Quota errors are retryable
+              error_type ||= "quota"
+            elsif body_lower.include?("500") || body_lower.include?("502") ||
+                  body_lower.include?("503") || body_lower.include?("504")
+              is_error = true
+              # Use HTTP status if available, otherwise infer from body
+              error_code ||= http_status || 500
+              error_message ||= parsed[0..200]
+              retryable = true # Server errors are retryable
+              error_type ||= "provider_5xx"
+            elsif (body_lower.include?("error") || body_lower.include?("failed")) &&
+                  !body_lower.include?("candidates") && !body_lower.include?("content")
+              # Only treat as error if it doesn't look like a valid response
+              is_error = true
+              # Use HTTP status if available, otherwise default to 500
+              error_code ||= http_status || 500
+              error_message ||= parsed[0..200]
+              retryable ||= [ 429, 500, 502, 503, 504 ].include?(error_code) if error_code
+              error_type ||= "provider_error"
+            end
+          end
+        end
+      end
+
+      # If error detected, raise with appropriate message
+      if is_error
+        # Ensure error_code is set (prefer HTTP status, fallback to 500)
+        error_code ||= http_status || 500
+        error_message ||= "Unknown API error"
+              # Ensure error_type is set (should be set above, but fallback if not)
+              error_type ||= CritiqueAgent.classify_error_type(error_code)
+
+        # Provide user-friendly error messages for common API errors
+        user_friendly_msg = case error_code
+        when 429
+          "API quota exceeded. Please check your API plan and billing details, or wait before retrying."
+        when 401
+          "API authentication failed. Please check your API key."
+        when 403
+          "API access forbidden. Please check your API permissions."
+        when 500, 502, 503, 504
+          "API service temporarily unavailable. Please try again later."
+        else
+          "API error (#{error_code}): #{error_message}"
+        end
+
+        error_msg = "CritiqueAgent received API error from LLM: #{user_friendly_msg}"
+        log("ERROR: #{error_msg}")
+
+        # Raise error with retryable flag, error_code, error_type, provider_error, and debug bundle attached
+        # Capture values in local variables to ensure closure works correctly
+        retryable_flag = retryable
+        captured_error_code = error_code
+        captured_error_type = error_type
+        captured_provider_error = provider_error
+        captured_request_id = request_id
+        error = StandardError.new(error_msg)
+        error.define_singleton_method(:retryable?) { retryable_flag }
+        error.define_singleton_method(:error_code) { captured_error_code }
+        error.define_singleton_method(:error_type) { captured_error_type }
+        error.define_singleton_method(:provider_error) { captured_provider_error }
+        error.define_singleton_method(:request_id) { captured_request_id }
+        error.define_singleton_method(:provider) { "gemini" }
+        error.define_singleton_method(:occurred_at) { Time.now.utc.iso8601 }
+        raise error
       end
 
       # Validate response structure
@@ -325,101 +503,6 @@ module Agents
     end
 
     private
-
-    # Detects API errors (including plain text/HTML responses) and raises with retryable metadata
-    def detect_and_raise_api_error!(response, http_status, body, provider_error, parsed)
-      body_str = body.to_s
-      provider_error = sanitize_provider_error(provider_error)[0, 500] if provider_error
-
-      # Check for JSON error responses first
-      if parsed.is_a?(Hash)
-        error_detail = parsed["error"] || parsed[:error]
-        if error_detail
-          json_error_code = error_detail["code"] || error_detail[:code] || error_detail["status"] || error_detail[:status]
-          error_code = http_status || (json_error_code.to_i if json_error_code)
-          error_type = CritiqueAgent.classify_error_type(error_code)
-          retryable = [429, 500, 502, 503, 504].include?(error_code) if error_code
-
-          raise Agents::ApiError.new(
-            "Gemini API error",
-            retryable: retryable || false,
-            error_code: error_code,
-            error_type: error_type,
-            provider_error: provider_error
-          )
-        end
-      end
-
-      # Check for quota errors (even if http_status is nil, body may indicate quota)
-      if quota_error?(body_str, http_status)
-        raise Agents::ApiError.new(
-          "Gemini quota error",
-          retryable: true,
-          error_code: http_status || 429,
-          error_type: "quota",
-          provider_error: provider_error
-        )
-      end
-
-      # If http_status is nil or < 400, no error to raise
-      return if http_status.nil? || http_status < 400
-
-      if http_status >= 500
-        raise Agents::ApiError.new(
-          "Gemini provider error",
-          retryable: true,
-          error_code: http_status,
-          error_type: "provider_5xx",
-          provider_error: provider_error
-        )
-      end
-
-      if [401, 403].include?(http_status)
-        raise Agents::ApiError.new(
-          "Gemini auth error",
-          retryable: false,
-          error_code: http_status,
-          error_type: "auth",
-          provider_error: provider_error
-        )
-      end
-
-      raise Agents::ApiError.new(
-        "Gemini API error",
-        retryable: false,
-        error_code: http_status,
-        error_type: "provider_4xx",
-        provider_error: provider_error
-      )
-    end
-
-    def quota_error?(body, http_status)
-      http_status == 429 || body.to_s.match?(/quota|rate limit|too many requests/i)
-    end
-
-    def normalize_status(response)
-      code =
-        if response.respond_to?(:code)
-          response.code
-        elsif response.respond_to?(:response) && response.response.respond_to?(:code)
-          response.response.code
-        end
-
-      code = code.to_i if code.respond_to?(:to_i)
-      return nil if code.nil? || code == 0
-      code
-    rescue
-      nil
-    end
-
-    def sanitize_provider_error(text)
-      return "" if text.nil?
-      text
-        .gsub(/Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*/i, "Bearer [REDACTED]")
-        .gsub(/AIza[0-9A-Za-z\-_]{20,}/, "[REDACTED_API_KEY]")
-        .gsub(/\n+/, " ")
-        .strip
-    end
 
     # Critiques all variants and selects the best one based on variant_selection
     def critique_and_select_variant(variants, config, variant_selection, min_score, rewrite_policy)

@@ -131,8 +131,10 @@ class LeadRunPlanner
     return if result[:ok]
 
     # Raise error with machine-readable reasons
-    reasons = result[:reasons] || []
-    raise PlannerError.new("sending_not_configured", reasons: reasons)
+    error_message = "sending_not_configured"
+    raise PlannerError.new(error_message).tap do |e|
+      e.define_singleton_method(:reasons) { result[:reasons] }
+    end
   end
 
   def build_config_snapshot(enabled)

@@ -34,18 +34,14 @@ module AgentConstants
 
   # Agent output statuses
   STATUS_PENDING = "pending"
-  STATUS_RUNNING = "running"
   STATUS_COMPLETED = "completed"
   STATUS_FAILED = "failed"
-  STATUS_SKIPPED = "skipped"
 
   # All valid statuses
   VALID_STATUSES = [
     STATUS_PENDING,
-    STATUS_RUNNING,
     STATUS_COMPLETED,
-    STATUS_FAILED,
-    STATUS_SKIPPED
+    STATUS_FAILED
   ].freeze
 
   # Lead stages (for stage progression)
