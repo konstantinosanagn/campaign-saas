@@ -12,9 +12,7 @@ class AgentExecutionJob < ApplicationJob
   queue_as :default
 
   # Retry configuration
-  # Use exponential backoff: 2^attempt seconds (2s, 4s, 8s)
-  retry_on StandardError, wait: ->(attempt) { 2 ** attempt }, attempts: 3
-  retry_on AgentExecution::ExecutionPausedError, wait: 5.minutes, attempts: 100
+  retry_on StandardError, wait: :exponentially_longer, attempts: 3
 
   # Don't retry on these errors
   discard_on ArgumentError # Missing API keys, invalid parameters
@@ -22,35 +20,55 @@ class AgentExecutionJob < ApplicationJob
   ##
   # Executes agents for a lead in the background
   #
-  # Legacy usage:
-  #   perform(lead_id, campaign_id, user_id, agent_name = nil)
-  #
-  # LeadRun usage (new):
-  #   perform({ lead_run_id: 123 })
-  def perform(*args)
-    if AgentExecution.paused?
-      Rails.logger.info("[AgentExecutionJob] execution paused; job will retry later")
-      raise AgentExecution::ExecutionPausedError, "execution_paused"
+  # @param lead_id [Integer] The ID of the lead to process
+  # @param campaign_id [Integer] The ID of the campaign containing agent configs
+  # @param user_id [Integer] The ID of the user (for API keys)
+  # @param agent_name [String, nil] Optional specific agent to run (for manual execution)
+  def perform(lead_id, campaign_id, user_id, agent_name = nil)
+    # Reload records to ensure we have fresh data
+    lead = Lead.find_by(id: lead_id)
+    campaign = Campaign.find_by(id: campaign_id)
+    user = User.find_by(id: user_id)
+
+    # Verify ownership (security check)
+    unless campaign && campaign.user_id == user_id
+      Rails.logger.error("AgentExecutionJob: Unauthorized access attempt - campaign #{campaign_id} does not belong to user #{user_id}")
+      return
     end
 
-    unless args.length == 1 && args.first.is_a?(Hash)
-      raise ArgumentError, "AgentExecutionJob legacy signature removed; pass { lead_run_id: ... }"
+    unless lead && lead.campaign_id == campaign.id
+      Rails.logger.error("AgentExecutionJob: Lead #{lead_id} does not belong to campaign #{campaign_id}")
+      return
     end
 
-    payload = args.first.with_indifferent_access
-    lead_run_id = payload[:lead_run_id]
-    raise ArgumentError, "lead_run_id is required" if lead_run_id.blank?
+    # Reload user to ensure we have fresh data
+    user = User.find(user_id)
 
-    requested_agent_name = payload[:requested_agent_name] || payload[:agent_name]
-    perform_lead_run!(lead_run_id, requested_agent_name: requested_agent_name)
-  end
+    # Reload lead one more time to ensure we have the absolute latest data
+    # This is critical when leads are deleted and recreated with the same ID
+    lead.reload if lead
+    # Clear agent_outputs association cache to ensure fresh queries
+    lead.association(:agent_outputs).reset if lead
 
-  private
+    # Check API keys before running agents - raise ArgumentError if missing
+    # This will cause the job to be discarded (discard_on ArgumentError)
+    ApiKeyService.get_gemini_api_key(user)
+    ApiKeyService.get_tavily_api_key(user)
 
-  def perform_lead_run!(lead_run_id, requested_agent_name: nil)
-    run = LeadRun.find_by(id: lead_run_id)
-    return unless run
+    # Execute agents (pass agent_name if provided for manual execution)
+    begin
+      result = LeadAgentService.run_agents_for_lead(lead, campaign, user, agent_name: agent_name)
 
-    LeadRunExecutor.run_next!(lead_run_id: run.id, requested_agent_name: requested_agent_name)
+      # Log the result
+      if result[:status] == "failed"
+        Rails.logger.warn("AgentExecutionJob: Agent execution failed for lead #{lead_id}: #{result[:error]}")
+      else
+        Rails.logger.info("AgentExecutionJob: Successfully executed agents for lead #{lead_id}. Completed: #{result[:completed_agents]}, Failed: #{result[:failed_agents]}")
+      end
+    rescue => e
+      Rails.logger.error("AgentExecutionJob: Unexpected error processing lead #{lead_id}: #{e.class} - #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
+      raise # Re-raise to trigger retry mechanism
+    end
   end
 end

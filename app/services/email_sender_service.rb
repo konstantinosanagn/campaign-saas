@@ -15,7 +15,6 @@
 require_relative "../exceptions/gmail_authorization_error"
 require_relative "../errors/email_errors"
 require "cgi"
-require "json"
 
 class EmailSenderService
   include AgentConstants
@@ -283,7 +282,7 @@ class EmailSenderService
           "[EmailSender] Email sent successfully via user Gmail to #{lead.email}. " \
           "Gmail message ID: #{result['id']}, threadId: #{result['threadId']}"
         )
-        return result # Return result for EmailSendingJob to capture
+        return
       rescue GmailAuthorizationError => e
         Rails.logger.warn("[EmailSender] Gmail authorization error for user #{user.id}: #{e.message}")
         # Clear stored Gmail credentials
@@ -306,14 +305,14 @@ class EmailSenderService
       if default_sender&.can_send_gmail?
         Rails.logger.info("[EmailSender] User #{user.id} does not have Gmail connected, using default sender: #{default_sender_email}")
         begin
-          result = default_sender.send_gmail!(
+          default_sender.send_gmail!(
             to: lead.email,
             subject: subject,
             text_body: text_body,
             html_body: html_body
           )
           Rails.logger.info("[EmailSender] Email sent successfully via default Gmail sender to #{lead.email}")
-          return result # Return result for EmailSendingJob to capture
+          return
         rescue GmailAuthorizationError => e
           Rails.logger.warn("[EmailSender] Default Gmail sender authorization error: #{e.message}")
           Rails.logger.info("[EmailSender] Falling back to SMTP due to default sender error")
@@ -325,7 +324,6 @@ class EmailSenderService
 
     # Fallback to existing SMTP/OAuth flow
     self.send_via_smtp(lead, subject, text_body, html_body, user)
-    nil # Return nil for SMTP (no message_id)
   end
 
   ##
@@ -344,8 +342,8 @@ class EmailSenderService
         # Build email_content string for the class method signature
         email_content = "Subject: #{subject}\n\n#{text_body}"
         # Use send since it's a private_class_method
-        result = send(:send_via_gmail_api, lead, email_content, from_email, user, access_token)
-        return result # Return result for EmailSendingJob to capture
+        send(:send_via_gmail_api, lead, email_content, from_email, user, access_token)
+        return
       end
     end
 
@@ -523,21 +521,14 @@ class EmailSenderService
     ##
     # Checks if a lead is ready to have its email sent
     # A lead is ready if:
-    # 1. LeadRuns indicates the next runnable step is SENDER (`can_send`), which also
-    #    respects whether SENDER is enabled for the campaign.
+    # 1. It has reached 'designed' or 'completed' stage
     # 2. It has a completed DESIGN output (preferred) or WRITER output (fallback)
-    # 3. If CRITIQUE agent has run, the score must meet the minimum threshold
+    # 3. If at 'critiqued' stage, check if DESIGN agent is disabled (then allow sending)
+    # 4. If CRITIQUE agent has run, the score must meet the minimum threshold
     #
     # @param lead [Lead] The lead to check
     # @return [Boolean] True if lead is ready to send
     def lead_ready?(lead)
-      campaign = lead.campaign
-      agent_configs = campaign.association(:agent_configs).loaded? ? campaign.agent_configs : nil
-      payload = LeadRuns.status_payload_for(lead, campaign: campaign, agent_configs: agent_configs)
-      can_send = payload[:can_send]
-      can_send = payload["can_send"] if can_send.nil?
-      return false unless can_send == true
-
       # Check if lead has a critique output that doesn't meet minimum score (check latest)
       critique_output = lead.agent_outputs
                             .where(agent_name: AgentConstants::AGENT_CRITIQUE, status: AgentConstants::STATUS_COMPLETED)
@@ -553,6 +544,20 @@ class EmailSenderService
           return false
         end
       end
+
+      # Check if lead is at a sendable stage
+      sendable_stages = [ AgentConstants::STAGE_DESIGNED, AgentConstants::STAGE_COMPLETED ]
+
+      # Also allow "critiqued" stage if DESIGN agent is disabled for this campaign
+      # But we still check the critique score above
+      if lead.stage == AgentConstants::STAGE_CRITIQUED
+        design_config = lead.campaign.agent_configs.find_by(agent_name: AgentConstants::AGENT_DESIGN)
+        if design_config&.disabled?
+          sendable_stages << AgentConstants::STAGE_CRITIQUED
+        end
+      end
+
+      return false unless lead.stage.in?(sendable_stages)
 
       # Check for DESIGN output first (preferred) - get latest
       design_output = lead.agent_outputs

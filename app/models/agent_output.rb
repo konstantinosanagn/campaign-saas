@@ -3,8 +3,6 @@ class AgentOutput < ApplicationRecord
   include JsonbValidator
 
   belongs_to :lead
-  belongs_to :lead_run, optional: true
-  belongs_to :lead_run_step, optional: true
 
   # Validations
   validates :lead_id, presence: true

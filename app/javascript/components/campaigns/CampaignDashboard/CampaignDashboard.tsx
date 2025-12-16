@@ -75,11 +75,6 @@ export default function CampaignDashboard({
 
   // Map lead stage to the appropriate tab in the output modal
   const getTabForStage = (stage: string): 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL' => {
-    // Handle rewritten stages - show CRITIQUE tab (most recent output is usually CRITIQUE)
-    if (stage?.startsWith('rewritten')) {
-      return 'CRITIQUE'
-    }
-    
     switch (stage) {
       case 'searched':
         return 'SEARCH'
@@ -143,17 +138,32 @@ export default function CampaignDashboard({
   )
 
   // Ready leads calculation
-  // A lead is ready when LeadRuns indicates the next runnable step is SENDER.
-  // Also checks that critique score meets minimum threshold if critique has been run.
+  // A lead is ready if it's at designed/completed stage, or critiqued stage with DESIGN disabled
+  // Also checks that critique score meets minimum threshold if critique has been run
   const isLeadReady = useCallback((lead: Lead) => {
     // Check if critique score meets minimum (if critique has been run)
     // If meetsMinScore is explicitly false, don't allow sending
     if (lead.meetsMinScore === false) {
       return false
     }
-
-    return lead.leadRun?.canSend === true
-  }, [])
+    
+    // Normal case: designed or completed stage
+    if (lead.stage === 'designed' || lead.stage === 'completed') {
+      return true
+    }
+    
+    // Special case: critiqued stage but DESIGN agent is disabled
+    // Still requires meetsMinScore to be true (or null/undefined if no critique yet)
+    if (lead.stage === 'critiqued') {
+      const designConfig = configs.find(c => c.agentName === 'DESIGN')
+      if (designConfig && !designConfig.enabled) {
+        // Only allow if meetsMinScore is not false
+        return lead.meetsMinScore !== false
+      }
+    }
+    
+    return false
+  }, [configs])
 
   const readyLeadsCount = useMemo(() => {
     return filteredLeads.filter(isLeadReady).length

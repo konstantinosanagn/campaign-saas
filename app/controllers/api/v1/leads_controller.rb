@@ -3,31 +3,18 @@ module Api
     class LeadsController < BaseController
       def index
         # Only return leads from campaigns belonging to the current user
-        # Use preload instead of includes to avoid cartesian joins (row multiplication)
-        leads = Lead.preload(:agent_outputs, campaign: :agent_configs, current_lead_run: :steps)
+        # Use includes to prevent N+1 queries when accessing associations
+        leads = Lead.includes(:campaign, :agent_outputs)
                     .joins(:campaign)
                     .where(campaigns: { user_id: current_user.id })
-
-        # Prefetch active runs + steps in one pass for leads that may have nil pointers
-        # (keeps payload correct without per-lead queries).
-        active_runs =
-          LeadRun
-            .preload(:steps, campaign: :agent_configs)
-            .where(lead_id: leads.map(&:id), status: LeadRun::ACTIVE_STATUSES)
-            .order(created_at: :desc)
-
-        active_runs_by_lead_id = {}
-        active_runs.each do |run|
-          active_runs_by_lead_id[run.lead_id] ||= run
-        end
-
-        render json: LeadSerializer.serialize_collection(leads, active_runs_by_lead_id: active_runs_by_lead_id)
+        render json: LeadSerializer.serialize_collection(leads)
       end
 
 
 
       def create
         # Verify the campaign belongs to current user before creating lead
+        Rails.logger.info "🧩 Incoming params: #{params.inspect}"
         campaign = current_user.campaigns.find_by(id: lead_params[:campaign_id])
         unless campaign
           render json: { errors: [ "Campaign not found or unauthorized" ] }, status: :unprocessable_entity
@@ -114,250 +101,76 @@ module Api
           Rails.env.production?
         end
 
+        if use_async
+          # For async mode, allow job to be queued - the job will handle missing API keys
+          # and be discarded gracefully (discard_on ArgumentError)
+        else
+          # For sync mode, validate API keys before running to provide immediate feedback
+          unless ApiKeyService.keys_available?(current_user)
+            missing_keys = ApiKeyService.missing_keys(current_user)
+            render json: {
+              status: "failed",
+              error: "Missing API keys: #{missing_keys.join(', ')}. Please add them in the API Keys section.",
+              lead: LeadSerializer.serialize(lead)
+            }, status: :unprocessable_entity
+            return
+          end
+        end
+
         # Get optional agent_name parameter
         agent_name = params[:agentName] || params[:agent_name]
 
-        # Structured logging: initial request context
-        log_context = {
-          lead_id: lead.id,
-          campaign_id: campaign.id,
-          requested_agent_name: agent_name,
-          use_async: use_async
-        }
+        if use_async
+          # Enqueue background job with agent_name parameter
+          begin
+            job = AgentExecutionJob.perform_later(lead.id, campaign.id, current_user.id, agent_name)
 
-        begin
-          # For SENDER requests, use ensure_sendable_run! to prevent 422 errors
-          if agent_name.to_s == AgentConstants::AGENT_SENDER
-            existing_active_run = lead.active_run
-            run = LeadRuns.ensure_sendable_run!(lead: lead, requested_agent_name: agent_name)
-            run_was_created = existing_active_run.nil? || existing_active_run.id != run.id
-            log_context[:result] = run_was_created ? "created send-only run" : "reuse existing run"
-          else
-            # For other agents, use standard ensure_active_run!
-            existing_active_run = lead.active_run
-            run = lead.ensure_active_run!
-            run_was_created = existing_active_run.nil? || existing_active_run.id != run.id
-            log_context[:result] = run_was_created ? "created new run" : "reuse existing run"
+          render json: {
+            status: "queued",
+            message: "Agent execution queued successfully",
+            jobId: job.job_id,
+            lead: LeadSerializer.serialize(lead)
+          }, status: :accepted
+          rescue => e
+            Rails.logger.error("Failed to enqueue AgentExecutionJob: #{e.message}")
+            render json: {
+              status: "error",
+              error: "Failed to queue agent execution: #{e.message}"
+            }, status: :internal_server_error
           end
-          
-          # Log run creation/reuse
-          log_context.merge!(
-            active_run_id: run.id,
-            run_was_created: run_was_created,
-            run_status: run.status,
-            plan_steps: (run.plan&.dig("steps") || []).map { |s| s["agent_name"] }
-          )
-          
-          Rails.logger.info("[LeadsController#run_agents] run_creation lead_id=#{lead.id} run_id=#{run.id} run_was_created=#{run_was_created} plan_steps=#{log_context[:plan_steps].join(',')}")
+        else
+          # Run synchronously (for development/test or when explicitly requested)
+          begin
+            # Run agents using LeadAgentService, passing optional agent_name
+            result = LeadAgentService.run_agents_for_lead(lead, campaign, current_user, agent_name: agent_name)
 
-          if AgentExecution.paused?
-            log_context[:result] = "execution_paused"
-            Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-            render json: LeadRuns.status_payload_for(lead).merge(status: "failed", error: "execution_paused"),
-                   status: :service_unavailable
-            return
-          end
-
-          # Policy 2: allow agentName if it becomes next after skipping disabled queued steps.
-          if agent_name.present?
-            LeadRun.transaction do
-              locked_run = LeadRun.lock.find(run.id)
-              # Apply the same "skip disabled queued steps" rule used by the executor.
-              loop do
-                step = locked_run.steps.where(status: "queued").order(:position).lock("FOR UPDATE").first
-                break unless step
-
-                enabled =
-                  if step.agent_name.to_s == AgentConstants::AGENT_SENDER
-                    cfg = AgentConfig.find_by(campaign_id: locked_run.campaign_id, agent_name: step.agent_name)
-                    cfg.present? && cfg.enabled?
-                  else
-                    LeadAgentService::ConfigManager.get_agent_config(locked_run.campaign, step.agent_name).enabled?
-                  end
-
-                break if enabled
-
-                meta = (step.meta || {}).dup
-                meta["skip_reason"] = "agent_disabled"
-                meta["skipped_at"] = Time.current.iso8601
-                meta["skipped_agent_name"] = step.agent_name.to_s
-                step.update!(status: "skipped", step_finished_at: Time.current, meta: meta)
-                Rails.logger.info("[LeadsController#run_agents] run_id=#{locked_run.id} step_id=#{step.id} agent=#{step.agent_name} skipped (disabled)")
-              end
-
-              next_step = locked_run.steps.where(status: "queued").order(:position).first
-              has_queued_sender = locked_run.steps.where(status: "queued", agent_name: AgentConstants::AGENT_SENDER).exists?
-              
-              log_context.merge!(
-                next_step_agent_name: next_step&.agent_name,
-                has_queued_sender_step: has_queued_sender
-              )
-              
-              if next_step && next_step.agent_name.to_s != agent_name.to_s
-                # Differentiate errors for SENDER requests
-                if agent_name.to_s == AgentConstants::AGENT_SENDER
-                  if has_queued_sender
-                    # SENDER exists in plan but not next
-                    log_context[:result] = "agent_not_next"
-                    Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-                    render json: { status: "failed", error: "agent_not_next", nextAgent: next_step.agent_name }, status: :unprocessable_entity
-                  else
-                    # SENDER not in plan at all
-                    log_context[:result] = "sender_not_planned"
-                    Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-                    render json: { status: "failed", error: "sender_not_planned", reason: "not_in_plan", nextAgent: next_step.agent_name }, status: :unprocessable_entity
-                  end
-                else
-                  log_context[:result] = "agent_not_next"
-                  Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-                  render json: { status: "failed", error: "agent_not_next", nextAgent: next_step.agent_name }, status: :unprocessable_entity
-                end
-                raise ActiveRecord::Rollback
-              end
-            end
-
-            return if performed?
-          end
-
-          if use_async
-            job = AgentExecutionJob.perform_later({ lead_run_id: run.id, requested_agent_name: agent_name })
-            log_context[:result] = "queued"
-            log_context[:job_id] = job.job_id
-            Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-            render json: LeadRuns.status_payload_for(lead, campaign: campaign, agent_configs: campaign.agent_configs).merge(status: "queued", jobId: job.job_id), status: :accepted
-          else
-            # For sync mode, validate API keys before running to provide immediate feedback.
-            unless ApiKeyService.keys_available?(current_user)
-              missing_keys = ApiKeyService.missing_keys(current_user)
-              log_context[:result] = "missing_api_keys"
-              log_context[:missing_keys] = missing_keys
-              Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
+            # Check for service-level errors
+            if result[:status] == "failed" && result[:error]
               render json: {
-                status: "failed",
-                error: "Missing API keys: #{missing_keys.join(', ')}. Please add them in the API Keys section."
+                status: result[:status],
+                error: result[:error],
+                lead: LeadSerializer.serialize(lead)
               }, status: :unprocessable_entity
               return
             end
 
-            LeadRunExecutor.run_next!(lead_run_id: run.id, requested_agent_name: agent_name)
-            lead.reload
-            # Reload campaign to get fresh agent_configs after potential changes
-            campaign.reload
-            log_context[:result] = "completed"
-            Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-            render json: LeadRuns.status_payload_for(lead, campaign: campaign, agent_configs: campaign.agent_configs).merge(status: "completed"), status: :ok
+            # Return success response with results
+            render json: {
+              status: result[:status],
+              outputs: result[:outputs],
+              lead: LeadSerializer.serialize(lead),
+              completedAgents: result[:completed_agents],
+              failedAgents: result[:failed_agents]
+            }, status: :ok
+
+          rescue => e
+            # Handle any unexpected errors
+            render json: {
+              status: "error",
+              error: e.message
+            }, status: :internal_server_error
           end
-        rescue LeadRuns::RunInProgressError => e
-          log_context[:result] = "rejected due to run_in_progress"
-          log_context[:error] = e.message
-          Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-          render json: { 
-            status: "failed", 
-            error: "run_in_progress", 
-            runId: e.run_id, 
-            nextAgent: e.next_agent 
-          }, status: :unprocessable_entity
-        rescue LeadRuns::SenderNotPlannedError => e
-          log_context[:result] = "rejected due to sender_not_planned"
-          log_context[:error] = e.message
-          Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-          render json: { 
-            status: "failed", 
-            error: "sender_not_planned", 
-            reason: e.reason 
-          }, status: :unprocessable_entity
-        rescue LeadRuns::SendingNotConfiguredError => e
-          log_context[:result] = "rejected due to sending_not_configured"
-          log_context[:error] = e.message
-          Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-          render json: { 
-            status: "failed", 
-            error: "sending_not_configured", 
-            reasons: e.reasons 
-          }, status: :unprocessable_entity
-        rescue LeadRuns::AlreadySendingError => e
-          log_context[:result] = "rejected due to already_sending"
-          log_context[:error] = e.message
-          Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-          render json: { 
-            status: "failed", 
-            error: "already_sending", 
-            stepId: e.step_id, 
-            runId: e.run_id 
-          }, status: :unprocessable_entity
-        rescue LeadRunPlanner::PlannerError => e
-          # Handle legacy PlannerError for backward compatibility
-          error_response = { status: "failed", error: e.message }
-          
-          case e.message
-          when "send_source_missing"
-            error_response[:reason] = "no_design_or_writer_output"
-            log_context[:result] = "rejected due to send_source_missing"
-          else
-            log_context[:result] = "planner_error"
-          end
-          
-          log_context[:error] = e.message
-          Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-          render json: error_response, status: :unprocessable_entity
-        rescue => e
-          log_context[:result] = "error"
-          log_context[:error] = e.message
-          log_context[:error_class] = e.class.name
-          Rails.logger.error("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-          Rails.logger.error("LeadRun run_agents error: #{e.class} - #{e.message}")
-          Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-          render json: { status: "error", error: e.message }, status: :internal_server_error
         end
-        return
-
-        # Legacy state-machine (StageManager) removed.
-      end
-
-      ##
-      # POST /api/v1/leads/:id/resume_run
-      # Attempts to safely resume/repair an existing LeadRun.
-      #
-      # This is intentionally conservative:
-      # - never enqueues inside DB transactions (service returns enqueue flag)
-      # - no-op if already running (and not stale) or terminal
-      def resume_run
-        lead = Lead.includes(:campaign)
-                   .joins(:campaign)
-                   .where(campaigns: { user_id: current_user.id })
-                   .find_by(id: params[:id])
-
-        unless lead
-          render json: { errors: [ "Lead not found or unauthorized" ] }, status: :not_found
-          return
-        end
-
-        run = lead.active_run
-        unless run
-          render json: { status: "noop", reason: "no_active_run" }, status: :ok
-          return
-        end
-
-        if AgentExecution.paused?
-          campaign = lead.campaign
-          render json: LeadRuns.status_payload_for(lead, campaign: campaign, agent_configs: campaign.agent_configs).merge(status: "failed", error: "execution_paused"),
-                 status: :service_unavailable
-          return
-        end
-
-        result = LeadRuns::Resume.call(lead_run_id: run.id)
-
-        job_id = nil
-        if result[:enqueue]
-          job = AgentExecutionJob.perform_later({ lead_run_id: run.id })
-          job_id = job.job_id
-        end
-
-        lead.reload
-        render json: LeadRuns.status_payload_for(lead).merge(
-          resume: result,
-          jobId: job_id
-        ), status: :ok
       end
 
       ##
@@ -379,8 +192,14 @@ module Api
         # Reload to ensure fresh data
         lead.reload
         lead.association(:agent_outputs).reset
-        campaign = lead.campaign
-        render json: LeadRuns.status_payload_for(lead, campaign: campaign, agent_configs: campaign.agent_configs), status: :ok
+
+        # Determine available actions using StageManager
+        actions = LeadAgentService::StageManager.determine_available_actions(lead)
+
+        render json: {
+          leadId: lead.id,
+          availableActions: actions
+        }, status: :ok
       end
 
       ##
@@ -399,69 +218,20 @@ module Api
           return
         end
 
-        # Use already-loaded association if available, otherwise query with ordering
-        # Note: Ruby sorting is efficient when association is preloaded (avoids redundant query).
-        # If a lead has more than MAX_OUTPUTS_FOR_RUBY_SORT outputs, consider pagination.
-        outputs = if lead.association(:agent_outputs).loaded?
-          sorted = lead.agent_outputs.sort_by(&:created_at).reverse
-          # Future guardrail: if outputs exceed threshold, log a warning for monitoring
-          max_outputs_for_ruby_sort = 2000
-          Rails.logger.warn("[LeadsController#agent_outputs] Lead #{lead.id} has #{sorted.length} outputs (threshold: #{max_outputs_for_ruby_sort}). Consider pagination.") if sorted.length > max_outputs_for_ruby_sort
-          sorted
-        else
-          lead.agent_outputs.order(created_at: :desc)
-        end
+        # Get all agent outputs for this lead, ordered by created_at DESC (newest first)
+        outputs = lead.agent_outputs
+                     .order(created_at: :desc)
+                     .map { |output| AgentOutputSerializer.serialize(output) }
 
         render json: {
           leadId: lead.id,
-          outputs: outputs.map { |output| AgentOutputSerializer.serialize(output) }
-        }, status: :ok
-      end
-
-      # GET /api/v1/leads/:id/lead_runs
-      # Debug endpoint to inspect LeadRuns + steps for a lead.
-      def lead_runs
-        lead = Lead.includes(:campaign)
-                   .joins(:campaign)
-                   .where(campaigns: { user_id: current_user.id })
-                   .find_by(id: params[:id])
-
-        unless lead
-          render json: { errors: [ "Lead not found or unauthorized" ] }, status: :not_found
-          return
-        end
-
-        runs = lead.lead_runs.includes(:steps).order(created_at: :desc)
-
-        render json: {
-          lead_id: lead.id,
-          runs: runs.map { |run|
-            {
-              id: run.id,
-              status: run.status,
-              rewrite_count: run.rewrite_count,
-              min_score: run.min_score,
-              max_rewrites: run.max_rewrites,
-              started_at: run.started_at,
-              finished_at: run.finished_at,
-              steps: run.steps.map { |step|
-                {
-                  id: step.id,
-                  position: step.position,
-                  agent_name: step.agent_name,
-                  status: step.status,
-                  agent_output_id: step.agent_output_id,
-                  meta: step.meta
-                }
-              }
-            }
-          }
+          outputs: outputs
         }, status: :ok
       end
 
       ##
       # POST /api/v1/leads/:id/send_email
-      # Sends email to a single lead (routes through SENDER workflow for audit trail)
+      # Sends email to a single lead
       def send_email
         # Find lead and verify ownership
         # Use includes to prevent N+1 queries and eager load agent_outputs
@@ -475,69 +245,28 @@ module Api
           return
         end
 
-        # Phase 6.1: Route through SENDER workflow to preserve audit trail
         begin
-          # Use ensure_sendable_run! to create/reuse send-only run
-          run = LeadRuns.ensure_sendable_run!(lead: lead, requested_agent_name: AgentConstants::AGENT_SENDER)
-          
-          # Always enqueue AgentExecutionJob for SENDER (explicit and consistent)
-          # This ensures "queued" status actually means the job is enqueued
-          job = AgentExecutionJob.perform_later(
-            { lead_run_id: run.id, requested_agent_name: AgentConstants::AGENT_SENDER }
-          )
-          
-          render json: {
-            success: true,
-            message: "Email sending queued",
-            status: "queued",
-            jobId: job.job_id
-          }, status: :accepted
-        rescue LeadRuns::RunInProgressError => e
-          render json: { 
-            success: false, 
-            error: "run_in_progress", 
-            runId: e.run_id, 
-            nextAgent: e.next_agent 
-          }, status: :unprocessable_entity
-        rescue LeadRuns::SenderNotPlannedError => e
-          render json: { 
-            success: false, 
-            error: "sender_not_planned", 
-            reason: e.reason 
-          }, status: :unprocessable_entity
-        rescue LeadRuns::SendingNotConfiguredError => e
-          render json: { 
-            success: false, 
-            error: "sending_not_configured", 
-            reasons: e.reasons 
-          }, status: :unprocessable_entity
-        rescue LeadRuns::AlreadySendingError => e
-          render json: { 
-            success: false, 
-            error: "already_sending", 
-            stepId: e.step_id, 
-            runId: e.run_id 
-          }, status: :unprocessable_entity
-        rescue LeadRunPlanner::PlannerError => e
-          # Handle legacy PlannerError for backward compatibility
-          error_response = { success: false, error: e.message }
-          
-          case e.message
-          when "send_source_missing"
-            error_response[:reason] = "no_design_or_writer_output"
+          result = EmailSenderService.send_email_for_lead(lead)
+
+          if result[:success]
+            render json: {
+              success: true,
+              message: result[:message]
+            }, status: :ok
+          else
+            render json: {
+              success: false,
+              error: result[:error]
+            }, status: :unprocessable_entity
           end
-          
-          render json: error_response, status: :unprocessable_entity
         rescue GmailAuthorizationError => e
-          # Gmail token revoked/invalid
+          # Gmail token revoked/invalid - credentials already cleared by EmailSenderService
           render json: {
             success: false,
             error: e.message,
             requires_reconnect: true
           }, status: :unauthorized
         rescue => e
-          Rails.logger.error("[LeadsController#send_email] Error: #{e.class} - #{e.message}")
-          Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
           render json: {
             success: false,
             error: e.message
@@ -681,46 +410,20 @@ module Api
         # Filter leads by campaign to prevent cross-campaign access
         leads = campaign.leads.where(id: lead_ids)
 
+        # Validate API keys before processing (to avoid queuing jobs that will fail)
+        unless ApiKeyService.keys_available?(current_user)
+          missing_keys = ApiKeyService.missing_keys(current_user)
+          render json: {
+            success: false,
+            error: "Missing API keys: #{missing_keys.join(', ')}. Please add them in the API Keys section.",
+            total: leads.count,
+            queued: 0,
+            failed: 0
+          }, status: :unprocessable_entity
+          return
+        end
+
         begin
-          if AgentExecution.paused?
-            planned = []
-            failed = []
-
-            leads.find_each do |lead|
-              begin
-                run = lead.ensure_active_run!
-                planned << { lead_id: lead.id, lead_run_id: run.id }
-              rescue => e
-                failed << { lead_id: lead.id, error: e.message }
-              end
-            end
-
-            render json: {
-              success: false,
-              error: "execution_paused",
-              errors: [ "execution_paused" ],
-              total: leads.count,
-              queued: 0,
-              failed: failed.count,
-              planned: planned,
-              failedLeads: failed
-            }, status: :service_unavailable
-            return
-          end
-
-          # Validate API keys before processing (to avoid queuing jobs that will fail).
-          unless ApiKeyService.keys_available?(current_user)
-            missing_keys = ApiKeyService.missing_keys(current_user)
-            render json: {
-              success: false,
-              error: "Missing API keys: #{missing_keys.join(', ')}. Please add them in the API Keys section.",
-              total: leads.count,
-              queued: 0,
-              failed: 0
-            }, status: :unprocessable_entity
-            return
-          end
-
           # Process leads in batches (use filtered lead IDs)
           filtered_lead_ids = leads.pluck(:id)
           result = BatchLeadProcessingService.process_leads(

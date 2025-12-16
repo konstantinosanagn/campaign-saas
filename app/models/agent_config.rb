@@ -14,27 +14,8 @@ class AgentConfig < ApplicationRecord
   # Simple validation: settings must be a JSON object (Hash) when present
   # Allow empty hash, nested objects, and arrays - no deep type enforcement
   validate :settings_must_be_json_object
-  validate :min_score_for_send_bounds
 
   private
-
-  def min_score_for_send_bounds
-    return unless settings.is_a?(Hash)
-    value = settings["min_score_for_send"] || settings[:min_score_for_send]
-    return if value.nil?
-
-    # Accept Integer or numeric string only, reject non-numeric strings
-    str = value.is_a?(String) ? value.strip : value
-    unless str.is_a?(Integer) || str.to_s.match?(/\A-?\d+\z/)
-      errors.add(:settings, "min_score_for_send must be an integer, got #{value.inspect}")
-      return
-    end
-
-    int_value = str.to_i
-    if int_value > 10 || int_value < 0
-      errors.add(:settings, "min_score_for_send must be between 0 and 10, got #{int_value}")
-    end
-  end
 
   def settings_must_be_json_object
     # Allow nil or empty settings

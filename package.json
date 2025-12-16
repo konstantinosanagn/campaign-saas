@@ -73,7 +73,7 @@
     "react-dom": "18.3.1"
   },
   "scripts": {
-    "preinstall": "node -e \"try { require('./scripts/check-node-version.js'); } catch(e) { if (e.code !== 'MODULE_NOT_FOUND') throw e; }\"",
+    "preinstall": "test -f scripts/check-node-version.js && node scripts/check-node-version.js || true",
     "webpack": "webpack --config config/webpack/production.js",
     "build": "webpack --config config/webpack/production.js",
     "lint": "eslint \"app/javascript/**/*.{js,jsx,ts,tsx}\"",

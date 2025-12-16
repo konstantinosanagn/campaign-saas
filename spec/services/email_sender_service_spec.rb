@@ -21,10 +21,6 @@ RSpec.describe EmailSenderService, type: :service do
 
       before do
         design_output
-        AgentConfig.create!(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true, settings: {})
-        run = LeadRun.create!(lead: lead, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
-        LeadRunStep.create!(lead_run: run, position: 10, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: {})
-
         # Stub both immediate and delayed job enqueuing
         allow(EmailSendingJob).to receive(:perform_later)
         configured_job_double = double('ConfiguredJob')
@@ -59,8 +55,6 @@ RSpec.describe EmailSenderService, type: :service do
       it 'calculates approximate duration when staggering' do
         lead2 = create(:lead, campaign: campaign, email: 'lead2@example.com', stage: AgentConstants::STAGE_DESIGNED)
         create(:agent_output, lead: lead2, agent_name: AgentConstants::AGENT_DESIGN, status: AgentConstants::STATUS_COMPLETED, output_data: { 'formatted_email' => 'Email 2' })
-        run2 = LeadRun.create!(lead: lead2, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
-        LeadRunStep.create!(lead_run: run2, position: 10, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: {})
 
         result = described_class.send_emails_for_campaign(campaign, stagger: true)
 
@@ -187,9 +181,6 @@ RSpec.describe EmailSenderService, type: :service do
 
       before do
         design_output
-        AgentConfig.create!(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true, settings: {})
-        run = LeadRun.create!(lead: lead, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
-        LeadRunStep.create!(lead_run: run, position: 10, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: {})
         allow(EmailSendingJob).to receive(:perform_later)
       end
 
@@ -257,9 +248,6 @@ RSpec.describe EmailSenderService, type: :service do
 
       before do
         design_output
-        AgentConfig.create!(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true, settings: {})
-        run = LeadRun.create!(lead: lead, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
-        LeadRunStep.create!(lead_run: run, position: 10, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: {})
         allow(EmailSendingJob).to receive(:perform_later).and_raise(StandardError, 'Queue failed')
       end
 
@@ -444,13 +432,6 @@ RSpec.describe EmailSenderService, type: :service do
   end
 
   describe '.lead_ready?' do
-    before do
-      # LeadRuns readiness requires SENDER to be the next runnable step.
-      AgentConfig.create!(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true, settings: {})
-      run = LeadRun.create!(lead: lead, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
-      LeadRunStep.create!(lead_run: run, position: 10, agent_name: AgentConstants::AGENT_SENDER, status: "queued", meta: {})
-    end
-
     context 'when lead has DESIGN output' do
       before do
         create(:agent_output,
@@ -461,11 +442,23 @@ RSpec.describe EmailSenderService, type: :service do
         )
       end
 
-      it 'returns true when LeadRuns can_send and formatted email present' do
+      it 'returns true for designed stage' do
+        lead.update(stage: AgentConstants::STAGE_DESIGNED)
         expect(described_class.lead_ready?(lead)).to be true
       end
 
+      it 'returns true for completed stage' do
+        lead.update(stage: AgentConstants::STAGE_COMPLETED)
+        expect(described_class.lead_ready?(lead)).to be true
+      end
+
+      it 'returns false for other stages' do
+        lead.update(stage: AgentConstants::STAGE_QUEUED)
+        expect(described_class.lead_ready?(lead)).to be false
+      end
+
       it 'returns false when formatted_email is empty' do
+        lead.update(stage: AgentConstants::STAGE_DESIGNED)
         design_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_DESIGN)
         design_output.update(output_data: { 'formatted_email' => '' })
 
@@ -483,11 +476,13 @@ RSpec.describe EmailSenderService, type: :service do
         )
       end
 
-      it 'returns true when LeadRuns can_send and writer email present' do
+      it 'returns true when at designed stage' do
+        lead.update(stage: AgentConstants::STAGE_DESIGNED)
         expect(described_class.lead_ready?(lead)).to be true
       end
 
       it 'returns false when email is empty' do
+        lead.update(stage: AgentConstants::STAGE_DESIGNED)
         writer_output = lead.agent_outputs.find_by(agent_name: AgentConstants::AGENT_WRITER)
         writer_output.update(output_data: { 'email' => '' })
 
@@ -497,6 +492,7 @@ RSpec.describe EmailSenderService, type: :service do
 
     context 'when lead has no email content' do
       it 'returns false' do
+        lead.update(stage: AgentConstants::STAGE_DESIGNED)
         expect(described_class.lead_ready?(lead)).to be false
       end
     end
@@ -512,20 +508,9 @@ RSpec.describe EmailSenderService, type: :service do
       end
 
       it 'returns false' do
+        lead.update(stage: AgentConstants::STAGE_DESIGNED)
         expect(described_class.lead_ready?(lead)).to be false
       end
-    end
-
-    it "returns false when SENDER is disabled (even if outputs exist)" do
-      AgentConfig.find_by!(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER).update!(enabled: false)
-      create(:agent_output,
-        lead: lead,
-        agent_name: AgentConstants::AGENT_DESIGN,
-        status: AgentConstants::STATUS_COMPLETED,
-        output_data: { 'formatted_email' => 'Formatted email' }
-      )
-
-      expect(described_class.lead_ready?(lead)).to be false
     end
   end
 

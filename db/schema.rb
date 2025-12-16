@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_12_13_220000) do
+ActiveRecord::Schema[8.1].define(version: 2025_12_02_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -34,17 +34,12 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_13_220000) do
     t.datetime "created_at", null: false
     t.text "error_message"
     t.bigint "lead_id", null: false
-    t.bigint "lead_run_id"
-    t.bigint "lead_run_step_id"
     t.jsonb "output_data", default: {}, null: false
     t.string "status", limit: 20, default: "pending", null: false
     t.datetime "updated_at", null: false
     t.index ["agent_name"], name: "index_agent_outputs_on_agent_name"
     t.index ["lead_id", "agent_name"], name: "index_agent_outputs_on_lead_id_and_agent_name"
     t.index ["lead_id"], name: "index_agent_outputs_on_lead_id"
-    t.index ["lead_run_id"], name: "index_agent_outputs_on_lead_run_id"
-    t.index ["lead_run_step_id"], name: "index_agent_outputs_on_lead_run_step_id"
-    t.index ["lead_run_step_id"], name: "index_agent_outputs_unique_on_lead_run_step_id", unique: true
     t.index ["output_data"], name: "index_agent_outputs_on_output_data_gin", using: :gin
     t.check_constraint "agent_name::text = ANY (ARRAY['SEARCH'::character varying::text, 'WRITER'::character varying::text, 'DESIGN'::character varying::text, 'CRITIQUE'::character varying::text, 'DESIGNER'::character varying::text, 'SENDER'::character varying::text])", name: "check_agent_outputs_agent_name"
     t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'completed'::character varying::text, 'failed'::character varying::text])", name: "check_agent_outputs_status"
@@ -60,53 +55,10 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_13_220000) do
     t.index ["user_id"], name: "index_campaigns_on_user_id"
   end
 
-  create_table "lead_run_steps", force: :cascade do |t|
-    t.string "agent_name", limit: 50, null: false
-    t.bigint "agent_output_id"
-    t.datetime "created_at", null: false
-    t.bigint "lead_run_id", null: false
-    t.jsonb "meta", default: {}, null: false
-    t.integer "position", null: false
-    t.string "status", limit: 20, default: "queued", null: false
-    t.datetime "step_finished_at"
-    t.datetime "step_started_at"
-    t.datetime "updated_at", null: false
-    t.index ["agent_output_id"], name: "index_lead_run_steps_on_agent_output_id"
-    t.index ["lead_run_id", "agent_name"], name: "index_lead_run_steps_on_run_and_agent_name"
-    t.index ["lead_run_id", "position"], name: "index_lead_run_steps_on_run_and_position", unique: true
-    t.index ["lead_run_id", "status", "position"], name: "index_lead_run_steps_next_by_status_position"
-    t.index ["lead_run_id"], name: "index_lead_run_steps_on_lead_run_id"
-    t.check_constraint "agent_name::text = ANY (ARRAY['SEARCH'::character varying::text, 'WRITER'::character varying::text, 'CRITIQUE'::character varying::text, 'DESIGN'::character varying::text, 'DESIGNER'::character varying::text, 'SENDER'::character varying::text])", name: "check_lead_run_steps_agent_name"
-    t.check_constraint "status::text = ANY (ARRAY['queued'::character varying::text, 'running'::character varying::text, 'completed'::character varying::text, 'failed'::character varying::text, 'skipped'::character varying::text])", name: "check_lead_run_steps_status"
-  end
-
-  create_table "lead_runs", force: :cascade do |t|
-    t.bigint "campaign_id", null: false
-    t.jsonb "config_snapshot", default: {}, null: false
-    t.datetime "created_at", null: false
-    t.datetime "finished_at"
-    t.bigint "lead_id", null: false
-    t.integer "max_rewrites", default: 2, null: false
-    t.integer "min_score", default: 6, null: false
-    t.jsonb "plan", default: {}, null: false
-    t.integer "rewrite_count", default: 0, null: false
-    t.datetime "started_at"
-    t.string "status", limit: 20, default: "queued", null: false
-    t.datetime "updated_at", null: false
-    t.index ["campaign_id", "status"], name: "index_lead_runs_on_campaign_id_and_status"
-    t.index ["campaign_id"], name: "index_lead_runs_on_campaign_id"
-    t.index ["lead_id", "status"], name: "index_lead_runs_on_lead_id_and_status"
-    t.index ["lead_id"], name: "index_lead_runs_on_lead_id"
-    t.index ["lead_id"], name: "index_lead_runs_one_active_per_lead", unique: true, where: "((status)::text = ANY (ARRAY[('queued'::character varying)::text, ('running'::character varying)::text]))"
-    t.check_constraint "min_score >= 0 AND min_score <= 10", name: "check_lead_runs_min_score_bounds"
-    t.check_constraint "status::text = ANY (ARRAY['queued'::character varying::text, 'running'::character varying::text, 'completed'::character varying::text, 'failed'::character varying::text, 'cancelled'::character varying::text])", name: "check_lead_runs_status"
-  end
-
   create_table "leads", force: :cascade do |t|
     t.bigint "campaign_id", null: false
     t.string "company", null: false
     t.datetime "created_at", null: false
-    t.bigint "current_lead_run_id"
     t.string "email", null: false
     t.string "email_status", default: "not_scheduled", null: false
     t.datetime "last_email_error_at"
@@ -119,7 +71,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_13_220000) do
     t.datetime "updated_at", null: false
     t.string "website"
     t.index ["campaign_id"], name: "index_leads_on_campaign_id"
-    t.index ["current_lead_run_id"], name: "index_leads_on_current_lead_run_id"
     t.index ["email"], name: "index_leads_on_email"
     t.index ["email_status"], name: "index_leads_on_email_status"
   end
@@ -135,30 +86,25 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_13_220000) do
     t.datetime "gmail_token_expires_at"
     t.string "job_title"
     t.string "last_name"
-    t.text "llm_api_key"
+    t.string "llm_api_key"
     t.string "name"
     t.string "provider"
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
     t.string "send_from_email"
-    t.text "tavily_api_key"
+    t.string "tavily_api_key"
     t.string "uid"
     t.datetime "updated_at", null: false
     t.string "workspace_name"
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["llm_api_key"], name: "index_users_on_llm_api_key"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.index ["tavily_api_key"], name: "index_users_on_tavily_api_key"
   end
 
   add_foreign_key "agent_configs", "campaigns"
-  add_foreign_key "agent_outputs", "lead_run_steps"
-  add_foreign_key "agent_outputs", "lead_runs"
   add_foreign_key "agent_outputs", "leads"
   add_foreign_key "campaigns", "users"
-  add_foreign_key "lead_run_steps", "agent_outputs"
-  add_foreign_key "lead_run_steps", "lead_runs"
-  add_foreign_key "lead_runs", "campaigns"
-  add_foreign_key "lead_runs", "leads"
   add_foreign_key "leads", "campaigns"
-  add_foreign_key "leads", "lead_runs", column: "current_lead_run_id"
 end

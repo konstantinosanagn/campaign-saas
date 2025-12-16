@@ -163,12 +163,13 @@ export function useLeads() {
           console.error('Failed to create lead:', response.error)
         }
 
-        // Always return error object to preserve error messages for CSV import
-        return {
-          success: false,
-          error: errorMsg,
-          errors: Array.isArray(errors) ? errors : [],
-        }
+        return errors.length > 0
+          ? false
+          : {
+            success: false,
+            error: response.error ?? 'Failed to create lead',
+            errors: [],
+          }
       }
 
       const newLead = response.data

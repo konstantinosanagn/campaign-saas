@@ -58,11 +58,5 @@ Rails.application.configure do
   if defined?(ActiveRecord)
     config.active_record.dump_schema_after_migration = false
     config.active_record.attributes_for_inspect = [ :id ]
-
-    # Temporary migration safety valve:
-    # Allow reading existing plaintext rows during the encryption rollout window.
-    # After backfill completes, flip ALLOW_UNENCRYPTED_USER_SECRETS=false (no code deploy).
-    config.active_record.encryption.support_unencrypted_data =
-      ENV.fetch("ALLOW_UNENCRYPTED_USER_SECRETS", "false") == "true"
   end
 end

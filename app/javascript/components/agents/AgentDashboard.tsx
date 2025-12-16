@@ -52,12 +52,8 @@ export default function AgentDashboard({ hasSelectedCampaign, onAddLeadClick, on
         // Count leads currently in 'critiqued' stage (just completed CRITIQUE)
         return leads.filter(l => l.stage === 'critiqued').length.toString()
       case 'SENDER':
-        // Count leads in sent stages (sent (1), sent (2), etc.) or send_failed
-        return leads.filter(l => 
-          l.stage?.startsWith('sent (') || 
-          l.stage === 'send_failed' ||
-          l.stage === 'completed' // Legacy support
-        ).length.toString()
+        // Count leads in 'completed' stage (final stage)
+        return leads.filter(l => l.stage === 'completed').length.toString()
       default:
         return '-'
     }

@@ -16,22 +16,6 @@ export interface Campaign {
   sharedSettings?: SharedSettings
 }
 
-export interface LeadRunStepRef {
-  id: number
-  agentName: string
-}
-
-export interface LeadRunStatusPayload {
-  runId: number | null
-  runStatus: 'none' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | string
-  runningStep: LeadRunStepRef | null
-  lastCompletedStep: LeadRunStepRef | null
-  nextStep: LeadRunStepRef | null
-  rewriteCount: number
-  leadStage?: string
-  canSend: boolean
-}
-
 export interface Lead {
   id: number
   name: string
@@ -46,7 +30,6 @@ export interface Lead {
   meetsMinScore?: boolean | null
   availableActions?: string[]
   rewriteCount?: number
-  leadRun?: LeadRunStatusPayload
   errors?: string[]
 }
 

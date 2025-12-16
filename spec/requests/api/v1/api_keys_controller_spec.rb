@@ -40,60 +40,90 @@ RSpec.describe Api::V1::ApiKeysController, type: :request do
     context 'when authenticated' do
       before { sign_in user }
 
-      it 'stores llmApiKey and tavilyApiKey' do
-        put '/api/v1/api_keys', params: {
-          api_key: {
+      context 'with direct parameters' do
+        it 'stores llmApiKey in session' do
+          put '/api/v1/api_keys', params: {
             llmApiKey: 'new-llm-key',
             tavilyApiKey: 'new-tavily-key'
-          }
-        }, headers: { 'Accept' => 'application/json' }
+          }, headers: { 'Accept' => 'application/json' }
 
-        expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
-        user.reload
-        expect(json_response['llmApiKey']).to eq('new-llm-key')
-        expect(json_response['tavilyApiKey']).to eq('new-tavily-key')
-        expect(user.llm_api_key).to eq('new-llm-key')
-        expect(user.tavily_api_key).to eq('new-tavily-key')
+          expect(response).to have_http_status(:success)
+          json_response = JSON.parse(response.body)
+          user.reload
+          expect(json_response['llmApiKey']).to eq('new-llm-key')
+          expect(json_response['tavilyApiKey']).to eq('new-tavily-key')
+          expect(user.llm_api_key).to eq('new-llm-key')
+          expect(user.tavily_api_key).to eq('new-tavily-key')
+        end
+
+        it 'updates only llmApiKey when tavilyApiKey is not provided' do
+          user.update!(llm_api_key: 'existing-llm', tavily_api_key: 'existing-tavily')
+
+          put '/api/v1/api_keys', params: {
+            llmApiKey: 'only-llm-key'
+          }, headers: { 'Accept' => 'application/json' }
+
+          expect(response).to have_http_status(:success)
+          json_response = JSON.parse(response.body)
+          expect(json_response['llmApiKey']).to eq('only-llm-key')
+          expect(json_response['tavilyApiKey']).to eq('existing-tavily')
+          expect(user.reload.llm_api_key).to eq('only-llm-key')
+          expect(user.tavily_api_key).to eq('existing-tavily')
+        end
+
+        it 'updates only tavilyApiKey when llmApiKey is not provided' do
+          user.update!(llm_api_key: 'existing-llm', tavily_api_key: 'existing-tavily')
+
+          put '/api/v1/api_keys', params: {
+            tavilyApiKey: 'only-tavily-key'
+          }, headers: { 'Accept' => 'application/json' }
+
+          expect(response).to have_http_status(:success)
+          json_response = JSON.parse(response.body)
+          expect(json_response['tavilyApiKey']).to eq('only-tavily-key')
+          expect(json_response['llmApiKey']).to eq('existing-llm')
+          expect(user.reload.tavily_api_key).to eq('only-tavily-key')
+          expect(user.llm_api_key).to eq('existing-llm')
+        end
       end
 
-      it 'updates only llmApiKey when tavilyApiKey is not provided' do
-        user.update!(llm_api_key: 'existing-llm', tavily_api_key: 'existing-tavily')
+      context 'with nested parameters' do
+        it 'accepts nested api_keys hash' do
+          put '/api/v1/api_keys', params: {
+            api_keys: {
+              llmApiKey: 'nested-llm-key',
+              tavilyApiKey: 'nested-tavily-key'
+            }
+          }, headers: { 'Accept' => 'application/json' }
 
-        put '/api/v1/api_keys', params: {
-          api_key: { llmApiKey: 'only-llm-key' }
-        }, headers: { 'Accept' => 'application/json' }
+          expect(response).to have_http_status(:success)
+          json_response = JSON.parse(response.body)
+          expect(json_response['llmApiKey']).to eq('nested-llm-key')
+          expect(json_response['tavilyApiKey']).to eq('nested-tavily-key')
+          expect(user.reload.llm_api_key).to eq('nested-llm-key')
+          expect(user.tavily_api_key).to eq('nested-tavily-key')
+        end
 
-        expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
-        expect(json_response['llmApiKey']).to eq('only-llm-key')
-        expect(json_response['tavilyApiKey']).to eq('existing-tavily')
-        expect(user.reload.llm_api_key).to eq('only-llm-key')
-        expect(user.tavily_api_key).to eq('existing-tavily')
-      end
+        it 'prefers direct parameters over nested when both are provided' do
+          put '/api/v1/api_keys', params: {
+            llmApiKey: 'direct-key',
+            api_keys: {
+              llmApiKey: 'nested-key'
+            }
+          }, headers: { 'Accept' => 'application/json' }
 
-      it 'updates only tavilyApiKey when llmApiKey is not provided' do
-        user.update!(llm_api_key: 'existing-llm', tavily_api_key: 'existing-tavily')
-
-        put '/api/v1/api_keys', params: {
-          api_key: { tavilyApiKey: 'only-tavily-key' }
-        }, headers: { 'Accept' => 'application/json' }
-
-        expect(response).to have_http_status(:success)
-        json_response = JSON.parse(response.body)
-        expect(json_response['tavilyApiKey']).to eq('only-tavily-key')
-        expect(json_response['llmApiKey']).to eq('existing-llm')
-        expect(user.reload.tavily_api_key).to eq('only-tavily-key')
-        expect(user.llm_api_key).to eq('existing-llm')
+          expect(response).to have_http_status(:success)
+          json_response = JSON.parse(response.body)
+          expect(json_response['llmApiKey']).to eq('direct-key')
+          expect(user.reload.llm_api_key).to eq('direct-key')
+        end
       end
 
       it 'persists keys across requests' do
         # Set keys
         put '/api/v1/api_keys', params: {
-          api_key: {
-            llmApiKey: 'persistent-llm',
-            tavilyApiKey: 'persistent-tavily'
-          }
+          llmApiKey: 'persistent-llm',
+          tavilyApiKey: 'persistent-tavily'
         }, headers: { 'Accept' => 'application/json' }
 
         # Retrieve them
@@ -109,18 +139,14 @@ RSpec.describe Api::V1::ApiKeysController, type: :request do
       it 'allows clearing keys by setting them to empty string' do
         # Set keys first
         put '/api/v1/api_keys', params: {
-          api_key: {
-            llmApiKey: 'test-key',
-            tavilyApiKey: 'test-key'
-          }
+          llmApiKey: 'test-key',
+          tavilyApiKey: 'test-key'
         }, headers: { 'Accept' => 'application/json' }
 
         # Clear them
         put '/api/v1/api_keys', params: {
-          api_key: {
-            llmApiKey: '',
-            tavilyApiKey: ''
-          }
+          llmApiKey: '',
+          tavilyApiKey: ''
         }, headers: { 'Accept' => 'application/json' }
 
         get '/api/v1/api_keys', headers: { 'Accept' => 'application/json' }
@@ -135,7 +161,7 @@ RSpec.describe Api::V1::ApiKeysController, type: :request do
     context 'when not authenticated' do
       it 'returns 401 unauthorized' do
         put '/api/v1/api_keys', params: {
-          api_key: { llmApiKey: 'test-key' }
+          llmApiKey: 'test-key'
         }, headers: { 'Accept' => 'application/json' }
         expect(response).to have_http_status(:unauthorized)
       end

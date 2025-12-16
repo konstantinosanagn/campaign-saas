@@ -27,7 +27,7 @@
     <%# Always include stylesheet tag - CSS is injected via JS in dev, extracted in prod %>
     <%# The preload warning is harmless and can be ignored in development %>
     <%= stylesheet_pack_tag 'application', "data-turbo-track": "reload" %>
-    <%= javascript_pack_tag 'application', defer: true, "data-turbo-track": "reload" %>
+    <%= javascript_pack_tag 'application', defer: true %>
   </head>
 
   <body class="font-inter">

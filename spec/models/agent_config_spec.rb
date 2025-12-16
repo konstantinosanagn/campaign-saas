@@ -157,48 +157,4 @@ RSpec.describe AgentConfig, type: :model do
       expect(config.get_setting('custom_field')['nested']).to eq('value')
     end
   end
-
-  describe 'min_score_for_send validation' do
-    let(:user) { create(:user) }
-    let(:campaign) { create(:campaign, user: user) }
-
-    it 'allows min_score_for_send = 10' do
-      config = build(:agent_config, campaign: campaign, settings: { 'min_score_for_send' => 10 })
-      expect(config).to be_valid
-    end
-
-    it 'allows min_score_for_send = 0' do
-      config = build(:agent_config, campaign: campaign, settings: { 'min_score_for_send' => 0 })
-      expect(config).to be_valid
-    end
-
-    it 'allows min_score_for_send as numeric string "10"' do
-      config = build(:agent_config, campaign: campaign, settings: { 'min_score_for_send' => '10' })
-      expect(config).to be_valid
-    end
-
-    it 'rejects min_score_for_send = 11' do
-      config = build(:agent_config, campaign: campaign, settings: { 'min_score_for_send' => 11 })
-      expect(config).not_to be_valid
-      expect(config.errors[:settings]).to be_present
-    end
-
-    it 'rejects min_score_for_send = -1' do
-      config = build(:agent_config, campaign: campaign, settings: { 'min_score_for_send' => -1 })
-      expect(config).not_to be_valid
-      expect(config.errors[:settings]).to be_present
-    end
-
-    it 'rejects non-numeric string min_score_for_send' do
-      config = build(:agent_config, campaign: campaign, settings: { 'min_score_for_send' => 'abc' })
-      expect(config).not_to be_valid
-      expect(config.errors[:settings]).to be_present
-      expect(config.errors[:settings].first).to include('must be an integer')
-    end
-
-    it 'handles symbol key min_score_for_send' do
-      config = build(:agent_config, campaign: campaign, settings: { min_score_for_send: 10 })
-      expect(config).to be_valid
-    end
-  end
 end

@@ -16,15 +16,6 @@ Rails.application.routes.draw do
 
   root "campaigns#index"
 
-  # Health endpoints
-  get "/health", to: "health#health"
-  get "/healthz", to: "health#healthz"
-
-  namespace :admin do
-    resources :lead_runs, only: [ :show ]
-    resources :agent_outputs, only: [ :index, :show ]
-  end
-
   # Profile completion routes
   get  "/complete-profile", to: "profiles#edit",   as: :complete_profile
   patch "/complete-profile", to: "profiles#update"
@@ -48,10 +39,8 @@ Rails.application.routes.draw do
         end
         member do
           post :run_agents
-          post :resume_run
           get :available_actions
           get :agent_outputs
-          get :lead_runs
           patch :update_agent_output
           post :send_email
         end
@@ -60,11 +49,6 @@ Rails.application.routes.draw do
       resource :api_keys, only: [ :show, :update ]
       resource :email_config, only: [ :show, :update ]
       resource :oauth_status, only: [ :show ]
-      
-      # Public demo endpoint (token-based auth, no Devise session)
-      scope path: "public" do
-        post "leads/:id/send_email", to: "public_leads#send_email"
-      end
     end
   end
 

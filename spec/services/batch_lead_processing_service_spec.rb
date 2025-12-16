@@ -19,9 +19,9 @@ RSpec.describe BatchLeadProcessingService, type: :service do
       it 'enqueues job with correct parameters for each lead' do
         described_class.process_leads(lead_ids, campaign, user)
 
-        expect(AgentExecutionJob).to have_been_enqueued.with(hash_including(lead_run_id: lead1.reload.current_lead_run_id))
-        expect(AgentExecutionJob).to have_been_enqueued.with(hash_including(lead_run_id: lead2.reload.current_lead_run_id))
-        expect(AgentExecutionJob).to have_been_enqueued.with(hash_including(lead_run_id: lead3.reload.current_lead_run_id))
+        expect(AgentExecutionJob).to have_been_enqueued.with(lead1.id, campaign.id, user.id)
+        expect(AgentExecutionJob).to have_been_enqueued.with(lead2.id, campaign.id, user.id)
+        expect(AgentExecutionJob).to have_been_enqueued.with(lead3.id, campaign.id, user.id)
       end
 
       it 'returns success result with queued leads' do
@@ -132,10 +132,52 @@ RSpec.describe BatchLeadProcessingService, type: :service do
   end
 
   describe '.process_leads_sync' do
-    it 'is deprecated and raises' do
-      expect {
-        described_class.process_leads_sync(lead_ids, campaign, user)
-      }.to raise_error(NotImplementedError)
+    before do
+      # Mock agent services to avoid actual API calls
+      allow_any_instance_of(Agents::SearchAgent).to receive(:run).and_return({
+        company: 'Test Corp',
+        sources: [],
+        personalization_signals: { company: [], recipient: [] },
+        inferred_focus_areas: []
+      })
+
+      allow_any_instance_of(Agents::WriterAgent).to receive(:run).and_return({
+        company: 'Test Corp',
+        email: 'Subject: Test\n\nBody',
+        variants: []
+      })
+
+      allow_any_instance_of(Agents::CritiqueAgent).to receive(:run).and_return({
+        'critique' => nil
+      })
+
+      allow_any_instance_of(Agents::DesignAgent).to receive(:run).and_return({
+        email: 'Subject: Test\n\nBody',
+        formatted_email: 'Subject: Test\n\n**Body**'
+      })
+
+      # Create enabled agent configs
+      create(:agent_config_search, campaign: campaign)
+      create(:agent_config_writer, campaign: campaign)
+      create(:agent_config, agent_name: 'CRITIQUE', campaign: campaign)
+      create(:agent_config, agent_name: 'DESIGN', campaign: campaign)
+    end
+
+    it 'processes leads synchronously' do
+      result = described_class.process_leads_sync(lead_ids, campaign, user)
+
+      expect(result[:total]).to eq(3)
+      expect(result[:completed_count] + result[:failed_count]).to eq(3)
+    end
+
+    it 'returns detailed results for each lead' do
+      result = described_class.process_leads_sync(lead_ids, campaign, user)
+
+      if result[:completed_count] > 0
+        completed_lead = result[:completed].first
+        expect(completed_lead).to have_key(:lead_id)
+        expect(completed_lead).to have_key(:status)
+      end
     end
   end
 

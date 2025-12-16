@@ -115,22 +115,6 @@ RSpec.describe Api::V1::ApiKeysController, type: :controller do
         body = JSON.parse(response.body)
         expect(body["error"]).to eq([ "error" ])
       end
-
-      it "handles scalar api_key parameter without strong params warning" do
-        allow(user).to receive(:tavily_api_key).and_return("old_tavily")
-        expect(user).to receive(:update!).with(llm_api_key: "scalar_key_value").and_return(true)
-        allow(user).to receive(:llm_api_key).and_return("scalar_key_value")
-
-        # Use scalar api_key parameter (not nested)
-        patch :update, params: { api_key: "scalar_key_value" }
-
-        expect(response).to have_http_status(:ok)
-        body = JSON.parse(response.body)
-        expect(body["llmApiKey"]).to eq("scalar_key_value")
-        expect(body["tavilyApiKey"]).to eq("old_tavily")
-        # Verify no unpermitted parameter warnings in logs
-        # (This is implicit - if there were warnings, the test would need to check logs)
-      end
     end
   end
 end

@@ -14,11 +14,6 @@ module Api
       private
 
       def skip_auth?
-        # Never allow auth to be disabled in production-like environments.
-        # If someone accidentally sets DISABLE_AUTH=true on a prod app, we still
-        # must require authentication for all API endpoints.
-        return false if Rails.env.production?
-
         # Skip authentication when explicitly disabled, otherwise respect environment defaults
         disable_auth = ENV["DISABLE_AUTH"]
         return true if disable_auth == "true"

@@ -205,84 +205,6 @@ RSpec.describe Api::V1::AgentConfigsController, type: :request do
         end
       end
 
-      context "when an active run has this agent running" do
-        it "returns 422 agent_config_locked" do
-          lead = create(:lead, campaign: campaign)
-          run = LeadRun.create!(lead: lead, campaign: campaign, status: "running", plan: {}, config_snapshot: {})
-          LeadRunStep.create!(lead_run: run, position: 10, agent_name: "WRITER", status: "running", meta: {}, step_started_at: Time.current)
-
-          patch "/api/v1/campaigns/#{campaign.id}/agent_configs/#{config.id}", params: update_attributes, headers: { "Accept" => "application/json" }
-          expect(response).to have_http_status(:unprocessable_entity)
-          json = JSON.parse(response.body)
-          expect(json["error"]).to eq("agent_config_locked")
-          expect(json["agent_name"]).to eq("WRITER")
-        end
-      end
-
-      context "when toggling agent config enables it and requeues skipped steps" do
-        it "immediately requeues skipped steps with skip_reason disabled" do
-          lead = create(:lead, campaign: campaign)
-          run = LeadRun.create!(lead: lead, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
-
-          # Create skipped DESIGN step with skip_reason disabled
-          design_step = LeadRunStep.create!(
-            lead_run: run,
-            position: 10,
-            agent_name: "DESIGN",
-            status: "skipped",
-            meta: { "skip_reason" => "disabled" },
-            step_finished_at: Time.current
-          )
-
-          # Create disabled DESIGN config
-          design_config = create(:agent_config, campaign: campaign, agent_name: "DESIGN", enabled: false, settings: {})
-
-          # Enable DESIGN config
-          patch "/api/v1/campaigns/#{campaign.id}/agent_configs/#{design_config.id}",
-                params: { agent_config: { enabled: true } },
-                headers: { "Accept" => "application/json" }
-
-          expect(response).to have_http_status(:ok)
-
-          # Verify DESIGN step is requeued
-          design_step.reload
-          expect(design_step.status).to eq("queued")
-          expect(design_step.meta["skip_reason"]).to be_nil
-          expect(design_step.step_started_at).to be_nil
-          expect(design_step.step_finished_at).to be_nil
-        end
-
-        it "inserts DESIGN step when DESIGN is enabled and missing from run" do
-          lead = create(:lead, campaign: campaign)
-          run = LeadRun.create!(lead: lead, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
-
-          # Create SENDER step (no DESIGN step exists)
-          sender_step = LeadRunStep.create!(
-            lead_run: run,
-            position: 30,
-            agent_name: "SENDER",
-            status: "queued",
-            meta: {}
-          )
-
-          # Create enabled DESIGN config
-          design_config = create(:agent_config, campaign: campaign, agent_name: "DESIGN", enabled: true, settings: {})
-
-          # Update DESIGN config (triggers ensure_design_step!)
-          patch "/api/v1/campaigns/#{campaign.id}/agent_configs/#{design_config.id}",
-                params: { agent_config: { enabled: true } },
-                headers: { "Accept" => "application/json" }
-
-          expect(response).to have_http_status(:ok)
-
-          # Verify DESIGN step was inserted
-          design_step = run.steps.find_by(agent_name: "DESIGN")
-          expect(design_step).to be_present
-          expect(design_step.status).to eq("queued")
-          expect(design_step.position).to be < sender_step.position
-        end
-      end
-
       context 'when config belongs to another user\'s campaign' do
         let!(:other_config) { create(:agent_config, campaign: other_campaign) }
 
@@ -325,20 +247,6 @@ RSpec.describe Api::V1::AgentConfigsController, type: :request do
       it 'returns 204 no content' do
         delete "/api/v1/campaigns/#{campaign.id}/agent_configs/#{config.id}", headers: { 'Accept' => 'application/json' }
         expect(response).to have_http_status(:no_content)
-      end
-
-      context "when an active run has this agent running" do
-        it "returns 422 agent_config_locked" do
-          lead = create(:lead, campaign: campaign)
-          run = LeadRun.create!(lead: lead, campaign: campaign, status: "running", plan: {}, config_snapshot: {})
-          LeadRunStep.create!(lead_run: run, position: 10, agent_name: "WRITER", status: "running", meta: {}, step_started_at: Time.current)
-
-          delete "/api/v1/campaigns/#{campaign.id}/agent_configs/#{config.id}", headers: { "Accept" => "application/json" }
-          expect(response).to have_http_status(:unprocessable_entity)
-          json = JSON.parse(response.body)
-          expect(json["error"]).to eq("agent_config_locked")
-          expect(json["agent_name"]).to eq("WRITER")
-        end
       end
 
       context 'when config belongs to another user\'s campaign' do

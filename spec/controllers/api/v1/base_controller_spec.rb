@@ -40,7 +40,7 @@ RSpec.describe Api::V1::BaseController, type: :controller do
 
     context 'when DISABLE_AUTH env var is set to true' do
       before do
-        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('test'))
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production'))
         allow(ENV).to receive(:[]).with('DISABLE_AUTH').and_return('true')
       end
 
@@ -51,7 +51,7 @@ RSpec.describe Api::V1::BaseController, type: :controller do
 
     context 'when DISABLE_AUTH env var is not set' do
       before do
-        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('test'))
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production'))
         allow(ENV).to receive(:[]).with('DISABLE_AUTH').and_return(nil)
       end
 
@@ -62,7 +62,7 @@ RSpec.describe Api::V1::BaseController, type: :controller do
 
     context 'when DISABLE_AUTH env var is set to false' do
       before do
-        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('test'))
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('production'))
         allow(ENV).to receive(:[]).with('DISABLE_AUTH').and_return('false')
       end
 

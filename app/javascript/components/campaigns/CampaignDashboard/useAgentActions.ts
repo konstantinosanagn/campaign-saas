@@ -128,19 +128,7 @@ export function useAgentActions(
       try {
         // Check immediately before waiting (in case agent completed very quickly)
         let latestLead = await getUpdatedLead()
-        if (latestLead?.leadRun) {
-          const lr = latestLead.leadRun
-          const lastCompleted = lr.lastCompletedStep?.agentName
-          if (expectedAgent && lastCompleted === expectedAgent) {
-            console.log(`[AgentPolling] Lead ${leadId} already completed ${expectedAgent} (LeadRuns).`)
-            return
-          }
-          if (lr.runStatus === 'completed' || lr.runStatus === 'failed' || lr.runStatus === 'cancelled') {
-            console.log(`[AgentPolling] Lead ${leadId} run terminal (LeadRuns): ${lr.runStatus}`)
-            return
-          }
-        } else if (latestLead && currentStage !== latestLead.stage) {
-          // Fallback: stage projection changed
+        if (latestLead && currentStage !== latestLead.stage) {
           console.log(`[AgentPolling] Lead ${leadId} stage changed immediately from "${startingStage}" to "${latestLead.stage}". Agent completed.`)
           return // Exit early if stage already changed
         }
@@ -172,27 +160,15 @@ export function useAgentActions(
             break
           }
 
-          if (latestLead.leadRun) {
-            const lr = latestLead.leadRun
-            const lastCompleted = lr.lastCompletedStep?.agentName
-            const terminal = lr.runStatus === 'completed' || lr.runStatus === 'failed' || lr.runStatus === 'cancelled'
-
-            if (expectedAgent && lastCompleted === expectedAgent) {
-              console.log(`[AgentPolling] Lead ${leadId} completed ${expectedAgent} (LeadRuns).`)
-              break
-            }
-            if (terminal) {
-              console.log(`[AgentPolling] Lead ${leadId} run terminal (LeadRuns): ${lr.runStatus}`)
-              break
-            }
-          } else {
-            // Fallback: stage projection changed (older behavior)
-            // For rewrites, stage might not change (stays "rewritten"), so we also check outputs
-            if (currentStage !== latestLead.stage) {
-              currentStage = latestLead.stage
-              console.log(`[AgentPolling] Lead ${leadId} stage changed from "${startingStage}" to "${currentStage}". Agent completed.`)
-              break
-            }
+          // Check if stage has changed (meaning agent for previous stage completed)
+          // For rewrites, stage might not change (stays "rewritten"), so we also check outputs
+          if (currentStage !== latestLead.stage) {
+            currentStage = latestLead.stage
+            
+            // Stage changed means the agent for the previous stage completed
+            // Remove the loading cube and stop polling
+            console.log(`[AgentPolling] Lead ${leadId} stage changed from "${startingStage}" to "${currentStage}". Agent completed.`)
+            break
           }
 
           // Check if agent output exists (fallback if stage didn't update)
@@ -203,11 +179,7 @@ export function useAgentActions(
           }
 
           // Check if we've reached a final stage (all agents done)
-          // Include sent stages and send_failed as final stages
-          const reachedFinalStage = latestLead.stage === 'completed' || 
-                                    latestLead.stage === 'designed' ||
-                                    (latestLead.stage?.startsWith('sent (') ?? false) ||
-                                    latestLead.stage === 'send_failed'
+          const reachedFinalStage = latestLead.stage === 'completed' || latestLead.stage === 'designed'
           if (reachedFinalStage) {
             console.log(`[AgentPolling] Lead ${leadId} reached final stage "${latestLead.stage}".`)
             break
@@ -296,21 +268,10 @@ export function useAgentActions(
     const leadsToRun = selectedLeadIds && selectedLeadIds.length > 0
       ? selectedLeadIds.filter((id) => {
           const lead = filteredLeads.find((l) => l.id === id)
-          // Check if lead is done: run completed OR stage is sent/failed
-          const isDone = lead?.leadRun?.runStatus === 'completed' || 
-                         lead?.stage === 'completed' || 
-                         (lead?.stage?.startsWith('sent (') ?? false) ||
-                         lead?.stage === 'send_failed'
-          return !!lead && !isDone
+          return lead && lead.stage !== 'completed'
         })
       : filteredLeads
-          .filter((l) => {
-            const isDone = l.leadRun?.runStatus === 'completed' || 
-                          l.stage === 'completed' || 
-                          (l.stage?.startsWith('sent (') ?? false) ||
-                          l.stage === 'send_failed'
-            return !isDone
-          })
+          .filter((l) => l.stage !== 'completed')
           .map((l) => l.id)
 
     if (leadsToRun.length === 0) return

@@ -5,7 +5,6 @@ RSpec.describe Api::V1::LeadsController, type: :request do
   let(:other_user) { create(:user) }
   let(:campaign) { create(:campaign, user: user) }
   let(:other_campaign) { create(:campaign, user: other_user) }
-
   let(:valid_attributes) do
     {
       lead: {
@@ -275,32 +274,6 @@ RSpec.describe Api::V1::LeadsController, type: :request do
           expect(response).to have_http_status(:not_found)
         end
       end
-
-      context 'when lead has agent_outputs referenced by lead_run_steps' do
-        let!(:run) { LeadRunPlanner.build!(lead: lead) }
-        let!(:step) { run.steps.order(:position).first }
-        let!(:agent_output) { create(:agent_output, lead: lead, agent_name: step.agent_name, lead_run: run, lead_run_step: step) }
-
-        before do
-          step.update!(agent_output: agent_output)
-          # Set current_lead_run_id to test the foreign key constraint clearing
-          lead.update!(current_lead_run_id: run.id)
-        end
-
-        it 'clears all foreign key references and destroys successfully' do
-          expect(step.reload.agent_output_id).to eq(agent_output.id)
-          expect(lead.reload.current_lead_run_id).to eq(run.id)
-
-          expect {
-            delete "/api/v1/leads/#{lead.id}", headers: { 'Accept' => 'application/json' }
-          }.to change(Lead, :count).by(-1)
-            .and change(AgentOutput, :count).by(-1)
-            .and change(LeadRun, :count).by(-1)
-            .and change(LeadRunStep, :count).by(-run.steps.count)
-
-          expect(response).to have_http_status(:no_content)
-        end
-      end
     end
 
     context 'when not authenticated' do
@@ -387,103 +360,6 @@ RSpec.describe Api::V1::LeadsController, type: :request do
 
           lead.reload
           expect(lead.stage).to eq('searched')  # Only advances to next stage (searched for queued lead)
-        end
-      end
-
-      context 'when requesting SENDER agent on lead with completed DESIGN output' do
-        let!(:run) { create(:lead_run, lead: lead, campaign: campaign, status: 'completed') }
-        let!(:design_step) do
-          create(:lead_run_step, lead_run: run, agent_name: AgentConstants::AGENT_DESIGN, status: 'completed', position: 40)
-        end
-        let!(:design_output) do
-          create(:agent_output, 
-            lead: lead, 
-            lead_run: run, 
-            lead_run_step: design_step,
-            agent_name: AgentConstants::AGENT_DESIGN,
-            status: 'completed',
-            output_data: { 'formatted_email' => 'Subject: Test\n\nBody content' }
-          )
-        end
-
-        before do
-          lead.update!(stage: AgentConstants::STAGE_DESIGNED)
-          # Create SENDER agent config
-          create(:agent_config, campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true)
-          # Configure sending (Gmail or SMTP)
-          user.update!(gmail_access_token: 'token', gmail_refresh_token: 'refresh', gmail_email: 'test@gmail.com')
-        end
-
-        it 'should not return 422 agent_not_next error' do
-          post "/api/v1/leads/#{lead.id}/run_agents", 
-               params: { agentName: 'SENDER' }, 
-               headers: { 'Accept' => 'application/json' }
-
-          expect(response).not_to have_http_status(:unprocessable_entity)
-          
-          if response.status == 422
-            json_response = JSON.parse(response.body)
-            # If it fails, it should be a more actionable error, not agent_not_next
-            expect(json_response['error']).not_to eq('agent_not_next')
-            # Should be sender_not_planned, sending_not_configured, or similar actionable error
-            expect(json_response['error']).to be_present
-          else
-            # Success case: verify run was created with SENDER as next step
-            json_response = JSON.parse(response.body)
-            expect(json_response['status']).to be_present
-            # If a run was created, verify it has SENDER as next step
-            if json_response['next_step']
-              expect(json_response['next_step']['agent_name']).to eq(AgentConstants::AGENT_SENDER)
-            end
-          end
-        end
-
-        it 'creates a run with SENDER as next step when send-only run is created' do
-          post "/api/v1/leads/#{lead.id}/run_agents", 
-               params: { agentName: 'SENDER' }, 
-               headers: { 'Accept' => 'application/json' }
-
-          # Should succeed (200 or 202)
-          expect([200, 202]).to include(response.status)
-          
-          # Verify a run exists with SENDER step
-          lead.reload
-          active_run = lead.active_run
-          if active_run
-            sender_step = active_run.steps.find_by(agent_name: AgentConstants::AGENT_SENDER)
-            expect(sender_step).to be_present
-            expect(sender_step.status).to eq('queued')
-            expect(sender_step.meta['source_step_id']).to eq(design_step.id)
-          end
-        end
-
-        it 'returns sender_not_planned when SENDER config is disabled' do
-          AgentConfig.find_by(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER).update!(enabled: false)
-          
-          post "/api/v1/leads/#{lead.id}/run_agents", 
-               params: { agentName: 'SENDER' }, 
-               headers: { 'Accept' => 'application/json' }
-
-          expect(response).to have_http_status(:unprocessable_entity)
-          json_response = JSON.parse(response.body)
-          expect(json_response['error']).to eq('sender_not_planned')
-          expect(json_response['reason']).to eq('config_disabled')
-        end
-
-        it 'returns run_in_progress when active run has different next step' do
-          # Create an active run with WRITER as next step
-          active_run = create(:lead_run, lead: lead, campaign: campaign, status: 'running')
-          create(:lead_run_step, lead_run: active_run, agent_name: AgentConstants::AGENT_WRITER, status: 'queued', position: 10)
-          
-          post "/api/v1/leads/#{lead.id}/run_agents", 
-               params: { agentName: 'SENDER' }, 
-               headers: { 'Accept' => 'application/json' }
-
-          expect(response).to have_http_status(:unprocessable_entity)
-          json_response = JSON.parse(response.body)
-          expect(json_response['error']).to eq('run_in_progress')
-          expect(json_response['nextAgent']).to eq(AgentConstants::AGENT_WRITER)
-          expect(json_response['runId']).to eq(active_run.id)
         end
       end
 

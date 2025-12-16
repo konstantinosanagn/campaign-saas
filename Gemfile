@@ -37,10 +37,6 @@ gem "omniauth-google-oauth2"
 # For OmniAuth 2.x + Rails
 gem "omniauth-rails_csrf_protection", "~> 1.0"
 
-# Error tracking
-gem "sentry-rails"
-gem "sentry-ruby"
-
 # Rate limiting
 gem "rack-attack"
 
@@ -67,8 +63,7 @@ end
 
 group :development do
   gem "web-console"
-  # Load .env *before* initializers run (needed for Active Record Encryption keys)
-  gem "dotenv-rails", require: "dotenv/load"
+  gem "dotenv-rails"  # Load .env file in development
 end
 
 group :development, :test do
