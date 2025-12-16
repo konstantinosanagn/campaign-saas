@@ -90,6 +90,7 @@ export function useAgentConfigs(campaignId: number | null) {
       setError(null)
       
       // Remove id from updates - it comes from the URL, not the payload
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, updatedAt, ...updatesWithoutId } = updates
       
       const response = await apiClient.put<AgentConfig>(`campaigns/${campaignId}/agent_configs/${configId}`, {

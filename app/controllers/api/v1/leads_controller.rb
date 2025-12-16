@@ -139,7 +139,7 @@ module Api
             run_was_created = existing_active_run.nil? || existing_active_run.id != run.id
             log_context[:result] = run_was_created ? "created new run" : "reuse existing run"
           end
-          
+
           # Log run creation/reuse
           log_context.merge!(
             active_run_id: run.id,
@@ -147,7 +147,7 @@ module Api
             run_status: run.status,
             plan_steps: (run.plan&.dig("steps") || []).map { |s| s["agent_name"] }
           )
-          
+
           Rails.logger.info("[LeadsController#run_agents] run_creation lead_id=#{lead.id} run_id=#{run.id} run_was_created=#{run_was_created} plan_steps=#{log_context[:plan_steps].join(',')}")
 
           if AgentExecution.paused?
@@ -187,12 +187,12 @@ module Api
 
               next_step = locked_run.steps.where(status: "queued").order(:position).first
               has_queued_sender = locked_run.steps.where(status: "queued", agent_name: AgentConstants::AGENT_SENDER).exists?
-              
+
               log_context.merge!(
                 next_step_agent_name: next_step&.agent_name,
                 has_queued_sender_step: has_queued_sender
               )
-              
+
               if next_step && next_step.agent_name.to_s != agent_name.to_s
                 # Differentiate errors for SENDER requests
                 if agent_name.to_s == AgentConstants::AGENT_SENDER
@@ -251,44 +251,44 @@ module Api
           log_context[:result] = "rejected due to run_in_progress"
           log_context[:error] = e.message
           Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-          render json: { 
-            status: "failed", 
-            error: "run_in_progress", 
-            runId: e.run_id, 
-            nextAgent: e.next_agent 
+          render json: {
+            status: "failed",
+            error: "run_in_progress",
+            runId: e.run_id,
+            nextAgent: e.next_agent
           }, status: :unprocessable_entity
         rescue LeadRuns::SenderNotPlannedError => e
           log_context[:result] = "rejected due to sender_not_planned"
           log_context[:error] = e.message
           Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-          render json: { 
-            status: "failed", 
-            error: "sender_not_planned", 
-            reason: e.reason 
+          render json: {
+            status: "failed",
+            error: "sender_not_planned",
+            reason: e.reason
           }, status: :unprocessable_entity
         rescue LeadRuns::SendingNotConfiguredError => e
           log_context[:result] = "rejected due to sending_not_configured"
           log_context[:error] = e.message
           Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-          render json: { 
-            status: "failed", 
-            error: "sending_not_configured", 
-            reasons: e.reasons 
+          render json: {
+            status: "failed",
+            error: "sending_not_configured",
+            reasons: e.reasons
           }, status: :unprocessable_entity
         rescue LeadRuns::AlreadySendingError => e
           log_context[:result] = "rejected due to already_sending"
           log_context[:error] = e.message
           Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
-          render json: { 
-            status: "failed", 
-            error: "already_sending", 
-            stepId: e.step_id, 
-            runId: e.run_id 
+          render json: {
+            status: "failed",
+            error: "already_sending",
+            stepId: e.step_id,
+            runId: e.run_id
           }, status: :unprocessable_entity
         rescue LeadRunPlanner::PlannerError => e
           # Handle legacy PlannerError for backward compatibility
           error_response = { status: "failed", error: e.message }
-          
+
           case e.message
           when "send_source_missing"
             error_response[:reason] = "no_design_or_writer_output"
@@ -296,7 +296,7 @@ module Api
           else
             log_context[:result] = "planner_error"
           end
-          
+
           log_context[:error] = e.message
           Rails.logger.info("[LeadsController#run_agents] request_path_outcome #{log_context.to_json}")
           render json: error_response, status: :unprocessable_entity
@@ -309,7 +309,7 @@ module Api
           Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
           render json: { status: "error", error: e.message }, status: :internal_server_error
         end
-        return
+        nil
 
         # Legacy state-machine (StageManager) removed.
       end
@@ -479,13 +479,13 @@ module Api
         begin
           # Use ensure_sendable_run! to create/reuse send-only run
           run = LeadRuns.ensure_sendable_run!(lead: lead, requested_agent_name: AgentConstants::AGENT_SENDER)
-          
+
           # Always enqueue AgentExecutionJob for SENDER (explicit and consistent)
           # This ensures "queued" status actually means the job is enqueued
           job = AgentExecutionJob.perform_later(
             { lead_run_id: run.id, requested_agent_name: AgentConstants::AGENT_SENDER }
           )
-          
+
           render json: {
             success: true,
             message: "Email sending queued",
@@ -493,40 +493,40 @@ module Api
             jobId: job.job_id
           }, status: :accepted
         rescue LeadRuns::RunInProgressError => e
-          render json: { 
-            success: false, 
-            error: "run_in_progress", 
-            runId: e.run_id, 
-            nextAgent: e.next_agent 
+          render json: {
+            success: false,
+            error: "run_in_progress",
+            runId: e.run_id,
+            nextAgent: e.next_agent
           }, status: :unprocessable_entity
         rescue LeadRuns::SenderNotPlannedError => e
-          render json: { 
-            success: false, 
-            error: "sender_not_planned", 
-            reason: e.reason 
+          render json: {
+            success: false,
+            error: "sender_not_planned",
+            reason: e.reason
           }, status: :unprocessable_entity
         rescue LeadRuns::SendingNotConfiguredError => e
-          render json: { 
-            success: false, 
-            error: "sending_not_configured", 
-            reasons: e.reasons 
+          render json: {
+            success: false,
+            error: "sending_not_configured",
+            reasons: e.reasons
           }, status: :unprocessable_entity
         rescue LeadRuns::AlreadySendingError => e
-          render json: { 
-            success: false, 
-            error: "already_sending", 
-            stepId: e.step_id, 
-            runId: e.run_id 
+          render json: {
+            success: false,
+            error: "already_sending",
+            stepId: e.step_id,
+            runId: e.run_id
           }, status: :unprocessable_entity
         rescue LeadRunPlanner::PlannerError => e
           # Handle legacy PlannerError for backward compatibility
           error_response = { success: false, error: e.message }
-          
+
           case e.message
           when "send_source_missing"
             error_response[:reason] = "no_design_or_writer_output"
           end
-          
+
           render json: error_response, status: :unprocessable_entity
         rescue GmailAuthorizationError => e
           # Gmail token revoked/invalid

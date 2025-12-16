@@ -37,13 +37,45 @@ class EmailSendingJob < ApplicationJob
       step = LeadRunStep.find_by(id: lead_run_step_id)
       output = AgentOutput.find_by(lead_run_step_id: lead_run_step_id) if step
       run = step&.lead_run
-      
+
       unless step && step.agent_name == AgentConstants::AGENT_SENDER
         Rails.logger.warn("[EmailSendingJob] Step #{lead_run_step_id} not found or not SENDER; continuing without step tracking")
         step = nil
         output = nil
         run = nil
       end
+    end
+
+    # Check if lead is ready before attempting to send
+    # This provides early validation and better error messages
+    unless EmailSenderService.lead_ready?(lead)
+      error_msg = "Lead is not ready to send. Lead must be at 'designed' or 'completed' stage with email content available."
+      Rails.logger.warn("[EmailSendingJob] Lead #{lead_id} is not ready to send: #{error_msg}")
+      
+      # Update lead status to failed
+      lead.update!(
+        email_status: "failed",
+        last_email_error_at: Time.current,
+        last_email_error_message: error_msg
+      )
+      
+      # Update step if present
+      if step && output
+        output_data = (output.output_data || {}).dup
+        output_data.merge!(
+          "email_status" => "failed",
+          "error" => error_msg
+        )
+        step.update!(status: "failed", step_finished_at: Time.current)
+        output.update!(
+          status: "failed",
+          output_data: output_data,
+          error_message: error_msg.to_s.truncate(500)
+        )
+        lead.update!(stage: "send_failed")
+      end
+      
+      return
     end
 
     # Update status to sending if step tracking
@@ -79,28 +111,28 @@ class EmailSendingJob < ApplicationJob
     email_failed = false
     send_result = nil
     provider = "smtp" # default
-    
+
     begin
       # Get email payload
       service = EmailSenderService.new(lead)
-      subject, text_body, html_body = service.send(:build_email_payload)
-      
+      subject, text_body, html_body = service.build_email_payload
+
       # Call send_email_via_provider directly to capture result
       # This now returns Gmail result hash or nil for SMTP
       # Note: This does NOT update lead.email_status or lead.stage (that's our job)
       send_result = EmailSenderService.send_email_via_provider(lead, subject, text_body, html_body)
-      
+
       # Determine provider from result
       if send_result.is_a?(Hash) && (send_result["id"] || send_result[:id])
         provider = "gmail_api"
       else
         # Check service's default_provider for fallback
-        provider = service.send(:default_provider)
+        provider = service.current_provider
       end
-      
+
       # Mark as sent (will be finalized in ensure block)
       email_sent = true
-      
+
       # Success path: update step/output and lead.stage
       if step && output
         # Extract metadata from send_result (Gmail returns message_id, SMTP doesn't)
@@ -188,7 +220,7 @@ class EmailSendingJob < ApplicationJob
 
     rescue PermanentEmailError => e
       email_failed = true
-      
+
       if step && output
         output_data = (output.output_data || {}).dup
         output_data.merge!(
@@ -219,7 +251,7 @@ class EmailSendingJob < ApplicationJob
 
       # Let discard_on handle discarding
       raise
-      
+
     rescue => e
       # Unexpected error - mark as failed
       email_failed = true
@@ -228,7 +260,7 @@ class EmailSendingJob < ApplicationJob
       )
       Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
       raise
-      
+
     ensure
       # CRITICAL: Always finalize step/run if email was sent or failed
       # This ensures runs don't stay stuck in "running" state
@@ -239,9 +271,9 @@ class EmailSendingJob < ApplicationJob
           Rails.logger.info("[EmailSendingJob] Finalized run_id=#{run.id} step_id=#{step.id} email_sent=#{email_sent} email_failed=#{email_failed}")
         rescue => e
           Rails.logger.error("[EmailSendingJob] Failed to finalize run_id=#{run.id}: #{e.class} - #{e.message}")
-          # Don't raise - we've already handled the email outcome
+        # Don't raise - we've already handled the email outcome
       end
-    end
+      end
   end
 end
 end

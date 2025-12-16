@@ -48,7 +48,7 @@ class Lead < ApplicationRecord
       if steps.length == 1 && steps.first.agent_name == AgentConstants::AGENT_SENDER
         sender_step = steps.first
         # Check if email is already sent or failed (indicating job completed but step wasn't finalized)
-        if email_status == "sent" || email_status == "failed" || 
+        if email_status == "sent" || email_status == "failed" ||
            stage&.start_with?("sent (") || stage == "send_failed"
           Rails.logger.warn(
             "[Lead#active_run] Auto-healing stuck SENDER run_id=#{run.id} step_id=#{sender_step.id} " \

@@ -25,7 +25,7 @@ module Api
 
         updates = {}
         api_key_hash = nil
-        
+
         # Handle scalar :api_key parameter first (use require to avoid strong params warning)
         # params.require(:api_key) doesn't trigger strong params warning for scalars
         begin
@@ -44,13 +44,13 @@ module Api
         rescue ActionController::ParameterMissing
           # :api_key not present, continue to other formats
         end
-        
+
         # Accept both legacy and current param shapes:
         # - top-level { llmApiKey, tavilyApiKey }
         # - nested { api_keys: { ... } } (frontend)
         # - nested { api_key: { ... } } (older - use the Hash we already retrieved above)
         direct = params.permit(:llmApiKey, :tavilyApiKey, :llm_api_key, :tavily_api_key)
-        
+
         # For nested case, use the api_key Hash we already retrieved, or check api_keys
         nested_raw = params[:api_keys] || api_key_hash || {}
         nested_params =

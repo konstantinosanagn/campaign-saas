@@ -1,22 +1,2 @@
 #!/usr/bin/env ruby
-APP_ROOT = File.expand_path("..", __dir__)
-Dir.chdir(APP_ROOT)
-
-def windows?
-  Gem.win_platform?
-end
-
-foreman_ok = system("foreman", "--version", out: File::NULL, err: File::NULL)
-
-if foreman_ok
-  exec "foreman", "start", "-f", "Procfile"
-else
-  warn "Foreman not found. Install with: gem install foreman"
-  warn "Falling back to Rails server only. Run 'bin/shakapacker-dev-server' in another terminal."
-
-  if windows?
-    exec "ruby", "bin/rails", "s"
-  else
-    exec "./bin/rails", "s"
-  end
-end
+exec "./bin/rails", "server", *ARGV

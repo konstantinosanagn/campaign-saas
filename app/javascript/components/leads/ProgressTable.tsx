@@ -23,19 +23,9 @@ interface ProgressTableProps {
 
 function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClick, selectedLeads, onToggleSelection, onToggleMultiple, runningLeadIds = [], sendingEmails = false, sendingLeadId = null, agentConfigs = [] }: ProgressTableProps) {
   
-  // Helper functions to check stage status
-  const isSentStage = (stage?: string): boolean => {
-    return stage === 'sent' || (stage?.startsWith('sent (') ?? false)
-  }
-
-  const isFailedStage = (stage?: string): boolean => {
-    return stage === 'send_failed' || stage === 'failed'
-  }
-
   // Check if a lead can be sent via email (designed/completed stage, or critiqued if DESIGN is disabled)
   // Note: All leads can be selected, but only ready leads can be sent emails
   // Also checks that critique score meets minimum threshold if critique has been run
-  // Allows resend/retry for already sent/failed emails (even if no active run due to auto-heal)
   const canSendEmail = (lead: Lead): boolean => {
     // Check if critique score meets minimum (if critique has been run)
     // If meetsMinScore is explicitly false, don't allow sending
@@ -43,76 +33,7 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
       return false
     }
 
-    // Normal "ready to send" case from backend
-    if (lead.leadRun?.canSend === true) return true
-
-    // Resend/retry case (no active run because of auto-heal)
-    if (isSentStage(lead.stage) || isFailedStage(lead.stage)) return true
-
-    // Fallback (if backend uses email_status instead of stage)
-    if (lead.email_status === 'sent' || lead.email_status === 'failed') return true
-
-    return false
-  }
-
-  // Check if email is currently being sent (SENDER step is running)
-  const isSendingEmail = (lead: Lead): boolean => {
-    const run = lead.leadRun
-    if (!run) return false
-    
-    // Check if running step is SENDER
-    if (run.runningStep?.agentName === 'SENDER') {
-      return true
-    }
-    
-    // Check if next step is SENDER and it's queued/running
-    if (run.nextStep?.agentName === 'SENDER') {
-      // If there's a running step that's not SENDER, email is not sending yet
-      if (run.runningStep && run.runningStep.agentName !== 'SENDER') {
-        return false
-      }
-      // If run status is running and next step is SENDER, it might be queued
-      // We'll show sending state once the step actually starts running
-      return false
-    }
-    
-    return false
-  }
-
-  // Get email sending status for display
-  const getEmailSendingStatus = (lead: Lead): 'idle' | 'queued' | 'sending' | 'retrying' | 'sent' | 'failed' => {
-    // Check email_status first (most accurate for current state)
-    if (lead.email_status === 'queued' || lead.email_status === 'sending') {
-      return 'sending'
-    }
-    
-    if (lead.email_status === 'retrying') {
-      return 'retrying'
-    }
-    
-    if (lead.email_status === 'sent') {
-      return 'sent'
-    }
-    
-    if (lead.email_status === 'failed') {
-      return 'failed'
-    }
-    
-    // Fallback to isSendingEmail check (for active runs)
-    if (isSendingEmail(lead)) {
-      return 'sending'
-    }
-    
-    // Check stage for sent status
-    if (lead.stage?.startsWith('sent (')) {
-      return 'sent'
-    }
-    
-    if (lead.stage === 'send_failed') {
-      return 'failed'
-    }
-    
-    return 'idle'
+    return lead.leadRun?.canSend === true
   }
 
   // Check if an agent is enabled
@@ -126,12 +47,6 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
 
   // Determine next agent based on stage
   const getNextAgent = (stage: string): string | null => {
-    // Handle rewritten stages - at "rewritten (N)" we could be waiting for WRITER or CRITIQUE
-    // Default to CRITIQUE (most common case after rewrite WRITER completes)
-    if (stage?.startsWith('rewritten')) {
-      return 'CRITIQUE'
-    }
-    
     switch (stage) {
       case 'queued':
         return 'SEARCH'
@@ -177,16 +92,10 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
       }
     }
     
-    // If no enabled agent found, return SENDER if we're at designed/completed/sent stages
+    // If no enabled agent found, return SENDER if we're at designed/completed
     // Also return SENDER if at critiqued stage but DESIGN is disabled
-    // Note: sent (n) stages are already sent, so don't return SENDER for those
     if (stage === 'designed' || stage === 'completed') {
       return 'SENDER'
-    }
-    
-    // Don't return SENDER for already-sent stages
-    if (stage?.startsWith('sent (') || stage === 'send_failed') {
-      return null
     }
     
     // Special case: critiqued stage but DESIGN is disabled
@@ -212,12 +121,6 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
     } else {
       // Fallback to stage-based determination
       nextAgent = getNextEnabledAgent(lead.stage)
-    }
-    
-    // Special case: If canSendEmail is true but getNextEnabledAgent returned null
-    // (e.g., for sent/failed stages with no active run), return SENDER icon
-    if (!nextAgent && canSendEmail(lead)) {
-      nextAgent = 'SENDER'
     }
     
     if (!nextAgent) return null
@@ -315,9 +218,6 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
             {leads.map((lead) => {
               const isSelected = selectedLeads.includes(lead.id)
               const canSend = canSendEmail(lead)
-              const isSending = isSendingEmail(lead)
-              const emailStatus = getEmailSendingStatus(lead)
-              const isDisabled = isSending || emailStatus === 'queued' || emailStatus === 'sending' || emailStatus === 'retrying'
               
               return (
               <tr 
@@ -376,8 +276,8 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
                   <ScoreGauge score={lead.score} size="small" />
                 </td>
                 <td className="px-4 py-3">
-                  {runningLeadIds.includes(lead.id) || sendingLeadId === lead.id || isSending ? (
-                    <div className="inline-flex items-center justify-center w-8 h-8" title={isSending ? "Sending email..." : "Processing..."}>
+                  {runningLeadIds.includes(lead.id) || sendingLeadId === lead.id ? (
+                    <div className="inline-flex items-center justify-center w-8 h-8">
                       <Cube variant="black" size="small" />
                     </div>
                   ) : (() => {
@@ -386,37 +286,14 @@ function ProgressTable({ leads, onRunLead, onSendEmail, onLeadClick, onStageClic
                       return null // No next agent available
                     }
                     
-                    // Determine action title and disabled state
-                    let actionTitle = canSend 
+                    const actionTitle = canSend 
                       ? "Send email" 
                       : `Run ${nextAgentIcon.agentName} agent`
-                    
-                    // Add helpful tooltip when send is disabled
-                    if (canSend && isDisabled) {
-                      if (emailStatus === 'queued' || emailStatus === 'sending') {
-                        actionTitle = "Email is being sent..."
-                      } else if (emailStatus === 'retrying') {
-                        actionTitle = "Retrying email send..."
-                      } else if (emailStatus === 'sent') {
-                        actionTitle = "Resend email"
-                      } else if (emailStatus === 'failed') {
-                        actionTitle = "Retry sending email"
-                      }
-                    } else if (!canSend && lead.leadRun?.nextStep) {
-                      actionTitle = `Next step: ${lead.leadRun.nextStep.agentName}. Complete previous steps to send email.`
-                    } else if (canSend && (isSentStage(lead.stage) || isFailedStage(lead.stage))) {
-                      // Show resend/retry tooltip for sent/failed emails that can be resent
-                      if (isSentStage(lead.stage)) {
-                        actionTitle = "Resend email"
-                      } else if (isFailedStage(lead.stage)) {
-                        actionTitle = "Retry sending email"
-                      }
-                    }
                     
                     return (
                       <button
                         onClick={() => handleActionClick(lead)}
-                        disabled={sendingEmails || sendingLeadId === lead.id || isDisabled}
+                        disabled={sendingEmails || sendingLeadId !== null}
                         className="inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-600 hover:text-black hover:bg-transparent transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
                         title={actionTitle}
                       >

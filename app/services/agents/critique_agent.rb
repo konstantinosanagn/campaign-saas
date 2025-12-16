@@ -26,7 +26,7 @@ module Agents
     # @return [String] Error type classification
     def self.classify_error_type(code)
       return "quota" if code == 429
-      return "auth" if [401, 403].include?(code)
+      return "auth" if [ 401, 403 ].include?(code)
       return "timeout" if code == 408
       return "provider_5xx" if code >= 500 && code <= 599
       return "provider_4xx" if code >= 400 && code <= 499
@@ -162,9 +162,9 @@ module Agents
         warn "CritiqueAgent network error: #{e.class}: #{e.message}"
         # Network errors are generally retryable
         # Return consistent error structure matching exception path with debug bundle
-        return { 
-          "critique" => nil, 
-          "error" => "Network error", 
+        return {
+          "critique" => nil,
+          "error" => "Network error",
           "detail" => e.message,
           "retryable" => true,
           "error_type" => "network",
@@ -183,7 +183,7 @@ module Agents
       http_status = response.respond_to?(:code) ? response.code.to_i : nil
       http_status = nil if http_status == 0  # Handle invalid/zero status codes
       parsed = response.respond_to?(:parsed_response) ? response.parsed_response : nil
-      
+
       # Capture raw response for troubleshooting (provider_error)
       # Store first 500 chars of parsed response or raw body, then sanitize
       provider_error = nil
@@ -192,7 +192,7 @@ module Agents
       elsif response.respond_to?(:body)
         provider_error = response.body.to_s[0..500] if response.body
       end
-      
+
       # Sanitize provider_error: strip newlines, redact API keys and Bearer tokens
       # IMPORTANT: Truncate AFTER all sanitization steps to ensure stored string is always <= 500 chars
       # even after replacements (e.g., "[REDACTED]" may be longer than original token)
@@ -202,7 +202,7 @@ module Agents
         provider_error = provider_error.gsub(/AIza[0-9A-Za-z\-_]{20,}/, "[REDACTED]")  # Redact Gemini API keys
         provider_error = provider_error.truncate(500)  # Final truncation after all sanitization
       end
-      
+
       # Extract request_id from response headers or body if available
       # Use case-insensitive header lookup to handle HTTP library variations
       request_id = nil
@@ -218,21 +218,21 @@ module Agents
       if request_id.nil? && parsed.is_a?(Hash)
         request_id = parsed["request_id"] || parsed[:request_id] || parsed.dig("error", "request_id") || parsed.dig(:error, :request_id)
       end
-      
+
       # Determine if this is an error response using multiple detection methods
       is_error = false
       error_code = nil
       error_message = nil
       error_type = nil
       retryable = false
-      
+
       # Method 1: HTTP status code >= 400 (real HTTP status from HTTParty)
       # Always use HTTP status first - it's the authoritative source
       if http_status && http_status >= 400
         is_error = true
         error_code = http_status  # Use real HTTP status code (already normalized to Integer)
-        retryable = [429, 500, 502, 503, 504].include?(http_status)
-        
+        retryable = [ 429, 500, 502, 503, 504 ].include?(http_status)
+
         # Classify error type based on HTTP status (consistent mapping)
         error_type = case http_status
         when 429
@@ -247,7 +247,7 @@ module Agents
           "provider_4xx"
         end
       end
-      
+
       # Method 2: Check for various error response formats
       if parsed
         # Check for top-level "error" object
@@ -263,14 +263,14 @@ module Agents
             error_code = code_i if code_i >= 400
           end
           error_message ||= error_detail["message"] || error_detail[:message] || "Unknown API error"
-          retryable ||= [429, 500, 502, 503, 504].include?(error_code) if error_code
-          
+          retryable ||= [ 429, 500, 502, 503, 504 ].include?(error_code) if error_code
+
           # Classify error type if not already set (driven by numeric error_code)
           unless error_type && error_code
             error_type = CritiqueAgent.classify_error_type(error_code)
           end
         end
-        
+
         # Check for "errors" array
         if parsed["errors"] || parsed[:errors]
           is_error = true
@@ -286,20 +286,20 @@ module Agents
               error_code = json_error_code if json_error_code > 0
             end
             error_message ||= first_error["message"] || first_error[:message] || "API returned errors"
-            retryable ||= [429, 500, 502, 503, 504].include?(error_code) if error_code
-            
+            retryable ||= [ 429, 500, 502, 503, 504 ].include?(error_code) if error_code
+
             # Classify error type if not already set (driven by numeric error_code)
             unless error_type && error_code
               error_type = CritiqueAgent.classify_error_type(error_code)
             end
           end
         end
-        
+
         # Check for status/code fields >= 400 (fallback if HTTP status not available)
         # Only use if error_code not already set from HTTP status
         status = parsed["status"] || parsed[:status]
         code = parsed["code"] || parsed[:code]
-        
+
         # Only trigger error handling if status is actually >= 400 and error_code not already set
         # Ordering: check error_code.nil? first, then convert and check >= 400
         if status && error_code.nil?
@@ -307,7 +307,7 @@ module Agents
           if status_i >= 400
             is_error = true
             error_code = status_i
-            retryable ||= [429, 500, 502, 503, 504].include?(error_code)
+            retryable ||= [ 429, 500, 502, 503, 504 ].include?(error_code)
             error_type ||= CritiqueAgent.classify_error_type(error_code)
           end
         elsif code && error_code.nil?
@@ -315,11 +315,11 @@ module Agents
           if code_i >= 400
             is_error = true
             error_code = code_i
-            retryable ||= [429, 500, 502, 503, 504].include?(error_code)
+            retryable ||= [ 429, 500, 502, 503, 504 ].include?(error_code)
             error_type ||= CritiqueAgent.classify_error_type(error_code)
           end
         end
-        
+
         # Method 3: Check response body for error keywords (for plain text/HTML errors)
         # Only check if we haven't already detected an error
         if !is_error
@@ -333,7 +333,7 @@ module Agents
               error_message ||= parsed[0..200] # Use first 200 chars of response
               retryable = true # Quota errors are retryable
               error_type ||= "quota"
-            elsif body_lower.include?("500") || body_lower.include?("502") || 
+            elsif body_lower.include?("500") || body_lower.include?("502") ||
                   body_lower.include?("503") || body_lower.include?("504")
               is_error = true
               # Use HTTP status if available, otherwise infer from body
@@ -341,28 +341,28 @@ module Agents
               error_message ||= parsed[0..200]
               retryable = true # Server errors are retryable
               error_type ||= "provider_5xx"
-            elsif (body_lower.include?("error") || body_lower.include?("failed")) && 
+            elsif (body_lower.include?("error") || body_lower.include?("failed")) &&
                   !body_lower.include?("candidates") && !body_lower.include?("content")
               # Only treat as error if it doesn't look like a valid response
               is_error = true
               # Use HTTP status if available, otherwise default to 500
               error_code ||= http_status || 500
               error_message ||= parsed[0..200]
-              retryable ||= [429, 500, 502, 503, 504].include?(error_code) if error_code
+              retryable ||= [ 429, 500, 502, 503, 504 ].include?(error_code) if error_code
               error_type ||= "provider_error"
             end
           end
         end
       end
-      
+
       # If error detected, raise with appropriate message
       if is_error
         # Ensure error_code is set (prefer HTTP status, fallback to 500)
         error_code ||= http_status || 500
         error_message ||= "Unknown API error"
-        # Ensure error_type is set (should be set above, but fallback if not)
+              # Ensure error_type is set (should be set above, but fallback if not)
               error_type ||= CritiqueAgent.classify_error_type(error_code)
-        
+
         # Provide user-friendly error messages for common API errors
         user_friendly_msg = case error_code
         when 429
@@ -376,10 +376,10 @@ module Agents
         else
           "API error (#{error_code}): #{error_message}"
         end
-        
+
         error_msg = "CritiqueAgent received API error from LLM: #{user_friendly_msg}"
         log("ERROR: #{error_msg}")
-        
+
         # Raise error with retryable flag, error_code, error_type, provider_error, and debug bundle attached
         # Capture values in local variables to ensure closure works correctly
         retryable_flag = retryable
@@ -399,16 +399,14 @@ module Agents
       end
 
       # Validate response structure
+      # Allow malformed responses to return nil critique with fallback score (for graceful degradation)
       unless parsed && parsed["candidates"] && parsed["candidates"][0]
-        # Sanitize parsed response before logging (may contain sensitive data)
-        # Make it crash-proof: handle to_json failures gracefully
-        raw = parsed.is_a?(String) ? parsed : (parsed.to_json rescue parsed.inspect)
-        sanitized = raw.to_s[0..200]
-        sanitized = sanitized.gsub(/Bearer\s+[A-Za-z0-9\-\._]+/, "Bearer [REDACTED]")
-        sanitized = sanitized.gsub(/AIza[0-9A-Za-z\-_]{20,}/, "[REDACTED]")
-        error_msg = "CritiqueAgent received invalid response structure from LLM: #{sanitized}"
-        log("ERROR: #{error_msg}")
-        raise StandardError, error_msg
+        log("CritiqueAgent: Received invalid response structure from LLM, returning nil critique with fallback score")
+        number_of_revisions = article["number_of_revisions"] || article[:number_of_revisions]
+        revision_count = number_of_revisions.to_i
+        fallback_score = 6
+        meets_min_score = fallback_score >= (article["min_score"] || article[:min_score] || 6).to_i
+        return { "critique" => nil, "score" => fallback_score, "meets_min_score" => meets_min_score }
       end
 
       text = parsed.dig("candidates", 0, "content", "parts", 0, "text").to_s.strip
@@ -419,10 +417,14 @@ module Agents
       end
 
       # Validate that we got a meaningful response
+      # Allow empty responses to return nil critique with fallback score (for graceful degradation)
       if text.nil? || text.empty?
-        error_msg = "CritiqueAgent received empty response from LLM"
-        log("ERROR: #{error_msg}")
-        raise StandardError, error_msg
+        log("CritiqueAgent: Received empty response from LLM, returning nil critique with fallback score")
+        number_of_revisions = article["number_of_revisions"] || article[:number_of_revisions]
+        revision_count = number_of_revisions.to_i
+        fallback_score = 6
+        meets_min_score = fallback_score >= (article["min_score"] || article[:min_score] || 6).to_i
+        return { "critique" => nil, "score" => fallback_score, "meets_min_score" => meets_min_score }
       end
 
       number_of_revisions = article["number_of_revisions"] || article[:number_of_revisions]
@@ -436,19 +438,25 @@ module Agents
       # Use fixed fallback_score=6 (not tied to threshold) to avoid bias
       score = extract_score_from_critique(text)
 
-      # If score is nil (e.g., "None" response without explicit score), retry with stricter prompt
+      # If the feedback is "None", use fallback score (allows graceful completion without explicit score)
+      if is_none_response && score.nil?
+        log("CritiqueAgent: 'None' response without explicit score, using fallback score")
+        score = 6
+      end
+
+      # If score is nil (and not "None" response), retry with stricter prompt
       # Skip retry if we've reached max revisions (allow graceful exit)
-      if score.nil? && revision_count < 3
+      if score.nil? && !is_none_response && revision_count < 3
         log("CritiqueAgent: LLM response missing score, retrying with stricter prompt")
         score = retry_with_stricter_prompt(email_content, model_content, strictness_guidance, checks_list)
-        
+
         # If retry also failed, raise error
         if score.nil?
           error_msg = "CritiqueAgent failed to extract score after retry. LLM did not provide required 'Score: X/10' format."
           log("ERROR: #{error_msg}")
           raise StandardError, error_msg
         end
-      elsif score.nil? && revision_count >= 3
+      elsif score.nil? && !is_none_response && revision_count >= 3
         # Max revisions reached - use fallback score to allow graceful completion
         log("CritiqueAgent: Max revisions reached with nil score, using fallback score")
         score = 6

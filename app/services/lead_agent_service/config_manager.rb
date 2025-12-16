@@ -17,7 +17,7 @@ class LeadAgentService::ConfigManager
     # Request/job-scoped cache to avoid duplicate queries for the same (campaign_id, agent_name) pair
     # Uses Current attributes which are automatically cleared at the end of each request/job
     # Current.config_cache is lazily initialized, so no nil check needed
-    key = [campaign.id, agent_name.to_s]
+    key = [ campaign.id, agent_name.to_s ]
     cache = Current.config_cache
 
     # Bound cache growth: if cache gets too large, skip caching for this lookup

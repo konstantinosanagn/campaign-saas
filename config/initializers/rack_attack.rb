@@ -92,6 +92,6 @@ class Rack::Attack
     headers = { "Content-Type" => "application/json" }
     headers["Retry-After"] = retry_after.to_s if retry_after
 
-    [429, headers, [body]]
+    [ 429, headers, [ body ] ]
   end
 end

@@ -51,7 +51,7 @@ class LeadSerializer < BaseSerializer
   def available_actions
     next_step = lead_run && (lead_run["nextStep"] || lead_run[:nextStep])
     agent = next_step && (next_step["agentName"] || next_step[:agentName])
-    agent ? [agent] : []
+    agent ? [ agent ] : []
   end
 
   # Get rewrite count for this lead
