@@ -37,3 +37,5 @@ RSpec.describe "LeadRuns claim-time settings snapshot" do
     expect(snapshot2).to eq(snapshot1)
   end
 end
+
+

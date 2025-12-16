@@ -84,3 +84,5 @@ class EmailDeliveryConfig
     { ok: false, reasons: reasons }
   end
 end
+
+

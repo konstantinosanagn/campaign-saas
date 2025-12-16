@@ -210,6 +210,7 @@ class EmailSenderService
   # Returns the current provider being used
   #
   # @return [String] Provider name (e.g., "gmail_api", "smtp")
+  # Public method (needed by EmailSendingJob)
   def current_provider
     @provider || default_provider
   end
@@ -475,50 +476,20 @@ class EmailSenderService
     # @param use_background_job [Boolean] Whether to use background job (default: true)
     # @return [Hash] Result with success status and any error message
     def send_email_for_lead(lead, use_background_job: true)
-      # Verify lead belongs to a campaign owned by a user
-      unless lead.campaign&.user
-        return {
-          success: false,
-          error: "Lead does not belong to a valid campaign"
-        }
+      return { success: false, error: "Lead not ready" } unless lead_ready?(lead)
+
+      lead.update!(email_status: "queued")
+
+      if use_background_job
+        EmailSendingJob.perform_later(lead.id)
+      else
+        EmailSendingJob.perform_now(lead.id)
       end
 
-      # Check if lead is ready
-      unless lead_ready?(lead)
-        return {
-          success: false,
-          error: "Lead is not ready to send. Lead must be at 'designed' or 'completed' stage with email content available."
-        }
-      end
-
-      begin
-        if use_background_job
-          # Queue background job
-          EmailSendingJob.perform_later(lead.id)
-          Rails.logger.info("[EmailSender] Queued email sending job for lead #{lead.id} (#{lead.email})")
-          {
-            success: true,
-            message: "Email sending queued for #{lead.email}"
-          }
-        else
-          # Synchronous sending (for backward compatibility)
-          Rails.logger.info("[EmailSender] Attempting to send email to lead #{lead.id} (#{lead.email})")
-          service = new(lead)
-          service.send_email!
-          Rails.logger.info("[EmailSender] Successfully sent email to lead #{lead.id}")
-          {
-            success: true,
-            message: "Email sent successfully to #{lead.email}"
-          }
-        end
-      rescue => e
-        Rails.logger.error("[EmailSender] Failed to queue/send email to lead #{lead.id}: #{e.class} #{e.message}")
-        Rails.logger.error(e.backtrace.join("\n")) if e.backtrace
-        {
-          success: false,
-          error: e.message
-        }
-      end
+      { success: true }
+    rescue => e
+      Rails.logger.error("EmailSenderService.send_email_for_lead error: #{e.class}: #{e.message}")
+      { success: false, error: e.message }
     end
 
     ##

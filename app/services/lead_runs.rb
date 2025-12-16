@@ -333,22 +333,15 @@ module LeadRuns
         return
       end
 
-      # Handle position edge case: if sender position is 0 or 1, resequence first
-      # to ensure we have safe gaps for insertion
-      if sender_step.position <= 1
+      # Resequence BEFORE inserting if sender.position <= 10
+      # This ensures positions.min >= 10 always true after the operation
+      if sender_step.position <= 10
         resequence_positions!(run)
-        sender_step.reload
+        sender_step = run.steps.where(agent_name: "SENDER", status: "queued").order(:position).first
       end
 
-      # Try to insert right before sender
-      insert_pos = sender_step.position - 1
-
-      # If that slot is taken, resequence to create gaps, then insert again
-      if run.steps.where(position: insert_pos).exists?
-        resequence_positions!(run)
-        sender_step.reload
-        insert_pos = sender_step.position - 1
-      end
+      # Insert DESIGN at sender.position - 10 (ensures safe gap)
+      insert_pos = sender_step.position - 10
 
       run.steps.create!(
         agent_name: "DESIGN",
