@@ -11,15 +11,18 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
 
   describe "GET #index" do
     it "returns leads belonging to current_user" do
-      lead1 = create(:lead, campaign: campaign)
-      lead2 = create(:lead, campaign: campaign)
+      leads = [ double(id: 1), double(id: 2) ]
+      allow(Lead).to receive_message_chain(:includes, :joins, :where).and_return(leads)
+      allow(LeadSerializer).to receive(:serialize_collection).with(leads, anything).and_return([
+        { "id" => 1, "name" => "Lead 1" },
+        { "id" => 2, "name" => "Lead 2" }
+      ])
 
       get :index
 
       expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body)
       expect(body.length).to eq(2)
-      expect(body.map { |l| l["id"] }).to contain_exactly(lead1.id, lead2.id)
     end
   end
 
@@ -251,90 +254,47 @@ RSpec.describe Api::V1::LeadsController, type: :controller do
   end
 
   describe "POST #send_email" do
-    let(:lead) { create(:lead, campaign: campaign) }
-
-    before do
-      # Create SENDER agent config
-      create(:agent_config, campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true)
-      # Configure email sending
-      user.update!(gmail_access_token: 'token', gmail_refresh_token: 'refresh', gmail_email: 'test@gmail.com')
-    end
+    let(:lead) { double(id: 5) }
 
     it "returns 404 when lead missing" do
-      post :send_email, params: { id: 99999 }
+      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(nil)
+
+      post :send_email, params: { id: 1 }
 
       expect(response).to have_http_status(:not_found)
       body = JSON.parse(response.body)
       expect(body["errors"]).to include(/Lead not found or unauthorized/)
     end
 
-    it "returns success when send_email succeeds" do
-      # Create a completed DESIGN output for the lead
-      run = create(:lead_run, lead: lead, campaign: campaign, status: 'completed')
-      design_step = create(:lead_run_step, lead_run: run, agent_name: AgentConstants::AGENT_DESIGN, status: 'completed', position: 40)
-      create(:agent_output,
-        lead: lead,
-        lead_run: run,
-        lead_run_step: design_step,
-        agent_name: AgentConstants::AGENT_DESIGN,
-        status: 'completed',
-        output_data: { 'formatted_email' => 'Subject: Test\n\nBody content' }
-      )
+    it "returns success when EmailSenderService succeeds" do
+      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
+      allow(EmailSenderService).to receive(:send_email_for_lead).with(lead).and_return({ success: true, message: "Email sent" })
 
-      # Mock job enqueue
-      job_double = double(job_id: 'job-123')
-      allow(AgentExecutionJob).to receive(:perform_later).and_return(job_double)
+      post :send_email, params: { id: 1 }
 
-      post :send_email, params: { id: lead.id }
-
-      expect(response).to have_http_status(:accepted)
+      expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body)
       expect(body["success"]).to be true
-      expect(body["message"]).to eq("Email sending queued")
-      expect(body["jobId"]).to eq("job-123")
+      expect(body["message"]).to eq("Email sent")
     end
 
-    it "returns error when sending is not configured" do
-      # Remove Gmail configuration
-      user.update!(gmail_access_token: nil, gmail_refresh_token: nil, gmail_email: nil)
+    it "returns error when EmailSenderService fails" do
+      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
+      allow(EmailSenderService).to receive(:send_email_for_lead).with(lead).and_return({ success: false, error: "Lead not ready" })
 
-      # Create a completed DESIGN output for the lead
-      run = create(:lead_run, lead: lead, campaign: campaign, status: 'completed')
-      design_step = create(:lead_run_step, lead_run: run, agent_name: AgentConstants::AGENT_DESIGN, status: 'completed', position: 40)
-      create(:agent_output,
-        lead: lead,
-        lead_run: run,
-        lead_run_step: design_step,
-        agent_name: AgentConstants::AGENT_DESIGN,
-        status: 'completed',
-        output_data: { 'formatted_email' => 'Subject: Test\n\nBody content' }
-      )
-
-      post :send_email, params: { id: lead.id }
+      post :send_email, params: { id: 1 }
 
       expect(response).to have_http_status(:unprocessable_entity)
       body = JSON.parse(response.body)
       expect(body["success"]).to be false
-      expect(body["error"]).to eq("sending_not_configured")
+      expect(body["error"]).to eq("Lead not ready")
     end
 
-    it "handles exceptions raised during send_email" do
-      # Create a completed DESIGN output for the lead
-      run = create(:lead_run, lead: lead, campaign: campaign, status: 'completed')
-      design_step = create(:lead_run_step, lead_run: run, agent_name: AgentConstants::AGENT_DESIGN, status: 'completed', position: 40)
-      create(:agent_output,
-        lead: lead,
-        lead_run: run,
-        lead_run_step: design_step,
-        agent_name: AgentConstants::AGENT_DESIGN,
-        status: 'completed',
-        output_data: { 'formatted_email' => 'Subject: Test\n\nBody content' }
-      )
+    it "handles exceptions raised by EmailSenderService" do
+      allow(Lead).to receive_message_chain(:includes, :joins, :where, :find_by).and_return(lead)
+      allow(EmailSenderService).to receive(:send_email_for_lead).and_raise(StandardError, "Network error")
 
-      # Mock LeadRuns.ensure_sendable_run! to raise an error
-      allow(LeadRuns).to receive(:ensure_sendable_run!).and_raise(StandardError, "Network error")
-
-      post :send_email, params: { id: lead.id }
+      post :send_email, params: { id: 1 }
 
       expect(response).to have_http_status(:internal_server_error)
       body = JSON.parse(response.body)

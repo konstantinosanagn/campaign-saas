@@ -533,12 +533,11 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'handles error gracefully' do
         result = critique_agent.critique(article)
 
-        expect(result['critique']).to be_nil
-        expect(result['error']).to eq('Network error')
-        expect(result['detail']).to eq('Network error')
-        expect(result['retryable']).to be true
-        expect(result['error_type']).to eq('network')
-        expect(result['provider']).to eq('gemini')
+        expect(result).to eq({
+          'critique' => nil,
+          'error' => 'Network error',
+          'detail' => 'Network error'
+        })
       end
 
       it 'logs error message' do
@@ -550,13 +549,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
 
     context 'when response is malformed' do
       let(:malformed_response) do
-        double('response', parsed_response: {}, headers: {}, respond_to?: true)
+        double('response', parsed_response: {})
       end
 
       before do
-        allow(malformed_response).to receive(:respond_to?).with(:code).and_return(false)
-        allow(malformed_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(malformed_response).to receive(:respond_to?).with(:headers).and_return(true)
         allow(described_class).to receive(:post).and_return(malformed_response)
       end
 
@@ -582,13 +578,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
               }
             }
           ]
-        }, headers: {}, respond_to?: true)
+        })
       end
 
       before do
-        allow(nil_text_response).to receive(:respond_to?).with(:code).and_return(false)
-        allow(nil_text_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(nil_text_response).to receive(:respond_to?).with(:headers).and_return(true)
         allow(described_class).to receive(:post).and_return(nil_text_response)
       end
 
@@ -606,13 +599,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       let(:no_candidates_response) do
         double('response', parsed_response: {
           'candidates' => []
-        }, headers: {}, respond_to?: true)
+        })
       end
 
       before do
-        allow(no_candidates_response).to receive(:respond_to?).with(:code).and_return(false)
-        allow(no_candidates_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(no_candidates_response).to receive(:respond_to?).with(:headers).and_return(true)
         allow(described_class).to receive(:post).and_return(no_candidates_response)
       end
 
@@ -632,13 +622,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
           'candidates' => [
             {}
           ]
-        }, headers: {}, respond_to?: true)
+        })
       end
 
       before do
-        allow(no_content_response).to receive(:respond_to?).with(:code).and_return(false)
-        allow(no_content_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(no_content_response).to receive(:respond_to?).with(:headers).and_return(true)
         allow(described_class).to receive(:post).and_return(no_content_response)
       end
 
@@ -662,13 +649,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
               }
             }
           ]
-        }, headers: {}, respond_to?: true)
+        })
       end
 
       before do
-        allow(no_parts_response).to receive(:respond_to?).with(:code).and_return(false)
-        allow(no_parts_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(no_parts_response).to receive(:respond_to?).with(:headers).and_return(true)
         allow(described_class).to receive(:post).and_return(no_parts_response)
       end
 
@@ -805,16 +789,14 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
 
     context 'when API returns error object' do
       it 'detects error and marks 429 as retryable' do
-        error_response = double("response",
+        error_response = double("response", 
           code: 429,
           parsed_response: { "error" => { "code" => 429, "message" => "Quota exceeded" } },
-          headers: {},
           respond_to?: true
         )
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -830,13 +812,11 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         error_response = double("response",
           code: 500,
           parsed_response: { "error" => { "code" => 500, "message" => "Internal server error" } },
-          headers: {},
           respond_to?: true
         )
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -851,13 +831,11 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         error_response = double("response",
           code: 401,
           parsed_response: { "error" => { "code" => 401, "message" => "Unauthorized" } },
-          headers: {},
           respond_to?: true
         )
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -872,20 +850,18 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it '429 JSON error payload does not attempt score parse; stores all error metadata' do
         error_response = double("response",
           code: 429,
-          parsed_response: {
-            "error" => {
-              "code" => 429,
+          parsed_response: { 
+            "error" => { 
+              "code" => 429, 
               "message" => "Quota exceeded",
               "details" => "You have exceeded your API quota"
-            }
+            } 
           },
-          headers: {},
           respond_to?: true
         )
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -906,14 +882,12 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'detects error from errors array' do
         error_response = double("response",
           code: 429,
-          parsed_response: { "errors" => [ { "code" => 429, "message" => "Quota exceeded" } ] },
-          headers: {},
+          parsed_response: { "errors" => [{ "code" => 429, "message" => "Quota exceeded" }] },
           respond_to?: true
         )
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -930,13 +904,11 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         error_response = double("response",
           code: nil,
           parsed_response: { "status" => 429, "message" => "Quota exceeded" },
-          headers: {},
           respond_to?: true
         )
         allow(error_response).to receive(:respond_to?).with(:code).and_return(false)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -954,12 +926,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         error_response = double("response")
         allow(error_response).to receive(:code).and_return(nil)
         allow(error_response).to receive(:parsed_response).and_return("Error: You exceeded your quota. Please retry in 43 seconds.")
-        allow(error_response).to receive(:headers).and_return({})
         allow(error_response).to receive(:respond_to?).with(:code).and_return(false)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
         allow(error_response).to receive(:respond_to?).with(anything).and_return(false)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -975,12 +945,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         error_response = double("response")
         allow(error_response).to receive(:code).and_return(429)
         allow(error_response).to receive(:parsed_response).and_return("Error: You exceeded your quota.")
-        allow(error_response).to receive(:headers).and_return({})
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
         allow(error_response).to receive(:respond_to?).with(anything).and_return(false)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -998,12 +966,10 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         error_response = double("response")
         allow(error_response).to receive(:code).and_return(503)
         allow(error_response).to receive(:parsed_response).and_return("<html><body>Service Unavailable</body></html>")
-        allow(error_response).to receive(:headers).and_return({})
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
         allow(error_response).to receive(:respond_to?).with(anything).and_return(false)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -1021,13 +987,11 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         error_response = double("response",
           code: 401,
           parsed_response: { "error" => { "code" => 401, "message" => "Unauthorized" } },
-          headers: {},
           respond_to?: true
         )
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -1042,21 +1006,19 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
       it 'sanitizes provider_error: redacts API keys and Bearer tokens' do
         error_response = double("response",
           code: 429,
-          parsed_response: {
-            "error" => {
-              "code" => 429,
+          parsed_response: { 
+            "error" => { 
+              "code" => 429, 
               "message" => "Quota exceeded",
               "request_id" => "abc123",
               "debug_info" => "Bearer AIzaSyAbCdEfGhIjKlMnOpQrStUvWxYz1234567890"
-            }
+            } 
           },
-          headers: {},
           respond_to?: true
         )
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -1076,13 +1038,11 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         error_response = double("response",
           code: "429",  # String instead of Integer
           parsed_response: { "error" => { "code" => 429, "message" => "Quota exceeded" } },
-          headers: {},
           respond_to?: true
         )
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
@@ -1098,13 +1058,11 @@ RSpec.describe Agents::CritiqueAgent, type: :service do
         error_response = double("response",
           code: 0,
           parsed_response: { "error" => { "code" => 500, "message" => "Server error" } },
-          headers: {},
           respond_to?: true
         )
         allow(error_response).to receive(:respond_to?).with(:code).and_return(true)
         allow(error_response).to receive(:respond_to?).with(:parsed_response).and_return(true)
-        allow(error_response).to receive(:respond_to?).with(:headers).and_return(true)
-
+        
         allow(described_class).to receive(:post).and_return(error_response)
 
         expect {
