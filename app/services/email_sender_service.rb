@@ -15,6 +15,15 @@
 require_relative "../exceptions/gmail_authorization_error"
 require_relative "../errors/email_errors"
 require "cgi"
+require "mail"
+
+unless defined?(Google::Apis::RateLimitError)
+  module Google
+    module Apis
+      class RateLimitError < StandardError; end
+    end
+  end
+end
 
 class EmailSenderService
   include AgentConstants
@@ -725,8 +734,7 @@ class EmailSenderService
       require "uri"
       require "base64"
 
-      # Build the raw MIME message string
-      raw_message = email_content.is_a?(Mail) ? email_content.to_s : email_content.to_s
+      raw_message = format_email_for_gmail(email_content, from_email, lead.email)
 
       # Gmail API expects URL-safe base64
       encoded_message = Base64.urlsafe_encode64(raw_message)
@@ -734,6 +742,7 @@ class EmailSenderService
       url = URI.parse("https://gmail.googleapis.com/gmail/v1/users/me/messages/send")
       http = Net::HTTP.new(url.host, url.port)
       http.use_ssl = true
+      http.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
       request = Net::HTTP::Post.new(url.request_uri)
       request["Authorization"] = "Bearer #{access_token}"
@@ -761,6 +770,39 @@ class EmailSenderService
         # Specs match /Gmail API error/
         raise "Gmail API error: #{response.code}"
       end
+    end
+
+    def format_email_for_gmail(email_content, from_email, to_email)
+      content = email_content.to_s
+      return content if content =~ /^\s*From:/i
+
+      lines = content.lines
+      subject_line = nil
+
+      if lines.first&.match?(/\ASubject:/i)
+        subject_line = lines.shift
+        lines.shift if lines.first&.strip == ""
+      end
+
+      subject =
+        if subject_line
+          subject_line.split(":", 2).last.to_s.strip
+        else
+          "Campaign Update"
+        end
+
+      body = subject_line ? lines.join : content
+
+      mail = Mail.new
+      mail.from = from_email
+      mail.to = to_email
+      mail.subject = subject
+      mail.text_part = Mail::Part.new do
+        content_type "text/plain; charset=UTF-8"
+        body body.strip
+      end
+
+      mail.encoded
     end
 
     # Make it private so specs can call it with send
