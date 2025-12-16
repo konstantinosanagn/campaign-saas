@@ -26,7 +26,7 @@ Rails.application.routes.draw do
   end
 
   # Profile completion routes
-  get "/complete-profile", to: "profiles#edit",   as: :complete_profile
+  get  "/complete-profile", to: "profiles#edit",   as: :complete_profile
   patch "/complete-profile", to: "profiles#update"
 
   resources :campaigns do
@@ -60,7 +60,7 @@ Rails.application.routes.draw do
       resource :api_keys, only: [ :show, :update ]
       resource :email_config, only: [ :show, :update ]
       resource :oauth_status, only: [ :show ]
-
+      
       # Public demo endpoint (token-based auth, no Devise session)
       scope path: "public" do
         post "leads/:id/send_email", to: "public_leads#send_email"

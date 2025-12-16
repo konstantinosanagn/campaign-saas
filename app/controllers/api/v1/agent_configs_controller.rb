@@ -99,7 +99,7 @@ module Api
           if existing_config.update(update_hash)
             existing_config.reload
             Rails.logger.info("[AgentConfigsController] Config updated successfully id=#{existing_config.id} enabled=#{existing_config.enabled}")
-
+            
             # Reconcile active runs for this campaign to reflect the config change
             active_runs = LeadRun.where(campaign_id: campaign.id, status: LeadRun::ACTIVE_STATUSES)
             active_runs.find_each do |run|
@@ -109,7 +109,7 @@ module Api
                 LeadRuns.ensure_design_step!(run)
               end
             end
-
+            
             render json: AgentConfigSerializer.serialize(existing_config), status: :ok
           else
             Rails.logger.error("[AgentConfigsController] Config update failed: #{existing_config.errors.full_messages.join(', ')}")
@@ -135,7 +135,7 @@ module Api
               LeadRuns.ensure_design_step!(run)
             end
           end
-
+          
           render json: AgentConfigSerializer.serialize(config), status: :created
         else
           render json: { errors: config.errors.full_messages }, status: :unprocessable_entity
@@ -183,7 +183,7 @@ module Api
           # Reload to ensure we have the latest values
           config.reload
           Rails.logger.info("[AgentConfigsController] Config updated successfully id=#{config.id} enabled=#{config.enabled}")
-
+          
           # Reconcile active runs for this campaign to reflect the config change
           active_runs = LeadRun.where(campaign_id: campaign.id, status: LeadRun::ACTIVE_STATUSES)
           active_runs.find_each do |run|
@@ -193,7 +193,7 @@ module Api
               LeadRuns.ensure_design_step!(run)
             end
           end
-
+          
           render json: AgentConfigSerializer.serialize(config), status: :ok
         else
           Rails.logger.error("[AgentConfigsController] Config update failed: #{config.errors.full_messages.join(', ')}")

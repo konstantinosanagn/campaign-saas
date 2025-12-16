@@ -153,39 +153,6 @@ class EmailSenderService
     end
   end
 
-  ##
-  # Builds email payload (subject, text_body, html_body)
-  # For the specs, the exact content does NOT matter; they stub send_email_via_provider
-  #
-  # @return [Array<String>] [subject, text_body, html_body]
-  # Public method (needed by EmailSendingJob)
-  def build_email_payload
-    # Try to extract from agent outputs first (for real usage)
-    begin
-      subject, text_body, html_body = extract_subject_and_body(lead)
-      return [ subject, text_body, html_body ]
-    rescue => e
-      # Fallback to simple payload if extraction fails (for tests)
-      Rails.logger.warn("[EmailSender] Could not extract email from agent outputs: #{e.message}, using fallback")
-    end
-
-    # Fallback payload (used when agent outputs are not available or in tests)
-    subject = "Follow-up from #{lead.campaign&.title || 'your campaign'}"
-
-    text_body = <<~TEXT
-      Hi #{lead.name || 'there'},
-
-      This is a follow-up email.
-    TEXT
-
-    html_body = <<~HTML
-      <p>Hi #{CGI.escapeHTML(lead.name || 'there')},</p>
-      <p>This is a follow-up email.</p>
-    HTML
-
-    [ subject, text_body, html_body ]
-  end
-
   private
 
   ##
@@ -226,6 +193,38 @@ class EmailSenderService
     else
       "smtp"
     end
+  end
+
+  ##
+  # Builds email payload (subject, text_body, html_body)
+  # For the specs, the exact content does NOT matter; they stub send_email_via_provider
+  #
+  # @return [Array<String>] [subject, text_body, html_body]
+  def build_email_payload
+    # Try to extract from agent outputs first (for real usage)
+    begin
+      subject, text_body, html_body = extract_subject_and_body(lead)
+      return [ subject, text_body, html_body ]
+    rescue => e
+      # Fallback to simple payload if extraction fails (for tests)
+      Rails.logger.warn("[EmailSender] Could not extract email from agent outputs: #{e.message}, using fallback")
+    end
+
+    # Fallback payload (used when agent outputs are not available or in tests)
+    subject = "Follow-up from #{lead.campaign&.title || 'your campaign'}"
+
+    text_body = <<~TEXT
+      Hi #{lead.name || 'there'},
+
+      This is a follow-up email.
+    TEXT
+
+    html_body = <<~HTML
+      <p>Hi #{CGI.escapeHTML(lead.name || 'there')},</p>
+      <p>This is a follow-up email.</p>
+    HTML
+
+    [ subject, text_body, html_body ]
   end
 
   ##

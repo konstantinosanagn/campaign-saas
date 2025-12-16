@@ -92,7 +92,7 @@ Rails.application.configure do
   # Developer convenience: allow reading existing plaintext rows while you
   # migrate/local-backfill secrets. Production safety is controlled separately.
   config.active_record.encryption.support_unencrypted_data = true
-  end
+end
 
   # Highlight code that enqueued background job in logs.
   config.active_job.verbose_enqueue_logs = true

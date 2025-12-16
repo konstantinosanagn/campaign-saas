@@ -75,6 +75,11 @@ export default function CampaignDashboard({
 
   // Map lead stage to the appropriate tab in the output modal
   const getTabForStage = (stage: string): 'SEARCH' | 'WRITER' | 'DESIGN' | 'CRITIQUE' | 'ALL' => {
+    // Handle rewritten stages - show CRITIQUE tab (most recent output is usually CRITIQUE)
+    if (stage?.startsWith('rewritten')) {
+      return 'CRITIQUE'
+    }
+    
     switch (stage) {
       case 'searched':
         return 'SEARCH'
