@@ -7,5 +7,3 @@ class AllowSkippedStatusOnLeadRunSteps < ActiveRecord::Migration[8.1]
                          name: "check_lead_run_steps_status"
   end
 end
-
-

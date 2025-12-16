@@ -24,7 +24,7 @@ RSpec.describe EmailSenderService, type: :service do
         AgentConfig.create!(campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true, settings: {})
         # Configure email delivery (required for can_send)
         user.update!(gmail_access_token: 'token', gmail_refresh_token: 'refresh', gmail_email: 'test@gmail.com')
-        
+
         # Create a run with SENDER as next step to ensure can_send is true
         run = LeadRun.create!(lead: lead, campaign: campaign, status: "queued", plan: {}, config_snapshot: {})
         design_step = LeadRunStep.create!(lead_run: run, position: 40, agent_name: AgentConstants::AGENT_DESIGN, status: "completed", meta: {})

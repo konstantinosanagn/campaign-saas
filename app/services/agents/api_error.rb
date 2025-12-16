@@ -15,4 +15,3 @@ module Agents
     end
   end
 end
-

@@ -338,7 +338,7 @@ module Agents
           json_error_code = error_detail["code"] || error_detail[:code] || error_detail["status"] || error_detail[:status]
           error_code = http_status || (json_error_code.to_i if json_error_code)
           error_type = CritiqueAgent.classify_error_type(error_code)
-          retryable = [429, 500, 502, 503, 504].include?(error_code) if error_code
+          retryable = [ 429, 500, 502, 503, 504 ].include?(error_code) if error_code
 
           raise Agents::ApiError.new(
             "Gemini API error",
@@ -374,7 +374,7 @@ module Agents
         )
       end
 
-      if [401, 403].include?(http_status)
+      if [ 401, 403 ].include?(http_status)
         raise Agents::ApiError.new(
           "Gemini auth error",
           retryable: false,

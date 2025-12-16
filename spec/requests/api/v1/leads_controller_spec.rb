@@ -463,7 +463,7 @@ RSpec.describe Api::V1::LeadsController, type: :request do
           sender_step = active_run.steps.find_by(agent_name: AgentConstants::AGENT_SENDER)
           expect(sender_step).to be_present
           # Step may be queued (if job not executed) or running (if job executed)
-          expect(['queued', 'running']).to include(sender_step.status)
+          expect([ 'queued', 'running' ]).to include(sender_step.status)
           expect(sender_step.meta['source_step_id']).to eq(design_step.id)
         end
 

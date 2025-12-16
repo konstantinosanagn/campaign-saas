@@ -7,13 +7,13 @@ RSpec.describe "LeadRuns: send_email does not invoke StageManagerFacade", type: 
     user = create(:user)
     campaign = create(:campaign, user: user)
     lead = create(:lead, campaign: campaign)
-    
+
     # Create SENDER agent config
     create(:agent_config, campaign: campaign, agent_name: AgentConstants::AGENT_SENDER, enabled: true)
-    
+
     # Configure email sending
     user.update!(gmail_access_token: 'token', gmail_refresh_token: 'refresh', gmail_email: 'test@gmail.com')
-    
+
     # Create a completed DESIGN output
     run = create(:lead_run, lead: lead, campaign: campaign, status: 'completed')
     design_step = create(:lead_run_step, lead_run: run, agent_name: AgentConstants::AGENT_DESIGN, status: 'completed', position: 40)
