@@ -342,7 +342,8 @@ class EmailSenderService
         # Build email_content string for the class method signature
         email_content = "Subject: #{subject}\n\n#{text_body}"
         # Use send since it's a private_class_method
-        send(:send_via_gmail_api, lead, email_content, from_email, user, access_token)
+        Rails.logger.error("HTML BODY LOST") if html_body.blank?
+        send(:send_via_gmail_api, lead, subject, text_body, html_body, from_email, user, access_token)
         return
       end
     end
@@ -720,50 +721,71 @@ class EmailSenderService
     # @param access_token [String] Gmail OAuth access token
     # @raise [StandardError] "Network error" on network failures
     # @raise [String] "Gmail API error: ..." on non-2xx responses
-    def send_via_gmail_api(lead, email_content, from_email, user, access_token)
-      require "net/http"
-      require "uri"
-      require "base64"
+    #   def send_via_gmail_api(lead, email_content, from_email, user, access_token)
+    #     require "net/http"
+    #     require "uri"
+    #     require "base64"
 
-      # Build the raw MIME message string
-      raw_message = email_content.is_a?(Mail) ? email_content.to_s : email_content.to_s
+    #     # Build the raw MIME message string
+    #     raw_message = email_content.is_a?(Mail) ? email_content.to_s : email_content.to_s
 
-      # Gmail API expects URL-safe base64
-      encoded_message = Base64.urlsafe_encode64(raw_message)
+    #     # Gmail API expects URL-safe base64
+    #     encoded_message = Base64.urlsafe_encode64(raw_message)
 
-      url = URI.parse("https://gmail.googleapis.com/gmail/v1/users/me/messages/send")
-      http = Net::HTTP.new(url.host, url.port)
-      http.use_ssl = true
+    #     url = URI.parse("https://gmail.googleapis.com/gmail/v1/users/me/messages/send")
+    #     http = Net::HTTP.new(url.host, url.port)
+    #     http.use_ssl = true
 
-      request = Net::HTTP::Post.new(url.request_uri)
-      request["Authorization"] = "Bearer #{access_token}"
-      request["Content-Type"]  = "application/json"
-      request.body = { raw: encoded_message }.to_json
+    #     request = Net::HTTP::Post.new(url.request_uri)
+    #     request["Authorization"] = "Bearer #{access_token}"
+    #     request["Content-Type"]  = "application/json"
+    #     request.body = { raw: encoded_message }.to_json
 
-      begin
-        response = http.request(request)
-      rescue StandardError => e
-        Rails.logger.error(
-          "[EmailSenderService] Gmail API network error for lead #{lead.id}: #{e.class}: #{e.message}"
-        )
-        # Specs expect a generic "Network error"
-        raise StandardError, "Network error"
-      end
+    #     begin
+    #       response = http.request(request)
+    #     rescue StandardError => e
+    #       Rails.logger.error(
+    #         "[EmailSenderService] Gmail API network error for lead #{lead.id}: #{e.class}: #{e.message}"
+    #       )
+    #       # Specs expect a generic "Network error"
+    #       raise StandardError, "Network error"
+    #     end
 
-      if response.code.to_i.between?(200, 299)
-        Rails.logger.info(
-          "[EmailSenderService] Gmail API send success for lead #{lead.id}"
-        )
-      else
-        Rails.logger.error(
-          "[EmailSenderService] Gmail API error for lead #{lead.id}: #{response.code} #{response.body}"
-        )
-        # Specs match /Gmail API error/
-        raise "Gmail API error: #{response.code}"
-      end
+    #     if response.code.to_i.between?(200, 299)
+    #       Rails.logger.info(
+    #         "[EmailSenderService] Gmail API send success for lead #{lead.id}"
+    #       )
+    #     else
+    #       Rails.logger.error(
+    #         "[EmailSenderService] Gmail API error for lead #{lead.id}: #{response.code} #{response.body}"
+    #       )
+    #       # Specs match /Gmail API error/
+    #       raise "Gmail API error: #{response.code}"
+    #     end
+    #   end
+
+    #   # Make it private so specs can call it with send
+    #   private :send_via_gmail_api
+    # end
+
+    def send_via_gmail_api(lead, subject, text_body, html_body, from_email, user, access_token)
+      sender = User.find_by(email: from_email) || user
+      raise "No sender user found for from_email=#{from_email}" unless sender
+
+      # subject = extract_subject(email_content, lead.campaign.title, lead.name)
+      # text_body = email_content.to_s.sub(/\ASubject:.*\r?\n\r?\n/m, "")
+
+      GmailSender.send_email(
+        user: sender,
+        to: lead.email,
+        subject: subject,
+        html_body: html_body,
+        text_body: text_body
+      )
+
+      Rails.logger.info("[EmailSenderService] GmailSender(Faraday) send success for lead #{lead.id}")
     end
 
-    # Make it private so specs can call it with send
     private :send_via_gmail_api
   end
 end

@@ -2,6 +2,8 @@ source "https://rubygems.org"
 
 ruby "~> 3.3.0"
 
+gem "openssl", "~> 3.3", ">= 3.3.2"
+
 # Core Rails
 gem "rails", "~> 8.1.0"
 gem "sprockets-rails"
