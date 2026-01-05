@@ -5,7 +5,7 @@ ruby "~> 3.3.0"
 # Core Rails
 gem "rails", "~> 8.1.0"
 gem "sprockets-rails"
-gem "pg", "~> 1.1"
+gem "pg", "~> 1.6"
 gem "puma", ">= 5.0"
 
 # Basic JavaScript with React support
